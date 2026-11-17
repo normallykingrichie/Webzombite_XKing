@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webzombite (Beta) - XKing</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud" hidden>
+  <div id="cross"></div>
+  <div id="info"></div>
+  <canvas id="mini" width="170" height="170" aria-label="Minimap"></canvas>
+  <div id="prompt"></div>
+  <div id="eat"><i></i><span></span></div>
+  <div id="held"></div>
+  <div id="stats"></div>
+  <div id="status"></div>
+  <div id="hotbar"></div>
+  <div id="feed"></div>
+  <div id="vig"></div>
+  <div id="dark"></div>
+  <div id="saved"></div>
+</div>
+
+<div id="inv" class="panel" hidden></div>
+<div id="screen" class="screen"></div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="world.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
