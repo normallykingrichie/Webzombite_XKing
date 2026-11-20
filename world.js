@@ -16,7 +16,7 @@
     var R = mulberry(20261116), ANISO = Math.min(4, maxAniso || 4);
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
-    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
+    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
     var HALF = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = HALF;
 
     var CELL = 8, sgrid = new Map();
@@ -176,6 +176,26 @@
       g.fillStyle = '#14202b'; g.fillRect(16, 14, 96, 58); g.fillStyle = '#3ad0a0'; g.fillRect(24, 22, 80, 42);
       g.fillStyle = '#c9c9c9'; g.fillRect(24, 82, 80, 16); g.fillStyle = '#333'; for (var kx = 28; kx < 100; kx += 10) g.fillRect(kx, 86, 7, 8);
     });
+    var sawTex = canvasTex(128, 128, function (g, w, h) {
+      g.fillStyle = '#a9794a'; g.fillRect(0, 0, w, h); g.fillStyle = '#7a532f'; g.fillRect(0, 88, w, 40);
+      g.fillStyle = '#d8dde2'; g.beginPath(); g.arc(64, 50, 34, 0, 6.3); g.fill(); g.fillStyle = '#7a532f'; g.beginPath(); g.arc(64, 50, 8, 0, 6.3); g.fill();
+      g.strokeStyle = '#8a9096'; g.lineWidth = 3; for (var a = 0; a < 12; a++) { g.beginPath(); g.moveTo(64 + Math.cos(a / 12 * 6.28) * 34, 50 + Math.sin(a / 12 * 6.28) * 34); g.lineTo(64 + Math.cos(a / 12 * 6.28) * 42, 50 + Math.sin(a / 12 * 6.28) * 42); g.stroke(); }
+    });
+    var tbenchTex = canvasTex(128, 128, function (g, w, h) {
+      g.fillStyle = '#4b5560'; g.fillRect(0, 0, w, h); g.fillStyle = '#d28a2a'; g.fillRect(10, 10, 108, 20);
+      g.fillStyle = '#222'; g.beginPath(); g.arc(64, 74, 30, 0, 6.3); g.fill(); g.fillStyle = '#9aa3ab'; g.fillRect(58, 36, 12, 38); g.fillRect(40, 62, 48, 10);
+    });
+    var planksTex = canvasTex(128, 128, function (g, w, h) {
+      g.fillStyle = '#d9b27a'; g.fillRect(0, 0, w, h);
+      for (var y = 0; y < h; y += 32) { g.fillStyle = '#9c7240'; g.fillRect(0, y, w, 3); g.fillStyle = 'rgba(120,80,40,.25)'; g.fillRect(0, y + 10, w, 2); g.fillRect(0, y + 21, w, 1); }
+      g.fillStyle = '#8a6236'; g.fillRect(40, 0, 3, 32); g.fillRect(90, 32, 3, 32); g.fillRect(24, 64, 3, 32); g.fillRect(70, 96, 3, 32);
+    });
+    function cannonTex(base, accent) {
+      return canvasTex(128, 128, function (g, w, h) {
+        g.fillStyle = base; g.fillRect(0, 0, w, h); g.fillStyle = '#15181c'; g.beginPath(); g.arc(64, 60, 30, 0, 6.3); g.fill();
+        g.fillStyle = accent; g.fillRect(0, 100, w, 28); g.fillStyle = '#000'; g.beginPath(); g.arc(64, 60, 14, 0, 6.3); g.fill();
+      });
+    }
     var houseWallTex = canvasTex(128, 128, function (g, w, h) {
       var r = mulberry(9); g.fillStyle = '#f2eee6'; g.fillRect(0, 0, w, h);
       for (var y = 0; y < h; y += 16) { g.fillStyle = 'rgba(0,0,0,.1)'; g.fillRect(0, y, w, 2); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, y + 2, w, 2); }
@@ -392,7 +412,7 @@
     }
 
     function addBlockEnt(x, y, z, t) {
-      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : null;
+      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : t >= 13 ? 'turret' : null;
       if (!kind) return null;
       var e = { k: kind, x: x + 0.5, z: z + 0.5, y: y, r: 0.85, h: 1, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z };
       addEnt(e); W.bents.push(e);
@@ -401,23 +421,41 @@
       else if (t === 7) W.camps.push(e);
       else if (t === 8) W.anvils.push(e);
       else if (t === 9) W.comps.push(e);
+      else if (t === 11) W.saws.push(e);
+      else if (t === 12) W.tbench.push(e);
+      else if (t >= 13) { e.vt = t; e.ammo = 0; e.cd = 0; e.r = 0.75; W.turrets.push(e); }
       return e;
     }
 
     /* Loot cars: each car has 10-25 Break Points, loot is in the trunk */
-    var carBody = inst(boxB, lam(0xffffff, { map: houseWallTex }), 1000, true, true), carTop = inst(boxB, lam(0x373b40), 1000, true, false);
+    var carBody = inst(boxB, lam(0xffffff, { map: houseWallTex }), 1300, true, true), carTop = inst(boxB, lam(0x373b40), 1300, true, false);
     W.cars = [];
     W.setCar = function (c, on) {
-      if (on) { put(carBody, c.x, 0.25, c.z, c.lx, 0.9, c.lz, 0, c.col, c.ix); put(carTop, c.x, 1.15, c.z, c.horiz ? 2.2 : 1.7, 0.6, c.horiz ? 1.7 : 2.2, 0, null, c.ix); }
+      if (on && c.truck) { put(carBody, c.x, 0.5, c.z, c.lx, 1.4, c.lz, 0, c.col, c.ix); put(carTop, c.x + (c.horiz ? 1.2 : 0), 2.1, c.z + (c.horiz ? 0 : 1.2), c.horiz ? 5.0 : 2.4, 1.8, c.horiz ? 2.4 : 5.0, 0, null, c.ix); }
+      else if (on) { put(carBody, c.x, 0.25, c.z, c.lx, 0.9, c.lz, 0, c.col, c.ix); put(carTop, c.x, 1.15, c.z, c.horiz ? 2.2 : 1.7, 0.6, c.horiz ? 1.7 : 2.2, 0, null, c.ix); }
       else { put(carBody, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); put(carTop, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); }
       c.box.on = on; c.alive = on;
     };
-    function addCar(x, z, horiz, rng) {
-      var c = { k: 'car', idx: W.cars.length, x: x, z: z, y: 0, r: 1.9, h: 1.75, horiz: horiz, lx: horiz ? 4.4 : 1.9, lz: horiz ? 1.9 : 4.4, alive: true, dyn: true, respawn: 0, col: pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
-      c.max = c.hp = 10 + Math.floor(rng() * 16); c.ix = carBody.count++; carTop.count++;
-      c.box = addBox(x - c.lx / 2, x + c.lx / 2, 0, 1.75, z - c.lz / 2, z + c.lz / 2, true); W.setCar(c, true); addEnt(c); W.cars.push(c);
+    function addCar(x, z, horiz, rng, truck) {
+      var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, r: truck ? 3.4 : 1.9, h: truck ? 3.0 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
+      c.max = c.hp = truck ? 30 + Math.floor(rng() * 21) : 10 + Math.floor(rng() * 16); c.ix = carBody.count++; carTop.count++;
+      c.box = addBox(x - c.lx / 2, x + c.lx / 2, 0, c.truck ? 3.0 : 1.75, z - c.lz / 2, z + c.lz / 2, true); W.setCar(c, true); addEnt(c); W.cars.push(c);
     }
     var lakeList = [];
+    /* Graveyards: fixed spots (about 2% of the blocks outside the city centre). Zombies also spawn from them. */
+    W.graves = [];
+    function addGraveyard(cx, cz, x0, x1, z0, z1) {
+      var gr = mulberry(((Math.floor(cx) * 73856093) ^ (Math.floor(cz) * 19349663)) >>> 0), hw = Math.min(x1 - x0, 44) / 2, hd = Math.min(z1 - z0, 44) / 2, gx, gz;
+      put(walls, cx, 0.02, cz, hw * 2, 0.06, hd * 2, 0, 0x3b3a30);
+      for (gx = -hw + 3; gx <= hw - 3; gx += 4.5) for (gz = -hd + 5; gz <= hd - 3; gz += 5) {
+        if (gr() < 0.2) continue; var px = cx + gx + (gr() - 0.5) * 1.2, pz = cz + gz + (gr() - 0.5) * 1.2;
+        put(walls, px, 0.6, pz, 0.8, 1.2, 0.28, 0, 0x8d9096); put(walls, px, 0.1, pz + 0.9, 0.9, 0.2, 1.7, 0, 0x4a3a2c); addBox(px - 0.4, px + 0.4, 0, 1.2, pz - 0.15, pz + 0.15, false);
+      }
+      for (var f = -hw; f <= hw; f += 3) { if (Math.abs(f) > 3) put(walls, cx + f, 0.8, cz + hd, 0.25, 1.6, 0.25, 0, 0x2a2a2e); put(walls, cx + f, 0.8, cz - hd, 0.25, 1.6, 0.25, 0, 0x2a2a2e); }
+      for (var h2 = -hd; h2 <= hd; h2 += 3) { put(walls, cx - hw, 0.8, cz + h2, 0.25, 1.6, 0.25, 0, 0x2a2a2e); put(walls, cx + hw, 0.8, cz + h2, 0.25, 1.6, 0.25, 0, 0x2a2a2e); }
+      wallSeg(cx - 3.5, cx + 3.5, cz - hd + 1, cz - hd + 6, 0, 3.6, 0x6f7378); put(walls, cx, 4.1, cz - hd + 3.5, 8, 0.8, 7, 0, 0x55585c);
+      occupied.push([cx - hw - 1, cx + hw + 1, cz - hd - 1, cz + hd + 1]); W.rects.push({ x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd, c: '#3d3b34' }); W.graves.push({ x: cx, z: cz, r: Math.min(hw, hd) });
+    }
     /* Fixed city layout */
     for (var a = 0; a <= ROADS.length; a++) for (var b = 0; b <= ROADS.length; b++) {
       var lx0 = a === 0 ? -HALF : ROADS[a - 1] + RW / 2, lx1 = a === ROADS.length ? HALF : ROADS[a] - RW / 2;
@@ -427,6 +465,7 @@
       if (lx1 > -935 && lx0 < -875 && lz1 > -933 && lz0 < -877) continue; /* space reserved for the mineshaft mountain */
       curBiome = biomeOf(cx, cz);
       var ins = 5, bx0 = lx0 + ins, bx1 = lx1 - ins, bz0 = lz0 + ins, bz1 = lz1 - ins;
+      if (zone !== 'down' && R() < 0.02) { addGraveyard(cx, cz, bx0, bx1, bz0, bz1); continue; }
       if (zone === 'out' && R() < 0.04) { var lk = 12 + R() * 4; lakeList.push([cx - lk, cx + lk, cz - lk, cz + lk]); continue; }
       if (zone === 'down') {
         if (R() < 0.55) tallBuilding(bx0, bx1, bz0, bz1, rr(26, 72));
@@ -477,6 +516,14 @@
       W.mine = { x0: MCX - 26, x1: MCX + 26, z0: MCZ - 24, z1: MCZ + 18, door: { x: MCX, z: MCZ + 2.6 }, entrance: { x: MCX, z: MCZ + 8 } };
 
       /* ---- Underground: a separate cave level far outside the map. Reached only through the mineshaft door. ---- */
+      var dirtTex = canvasTex(128, 128, function (g, w, h) {
+        var r = mulberry(31); g.fillStyle = '#6a4a2c'; g.fillRect(0, 0, w, h);
+        var cols = ['#523720', '#7d5a36', '#3f2a17', '#8c6840', '#5f4126'];
+        for (var q = 0; q < 900; q++) { g.fillStyle = cols[(r() * 5) | 0]; g.fillRect(r() * w, r() * h, 2 + r() * 8, 2 + r() * 6); }
+        for (q = 0; q < 260; q++) { g.fillStyle = r() < 0.5 ? '#2c1d10' : '#a07a4c'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
+      });
+      var ugWalls = inst(box1, lam(0xffffff, { map: dirtTex }), 12000, false, true); W.ugWalls = ugWalls;
+      function uw(x0, x1, z0, z1, y0, y1, col) { put(ugWalls, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, 0, col); addBox(x0, x1, y0, y1, z0, z1, false); }
       var N = 61, CS = 6, UH = 5, UX = 1200, UZ = -183, grid = [], i, j;
       for (i = 0; i < N; i++) grid.push(new Uint8Array(N));
       function op(a, b) { if (a > 0 && b > 0 && a < N - 1 && b < N - 1) grid[a][b] = 1; }
@@ -493,19 +540,12 @@
       function cx(i) { return UX + (i + 0.5) * CS; } function cz(j) { return UZ + (j + 0.5) * CS; }
       var open = [];
       for (i = 1; i < N - 1; i++) for (j = 1; j < N - 1; j++) if (grid[i][j] && (i > 5 || j > 5)) open.push([cx(i), cz(j)]);
-      var UC = [0x4a4640, 0x55504a, 0x3e3b37, 0x5b4a3c];
+      var UC = [0xffffff, 0xe6d2bb, 0xcdb298, 0xf2dcc2];
       function bound(a, b) { if (grid[a][b]) return false; for (var u = -1; u <= 1; u++) for (var v = -1; v <= 1; v++) { var na = a + u, nb2 = b + v; if (na >= 0 && nb2 >= 0 && na < N && nb2 < N && grid[na][nb2]) return true; } return false; }
-      for (j = 0; j < N; j++) {
-        var run = -1;
-        for (i = 0; i <= N; i++) {
-          var bd = i < N && bound(i, j);
-          if (bd && run < 0) run = i;
-          if (!bd && run >= 0) { wallSeg(UX + run * CS, UX + i * CS, UZ + j * CS, UZ + (j + 1) * CS, 0, UH, UC[(MR() * 4) | 0]); run = -1; }
-        }
-      }
-      for (var tx = 0; tx < 19; tx++) for (var tz = 0; tz < 19; tz++) put(walls, UX + tx * 20 + 10, UH + 0.5, UZ + tz * 20 + 10, 20, 1, 20, 0, 0x2a2724);
-      var ugFloor = new THREE.Mesh(new THREE.PlaneGeometry(N * CS + 8, N * CS + 8), new THREE.MeshLambertMaterial({ color: 0x24211d })); ugFloor.rotation.x = -Math.PI / 2; ugFloor.position.set(UX + N * CS / 2, 0.03, UZ + N * CS / 2); ugFloor.visible = false; scene.add(ugFloor);
-      put(walls, cx(1), 1.2, cz(1), 1.4, 2.4, 0.5, 0, 0xc9a23a);
+      for (j = 0; j < N; j++) for (i = 0; i < N; i++) if (bound(i, j)) uw(UX + i * CS, UX + (i + 1) * CS, UZ + j * CS, UZ + (j + 1) * CS, 0, UH, UC[(MR() * 4) | 0]);
+      for (var tx = 0; tx < 37; tx++) for (var tz = 0; tz < 37; tz++) put(ugWalls, UX + tx * 10 + 5, UH + 0.5, UZ + tz * 10 + 5, 10, 1, 10, 0, UC[(MR() * 4) | 0]);
+      var ugFloor = new THREE.Mesh(new THREE.PlaneGeometry(N * CS + 8, N * CS + 8), new THREE.MeshLambertMaterial({ color: 0xcdb8a0, map: (function () { var t = dirtTex.clone(); t.needsUpdate = true; t.repeat.set(60, 60); return t; })() })); ugFloor.rotation.x = -Math.PI / 2; ugFloor.position.set(UX + N * CS / 2, 0.03, UZ + N * CS / 2); ugFloor.visible = false; scene.add(ugFloor);
+      put(walls, cx(1), 1.2, cz(1), 1.4, 2.4, 0.5, 0, 0xc9a23a); /* exit marker */
       W.ug = { x0: UX, z0: UZ, x1: UX + N * CS, z1: UZ + N * CS, spawn: { x: cx(3), z: cz(3) }, exit: { x: cx(1), z: cz(1) }, open: open, floor: ugFloor };
     })();
     var roofMat = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -532,7 +572,7 @@
       });
       scene.remove(m); m.visible = false;
     }
-    [walls, winM, dashes, postM].forEach(bake);
+    [walls, winM, dashes, postM, W.ugWalls].forEach(bake);
     /* chunk visibility: render distance (in chunks), optional 180-degree back culling */
     var cvT = 0;
     W.updateChunks = function (px, pz, fx, fz, rd, cull) {
@@ -591,6 +631,13 @@
         if (W.hit(cxx - lenX / 2 - 0.5, cxx + lenX / 2 + 0.5, 0.1, 1.8, czz - lenZ / 2 - 0.5, czz + lenZ / 2 + 0.5)) continue;
         addCar(cxx, czz, horiz, Rn); cn++;
       }
+      var tk = 0; tries = 0; /* trucks: bigger loot vehicles */
+      while (tk < 120 && tries++ < 20000) {
+        var tvl = pick(ROADS, Rn), talV = rr(-HALF + 12, HALF - 12, Rn), tlane = (Rn() < 0.5 ? -1 : 1) * rr(1.8, 2.6, Rn), thz = Rn() < 0.5;
+        var txx = thz ? talV : tvl + tlane, tzz = thz ? tvl + tlane : talV, tlx = thz ? 7.6 : 2.7, tlz = thz ? 2.7 : 7.6;
+        if (W.hit(txx - tlx / 2 - 0.5, txx + tlx / 2 + 0.5, 0.1, 3.2, tzz - tlz / 2 - 0.5, tzz + tlz / 2 + 0.5)) continue;
+        addCar(txx, tzz, thz, Rn, true); tk++;
+      }
     }
     spawnNature(initSeed != null ? initSeed : rndSeed(), false);
 
@@ -603,9 +650,15 @@
       6: inst(box1, lam(0xffffff, { map: sinkTex }), 120, true, false),
       7: inst(box1, lam(0xffffff, { map: campTex }), 120, true, false),
       8: inst(box1, lam(0xffffff, { map: anvilTex }), 80, true, false),
-      9: inst(box1, lam(0xffffff, { map: compTex }), 80, true, false)
+      9: inst(box1, lam(0xffffff, { map: compTex }), 80, true, false),
+      10: inst(box1, lam(0xffffff, { map: planksTex }), 2600, true, false),
+      11: inst(box1, lam(0xffffff, { map: sawTex }), 80, true, false),
+      12: inst(box1, lam(0xffffff, { map: tbenchTex }), 80, true, false),
+      13: inst(box1, lam(0xffffff, { map: cannonTex('#6b5a3a', '#4a3a22') }), 120, true, false),
+      14: inst(box1, lam(0xffffff, { map: cannonTex('#4b535c', '#2a3036') }), 120, true, false),
+      15: inst(box1, lam(0xffffff, { map: cannonTex('#2f4a3a', '#d28a2a') }), 60, true, false)
     };
-    var vkeys = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] }, vcount = 0; W.MAX_VOX = 2600;
+    var vkeys = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [], 13: [], 14: [], 15: [] }, vcount = 0; W.MAX_VOX = 2600;
     W.voxCount = function () { return vcount; };
     W.getVox = function (x, y, z) { return vox.get(vk(x, y, z)) || null; };
     W.setVox = function (x, y, z, t, hp) {
@@ -614,7 +667,7 @@
       var arr = vkeys[t]; if (!arr || arr.length >= VM[t].instanceMatrix.count) return false;
       var idx = arr.length; arr.push([x, y, z]); vox.set(k, { t: t, hp: hp, idx: idx });
       put(VM[t], x + 0.5, y + 0.5, z + 0.5, 1, 1, 1, 0, null, idx); VM[t].count = arr.length; vcount++;
-      if (t >= 3) addBlockEnt(x, y, z, t);
+      if (t >= 3 && t !== 10) addBlockEnt(x, y, z, t);
       return true;
     };
     W.delVox = function (x, y, z) {
@@ -622,11 +675,11 @@
       var arr = vkeys[v.t], last = arr.pop(), m = VM[v.t];
       if (v.idx !== arr.length) { arr[v.idx] = last; vox.get(vk(last[0], last[1], last[2])).idx = v.idx; put(m, last[0] + 0.5, last[1] + 0.5, last[2] + 0.5, 1, 1, 1, 0, null, v.idx); }
       m.count = arr.length; m.instanceMatrix.needsUpdate = true; vox.delete(k); vcount--;
-      if (v.t >= 3) W.bents.forEach(function (e) { if (e.alive && e.vx === x && e.vy === y && e.vz === z) e.alive = false; });
+      if (v.t >= 3 && v.t !== 10) W.bents.forEach(function (e) { if (e.alive && e.vx === x && e.vy === y && e.vz === z) e.alive = false; });
       return v;
     };
     W.voxList = function () {
-      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70 }, out = [];
+      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500 }, out = [];
       vox.forEach(function (v) {
         var a = vkeys[v.t][v.idx], p = ((a[0] + 1024) * 2048 + (a[2] + 1024)) * 1024 + a[1] * 16 + (v.t - 1);
         out.push(Math.round(v.hp) < HP[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
@@ -635,18 +688,18 @@
     };
     W.voxLoad = function (list, ver) {
       if (!Array.isArray(list)) return;
-      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70 }, v2 = (ver || 1) >= 3;
+      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500 }, v2 = (ver || 1) >= 3;
       list.forEach(function (en) {
         var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, t, y, r, z, x;
         if (!v2) return;
         t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024;
-        if (t >= 1 && t <= 9) W.setVox(x, y, z, t, hp != null ? hp : HP[t]);
+        if (t >= 1 && t <= 15) W.setVox(x, y, z, t, hp != null ? hp : HP[t]);
       });
     };
     W.resetWorld = function (newSeed, keepBuild) {
       if (!keepBuild) {
-        vox.clear(); [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
-        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0;
+        vox.clear(); [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
+        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0;
       }
       sgrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
       egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn && l[i].vx == null) l.splice(i, 1); });
@@ -661,7 +714,8 @@
     var skyColor = new THREE.Color(0x88b8de), fogColor = new THREE.Color(0x9bc4e6);
     scene.background = skyColor; scene.fog = new THREE.Fog(fogColor, 34, 220);
     var hemi = new THREE.HemisphereLight(0xf2f7ff, 0x625a48, 1.3); scene.add(hemi);
-    var sun = new THREE.DirectionalLight(0xfff5e0, 1.25); sun.position.set(80, 90, 60); scene.add(sun);
+    var sun = new THREE.DirectionalLight(0xfff5e0, 1.25); sun.position.set(80, 90, 60); scene.add(sun); scene.add(sun.target); W.sun = sun; W.shadowsOn = false; W.sunDirty = true;
+    sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0006; var shc = sun.shadow.camera; shc.left = -95; shc.right = 95; shc.top = 95; shc.bottom = -95; shc.near = 20; shc.far = 520; shc.updateProjectionMatrix();
 
     var skyGrp = new THREE.Group(); scene.add(skyGrp);
     var sunMesh = new THREE.Mesh(new THREE.SphereGeometry(9, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff0b3, fog: false }));
@@ -701,7 +755,9 @@
       skyGrp.position.set(px || 0, 0, pz || 0);
       sunMesh.position.set(sx, sy, sz); sunMesh.visible = sy > -20;
       moonMesh.position.set(-sx, -sy, -sz); moonMesh.visible = -sy > -20;
-      if (sy >= -8) sun.position.set(sx, Math.max(15, sy), sz); else sun.position.set(-sx, Math.max(25, -sy), -sz);
+      var ox, oy, oz; if (sy >= -8) { ox = sx; oy = Math.max(15, sy); oz = sz; } else { ox = -sx; oy = Math.max(25, -sy); oz = -sz; }
+      W.sunVec = { x: sx, y: sy, z: sz };
+      if (!W.shadowsOn || W.sunDirty) { sun.position.set((px || 0) + ox, oy, (pz || 0) + oz); sun.target.position.set(px || 0, 0, pz || 0); sun.target.updateMatrixWorld(); W.sunDirty = false; } /* with the shadow map on, the light only moves when the map is refreshed (every 10 s) */
       starMat.opacity = h < 5.2 || h > 19.2 ? 0.9 : h < 6.4 ? (6.4 - h) / 1.2 * 0.9 : h > 18.0 ? (h - 18.0) / 1.2 * 0.9 : 0;
     };
     W.updateSky(7.0, -32, 32);

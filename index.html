@@ -168,7 +168,7 @@ button { font: inherit; cursor: pointer; }
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=9';
+      s.src = files[i] + '?v=10';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }

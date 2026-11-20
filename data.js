@@ -11,7 +11,7 @@ window.WZ = window.WZ || {};
   }
 
   /* ---------- Raw materials and junk ---------- */
-  item('wood', '🪵', 'Wood', 'Raw wood from chopped trees. Used for wood blocks, sticks, furniture and furnaces.');
+  item('wood', '🪵', 'Wood Log', 'A raw log from a chopped tree. Used for wood log blocks, sticks, charcoal and fuel. Cut it into Wood Planks at a Sawmill.');
   item('stone', '🪨', 'Stone', 'Mined from rocks. Used for stone blocks and the smelting furnace.');
   item('wood_sticks', '🥢', 'Wooden Stick', 'A straight wooden stick. The basic handle for tools and the frame of wooden armor.');
   item('gravel', '⚪', 'Gravel', 'Small hard stones. Good for making simple tools.');
@@ -25,8 +25,8 @@ window.WZ = window.WZ || {};
   item('broken_leather_cloth', '🟫', 'Broken Leather Cloth', 'Torn leather. Maybe it can still be useful for something.');
   item('broken_fabric_cloth', '🧵', 'Broken Fabric Cloth', 'Dirty torn cloth, useful for making beds, couches and armor padding.');
   item('broken_floppy_drive', '💾', 'Broken Floppy Disk Drive', 'If only I could play Pac-Man from this drive... anything here is still better than nothing.', { note: 'Needs a Computer Bench to repair (coming soon).' });
-  item('iron_nugget', '🔩', 'Iron Nugget', 'Hmm, maybe it can be smelted to be more useful even though it is tiny?', { note: '8 nuggets smelt into 1 Iron Bar in the Smelting Furnace.' });
-  item('broken_copper_wire', '🪢', 'Copper Nugget (Copper Wire)', 'Does this wire still carry current? Oh no, it is broken...', { note: 'Cannot be repaired. 25 pieces smelt into 1 Copper Bar in the Smelting Furnace.' });
+  item('iron_nugget', '🔩', 'Iron Ore', 'Raw iron ore. It becomes useful once smelted.', { note: '8 ore smelt into 1 Iron Bar in a Furnace (40 heat power). Mined underground only.' });
+  item('broken_copper_wire', '🪢', 'Copper Ore', 'Raw copper ore (also found as broken copper wire).', { note: '25 ore smelt into 1 Copper Bar in a Furnace (30 heat power).' });
   item('broken_cardboards', '📦', 'Broken Cardboards', 'Flat, damp cardboard.');
   item('broken_wood_planks', '🪵', 'Broken Wood Planks', 'A split wooden plank. Still sturdy enough to hit things with.');
   item('iron_ingot', '🧱', 'Iron Bar', 'A bar of pure iron. Used for iron tools, sinks, anvils and iron armor.');
@@ -37,7 +37,7 @@ window.WZ = window.WZ || {};
   item('iron_stick', '📏', 'Iron Stick', 'A straight iron rod. Made at an Iron Anvil.');
   item('rope', '🪢', 'Rope', 'A thick rope twisted from strings. Used for the Stone Sword.');
   item('coal', '⚫', 'Coal', 'A black lump of coal. Mined from dark rocks. Used for campfires.');
-  item('golden_nugget', '🟡', 'Golden Nugget', 'A shiny golden nugget mined deep in the mineshaft.', { note: '12 nuggets smelt into 1 Golden Bar in the Smelting Furnace. Mined from Gold Ore (underground only).' });
+  item('golden_nugget', '🟡', 'Gold Ore', 'Shiny raw gold ore mined deep underground.', { note: '12 ore smelt into 1 Golden Bar in a Furnace (50 heat power).' });
   item('golden_ingot', '🥇', 'Golden Bar', 'A bar of pure gold. Used for the Golden Watch.');
   item('golden_chain', '⛓️', 'Golden Chain', 'A delicate golden chain. Made at an Iron Anvil.');
   item('golden_stick', '📏', 'Golden Stick', 'A straight golden rod. Made at an Iron Anvil.');
@@ -123,80 +123,111 @@ window.WZ = window.WZ || {};
   item('gps', '🗺️', 'GPS', 'I know where I am!', { type: 'acc', note: 'Accessory. Shows the map with your location.' });
 
   /* ---------- Placeable blocks & furniture ---------- */
-  item('wood_block', '🟫', 'Wood Block', '1 m building block. A bit fragile, but cheap. Right click to place.', { type: 'block', vox: 1, hp: 30 });
+  item('wood_block', '🟫', 'Wood Log Block', '1 m building block made of logs. A bit fragile, but cheap. Right click to place.', { type: 'block', vox: 1, hp: 30 });
   item('stone_block', '⬜', 'Stone Block', '1 m building block. Much stronger than a wood block.', { type: 'block', vox: 2, hp: 90 });
-  item('furnace', '🔥', 'Smelting Furnace', 'Smelts nuggets and wires into metal bars. Place it, then press E near it.', { type: 'block', vox: 3, hp: 80 });
+  item('furnace', '🔥', 'Smelting Furnace', 'Smelts ore into metal bars and logs into charcoal. Place it, then press E near it.', { type: 'block', vox: 3, hp: 80 });
   item('bed_block', '🛏️', 'Cozy Bed', 'A clean homemade bed. Sleep with [E] and dismantle it again anytime.', { type: 'block', vox: 4, hp: 50 });
   item('couch_block', '🛋️', 'Cozy Couch', 'A clean homemade couch to restore Comfort with [E]. Can be dismantled.', { type: 'block', vox: 5, hp: 45 });
   item('sink_block', '🚰', 'Sink', 'Washes Dirty Vegetables/Fruits into Fresh ones for free! Place it, then press [E].', { type: 'block', vox: 6, hp: 60 });
   item('campfire', '🏕️', 'Campfire', 'Let\'s camping during this apocalypse!', { type: 'block', vox: 7, hp: 40, note: 'Cooks Fresh Fish into Cooked Fish (25 s each). Stay near it while cooking.' });
   item('anvil_block', '⚒️', 'Iron Anvil', 'A heavy iron anvil for forging swords, chains, sticks, buckets and watches.', { type: 'block', vox: 8, hp: 120 });
   item('computer_bench', '🖥️', 'Computer Bench', 'A workbench for assembling electronics: batteries, LEDs, radars and GPS.', { type: 'block', vox: 9, hp: 70 });
+  item('wood_plank', '🟧', 'Wood Plank', 'A clean cut plank. Made from Wood Logs at a Sawmill.');
+  item('failed_craft_wood', '🥀', 'Failed Craft Wood', 'A badly cut piece of wood. Useless... or is it?');
+  item('charcoal', '⬛', 'Charcoal', 'Burnt wood. A strong, steady fuel.', { note: 'Fuel: burns 10 s, 10 heat power.' });
+  item('cannon_ball', '⚫', 'Cannon Ball', 'Ammo for cannons. 1 Stone makes 4 cannon balls.', {});
+  item('wood_plank_block', '🟨', 'Wood Plank Block', '1 m building block. 20% tougher than a Wood Log Block.', { type: 'block', vox: 10, hp: 36 });
+  item('wood_plank_basket', '🧺', 'Wood Plank Basket', 'A wooden plank shaped into a backpack. Keep it in your bag: +6 inventory slots.', { pack: 6, note: 'Backpack: +6 bag slots while you carry it.' });
+  item('sawmill', '🪚', 'Sawmill', 'Cuts Wood Logs into Wood Planks and builds all handmade furniture. Place it, then press [E] near it.', { type: 'block', vox: 11, hp: 90 });
+  item('turret_bench', '🔧', 'Turret Workbench', 'A bench for building cannons. Each piece is a puzzle. Place it, then press [E] near it.', { type: 'block', vox: 12, hp: 80 });
+  item('handmade_cannon', '💣', 'Handmade Cannon', 'A crude auto-cannon. DMG 16 · Range 6 m · Delay 2 s · HP 150 · holds 20 cannon balls · Tier 1. Place it, then load it with [E].', { type: 'block', vox: 13, hp: 150, turret: { dmg: 16, rng: 6, dly: 2, cap: 20 } });
+  item('cannon_turret', '🛡️', 'Cannon', 'An auto-cannon. DMG 20 · Range 10 m · Delay 1.5 s · HP 275 · holds 40 cannon balls · Tier 1. Load it with [E].', { type: 'block', vox: 14, hp: 275, turret: { dmg: 20, rng: 10, dly: 1.5, cap: 40 } });
+  item('manual_cannon', '🎯', 'Manual Cannon', 'A powerful cannon you aim yourself. DMG 60 · Range 24 m · Delay 3 s · HP 500 · 1-shot clip, 2 s reload · Tier 2. Press [E] to man it, then Left Click to fire.', { type: 'block', vox: 15, hp: 500, turret: { dmg: 60, rng: 24, dly: 3, cap: 1, manual: true, reload: 2 } });
 
   /* ---------- Crafting recipes ---------- */
+  /* [RECIPE TAG] st = crafting station: hand | sawmill | furnace | campfire | anvil | sink | turret | computer.
+     A recipe is only SHOWN when the player is at its station AND already carries every ingredient type (see WZ.REVEAL).
+     heat = heat power needed (furnace/campfire). puz = minigame: {k:'img',n:N} sliding picture puzzle, {k:'mask',shape} non-rectangular puzzle, {k:'saw'} sawmill line, {k:'wire'} wire game. */
   var R = [
-    { id: 'sticks', out: ['wood_sticks', 2], cost: { wood: 1 } },
-    { id: 'gravel', out: ['gravel', 2], cost: { stone: 1 } },
-    { id: 'wood_block', out: ['wood_block', 2], cost: { wood: 1 } },
-    { id: 'stone_block', out: ['stone_block', 2], cost: { stone: 1 } },
-    { id: 'crude_axe', out: ['crude_axe', 1], cost: { wood_sticks: 4, gravel: 2 } },
-    { id: 'crude_pickaxe', out: ['crude_pickaxe', 1], cost: { wood_sticks: 4, gravel: 3 } },
-    { id: 'wood_club', out: ['wood_club', 1], cost: { broken_wood_planks: 3, broken_cardboards: 2 } },
-    { id: 'wood_sword', out: ['wood_sword', 1], cost: { wood_sticks: 2, wood: 6 } },
-    { id: 'stone_sword', out: ['stone_sword', 1], cost: { stone: 6, gravel: 2, rope: 1, wood_sticks: 4 } },
-    { id: 'iron_sword', out: ['iron_sword', 1], cost: { iron_ingot: 6, broken_copper_wire: 2, iron_nugget: 4, wood_sticks: 8 }, anvil: true },
-    { id: 'rope', out: ['rope', 1], cost: { string: 3 } },
-    { id: 'wood_bow', out: ['wood_bow', 1], cost: { wood_sticks: 30, string: 6 } },
-    { id: 'arrow', out: ['arrow', 20], cost: { wood_sticks: 4, feather: 1 } },
-    { id: 'wood_rod', out: ['wood_rod', 1], cost: { wood: 2, wood_sticks: 30, string: 4 } },
-    { id: 'furnace', out: ['furnace', 1], cost: { stone: 20, wood: 6 } },
-    { id: 'campfire', out: ['campfire', 1], cost: { gravel: 10, wood: 30, coal: 3 } },
-    { id: 'bed_block', out: ['bed_block', 1], cost: { wood: 6, broken_fabric_cloth: 2 } },
-    { id: 'couch_block', out: ['couch_block', 1], cost: { wood: 5, broken_fabric_cloth: 2, broken_cardboards: 2 } },
-    { id: 'sink_block', out: ['sink_block', 1], cost: { iron_ingot: 10, wood: 5 } },
-    { id: 'anvil_block', out: ['anvil_block', 1], cost: { iron_ingot: 18 } },
-    { id: 'computer_bench', out: ['computer_bench', 1], cost: { iron_ingot: 10, metal_casing: 6, wood: 10, broken_copper_wire: 30 } },
-    { id: 'iron_axe', out: ['iron_axe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
-    { id: 'iron_pickaxe', out: ['iron_pickaxe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
-    { id: 'wood_helmet', out: ['wood_helmet', 1], cost: { wood: 4, wood_sticks: 2 } },
-    { id: 'wood_chest', out: ['wood_chest', 1], cost: { wood: 7, wood_sticks: 2 } },
-    { id: 'wood_legs', out: ['wood_legs', 1], cost: { wood: 5, wood_sticks: 2 } },
-    { id: 'wood_boots', out: ['wood_boots', 1], cost: { wood: 4, wood_sticks: 2 } },
-    { id: 'iron_helmet', out: ['iron_helmet', 1], cost: { iron_ingot: 4 } },
-    { id: 'iron_chest', out: ['iron_chest', 1], cost: { iron_ingot: 7 } },
-    { id: 'iron_legs', out: ['iron_legs', 1], cost: { iron_ingot: 5 } },
-    { id: 'iron_boots', out: ['iron_boots', 1], cost: { iron_ingot: 4 } },
-    { id: 'copper_axe', out: ['copper_axe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
-    { id: 'copper_pickaxe', out: ['copper_pickaxe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
-    { id: 'copper_sword', out: ['copper_sword', 1], cost: { copper_ingot: 5, wood_sticks: 6 }, anvil: true },
-    { id: 'copper_helmet', out: ['copper_helmet', 1], cost: { copper_ingot: 4 } },
-    { id: 'copper_chest', out: ['copper_chest', 1], cost: { copper_ingot: 7 } },
-    { id: 'copper_legs', out: ['copper_legs', 1], cost: { copper_ingot: 5 } },
-    { id: 'copper_boots', out: ['copper_boots', 1], cost: { copper_ingot: 4 } },
-    { id: 'golden_axe', out: ['golden_axe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
-    { id: 'golden_pickaxe', out: ['golden_pickaxe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
-    { id: 'golden_sword', out: ['golden_sword', 1], cost: { golden_ingot: 5, wood_sticks: 6 }, anvil: true },
-    { id: 'golden_helmet', out: ['golden_helmet', 1], cost: { golden_ingot: 4 } },
-    { id: 'golden_chest', out: ['golden_chest', 1], cost: { golden_ingot: 7 } },
-    { id: 'golden_legs', out: ['golden_legs', 1], cost: { golden_ingot: 5 } },
-    { id: 'golden_boots', out: ['golden_boots', 1], cost: { golden_ingot: 4 } },
-    { id: 'iron_chain', out: ['iron_chain', 1], cost: { iron_ingot: 2 }, anvil: true },
-    { id: 'iron_stick', out: ['iron_stick', 1], cost: { iron_ingot: 1 }, anvil: true },
-    { id: 'iron_bucket', out: ['iron_bucket', 1], cost: { iron_ingot: 2, iron_chain: 1 }, anvil: true },
-    { id: 'golden_chain', out: ['golden_chain', 1], cost: { golden_ingot: 2 }, anvil: true },
-    { id: 'golden_stick', out: ['golden_stick', 1], cost: { golden_ingot: 1 }, anvil: true },
-    { id: 'iron_watch', out: ['iron_watch', 1], cost: { iron_ingot: 2, iron_chain: 1, iron_stick: 1 }, anvil: true },
-    { id: 'golden_watch', out: ['golden_watch', 1], cost: { golden_ingot: 2, golden_chain: 1, golden_stick: 1 }, anvil: true },
-    { id: 'medium_battery', out: ['medium_battery', 1], cost: { iron_nugget: 2, broken_copper_wire: 75, plastic_paper_package: 1 }, computer: true, minigame: true },
-    { id: 'ips_led', out: ['ips_led', 1], cost: { mini_led_lamp: 50, broken_copper_wire: 120, rgb_lamp: 3, black_screen_cover: 5 }, computer: true },
-    { id: 'radar', out: ['radar', 1], cost: { signal_chip: 1, medium_battery: 1, metal_casing: 10, ips_led: 2 }, computer: true },
-    { id: 'gps', out: ['gps', 1], cost: { ips_led: 4, black_screen_cover: 2, metal_casing: 16, medium_battery: 2, signal_chip: 1, gpu_chip: 1 }, computer: true },
-    { id: 'melt_iron', out: ['iron_ingot', 1], cost: { iron_nugget: 8 }, furnace: true, label: 'Smelt Iron Bar' },
-    { id: 'melt_copper', out: ['copper_ingot', 1], cost: { broken_copper_wire: 25 }, furnace: true, label: 'Smelt Copper Bar' },
-    { id: 'melt_gold', out: ['golden_ingot', 1], cost: { golden_nugget: 12 }, furnace: true, label: 'Smelt Golden Bar' },
-    { id: 'wash_veg', out: ['fresh_veg', 1], cost: { dirty_veg: 1 }, sink: true, label: 'Wash Dirty Vegetables → Fresh' },
-    { id: 'wash_fruits', out: ['fresh_fruits', 1], cost: { dirty_fruits: 1 }, sink: true, label: 'Wash Dirty Fruits → Fresh' },
-    { id: 'cook_fish', out: ['cooked_fish', 1], cost: { fresh_fish: 1 }, campfire: true, cook: 25, label: 'Cook Fresh Fish → Cooked Fish' }
+    { id: 'sticks', st: 'hand', out: ['wood_sticks', 2], cost: { wood: 1 } },
+    { id: 'gravel', st: 'hand', out: ['gravel', 2], cost: { stone: 1 } },
+    { id: 'cannon_ball', st: 'hand', out: ['cannon_ball', 4], cost: { stone: 1 } },
+    { id: 'wood_block', st: 'hand', out: ['wood_block', 2], cost: { wood: 1 } },
+    { id: 'stone_block', st: 'hand', out: ['stone_block', 2], cost: { stone: 1 } },
+    { id: 'crude_axe', st: 'hand', out: ['crude_axe', 1], cost: { wood_sticks: 4, gravel: 2 } },
+    { id: 'crude_pickaxe', st: 'hand', out: ['crude_pickaxe', 1], cost: { wood_sticks: 4, gravel: 3 } },
+    { id: 'wood_club', st: 'hand', out: ['wood_club', 1], cost: { broken_wood_planks: 3, broken_cardboards: 2 } },
+    { id: 'wood_sword', st: 'hand', out: ['wood_sword', 1], cost: { wood_sticks: 2, wood: 6 } },
+    { id: 'stone_sword', st: 'hand', out: ['stone_sword', 1], cost: { stone: 6, gravel: 2, rope: 1, wood_sticks: 4 } },
+    { id: 'rope', st: 'hand', out: ['rope', 1], cost: { string: 3 } },
+    { id: 'wood_bow', st: 'hand', out: ['wood_bow', 1], cost: { wood_sticks: 30, string: 6 } },
+    { id: 'arrow', st: 'hand', out: ['arrow', 20], cost: { wood_sticks: 4, feather: 1 } },
+    { id: 'wood_rod', st: 'hand', out: ['wood_rod', 1], cost: { wood: 2, wood_sticks: 30, string: 4 } },
+    { id: 'furnace', st: 'hand', out: ['furnace', 1], cost: { stone: 20, wood: 6 } },
+    { id: 'campfire', st: 'hand', out: ['campfire', 1], cost: { gravel: 10, wood: 30, coal: 3 } },
+    { id: 'anvil_block', st: 'hand', out: ['anvil_block', 1], cost: { iron_ingot: 18 } },
+    { id: 'computer_bench', st: 'hand', out: ['computer_bench', 1], cost: { iron_ingot: 10, metal_casing: 6, wood: 10, broken_copper_wire: 30 } },
+    { id: 'sawmill', st: 'hand', out: ['sawmill', 1], cost: { wood: 12, iron_ingot: 4, iron_chain: 2 } },
+    { id: 'turret_bench', st: 'hand', out: ['turret_bench', 1], cost: { wood: 12, copper_ingot: 4, iron_ingot: 6 } },
+    { id: 'handmade_cannon', st: 'hand', out: ['handmade_cannon', 1], cost: { wood: 16, stone: 8, broken_copper_wire: 4 } },
+    { id: 'iron_axe', st: 'hand', out: ['iron_axe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
+    { id: 'iron_pickaxe', st: 'hand', out: ['iron_pickaxe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
+    { id: 'wood_helmet', st: 'hand', out: ['wood_helmet', 1], cost: { wood: 4, wood_sticks: 2 } },
+    { id: 'wood_chest', st: 'hand', out: ['wood_chest', 1], cost: { wood: 7, wood_sticks: 2 } },
+    { id: 'wood_legs', st: 'hand', out: ['wood_legs', 1], cost: { wood: 5, wood_sticks: 2 } },
+    { id: 'wood_boots', st: 'hand', out: ['wood_boots', 1], cost: { wood: 4, wood_sticks: 2 } },
+    { id: 'iron_helmet', st: 'hand', out: ['iron_helmet', 1], cost: { iron_ingot: 4 } },
+    { id: 'iron_chest', st: 'hand', out: ['iron_chest', 1], cost: { iron_ingot: 7 } },
+    { id: 'iron_legs', st: 'hand', out: ['iron_legs', 1], cost: { iron_ingot: 5 } },
+    { id: 'iron_boots', st: 'hand', out: ['iron_boots', 1], cost: { iron_ingot: 4 } },
+    { id: 'copper_axe', st: 'hand', out: ['copper_axe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
+    { id: 'copper_pickaxe', st: 'hand', out: ['copper_pickaxe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
+    { id: 'copper_helmet', st: 'hand', out: ['copper_helmet', 1], cost: { copper_ingot: 4 } },
+    { id: 'copper_chest', st: 'hand', out: ['copper_chest', 1], cost: { copper_ingot: 7 } },
+    { id: 'copper_legs', st: 'hand', out: ['copper_legs', 1], cost: { copper_ingot: 5 } },
+    { id: 'copper_boots', st: 'hand', out: ['copper_boots', 1], cost: { copper_ingot: 4 } },
+    { id: 'golden_axe', st: 'hand', out: ['golden_axe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
+    { id: 'golden_pickaxe', st: 'hand', out: ['golden_pickaxe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
+    { id: 'golden_helmet', st: 'hand', out: ['golden_helmet', 1], cost: { golden_ingot: 4 } },
+    { id: 'golden_chest', st: 'hand', out: ['golden_chest', 1], cost: { golden_ingot: 7 } },
+    { id: 'golden_legs', st: 'hand', out: ['golden_legs', 1], cost: { golden_ingot: 5 } },
+    { id: 'golden_boots', st: 'hand', out: ['golden_boots', 1], cost: { golden_ingot: 4 } },
+    /* Sawmill (line-cutting minigame per piece; a failed cut gives Failed Craft Wood) */
+    { id: 'wood_plank', st: 'sawmill', out: ['wood_plank', 2], cost: { wood: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Wood Log into Wood Planks' },
+    { id: 'wood_plank_block', st: 'sawmill', out: ['wood_plank_block', 1], cost: { wood_plank: 4 }, puz: { k: 'saw', d: 1 } },
+    { id: 'wood_plank_basket', st: 'sawmill', out: ['wood_plank_basket', 1], cost: { wood_plank: 10 }, puz: { k: 'saw', d: 2 } },
+    { id: 'bed_block', st: 'sawmill', out: ['bed_block', 1], cost: { wood: 6, broken_fabric_cloth: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'couch_block', st: 'sawmill', out: ['couch_block', 1], cost: { wood: 5, broken_fabric_cloth: 2, broken_cardboards: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'sink_block', st: 'sawmill', out: ['sink_block', 1], cost: { iron_ingot: 10, wood: 5 }, puz: { k: 'saw', d: 3 } },
+    /* Anvil */
+    { id: 'iron_sword', st: 'anvil', out: ['iron_sword', 1], cost: { iron_ingot: 6, broken_copper_wire: 2, iron_nugget: 4, wood_sticks: 8 } },
+    { id: 'copper_sword', st: 'anvil', out: ['copper_sword', 1], cost: { copper_ingot: 5, wood_sticks: 6 } },
+    { id: 'golden_sword', st: 'anvil', out: ['golden_sword', 1], cost: { golden_ingot: 5, wood_sticks: 6 } },
+    { id: 'iron_chain', st: 'anvil', out: ['iron_chain', 1], cost: { iron_ingot: 2 } },
+    { id: 'iron_stick', st: 'anvil', out: ['iron_stick', 1], cost: { iron_ingot: 1 } },
+    { id: 'iron_bucket', st: 'anvil', out: ['iron_bucket', 1], cost: { iron_ingot: 2, iron_chain: 1 } },
+    { id: 'golden_chain', st: 'anvil', out: ['golden_chain', 1], cost: { golden_ingot: 2 } },
+    { id: 'golden_stick', st: 'anvil', out: ['golden_stick', 1], cost: { golden_ingot: 1 } },
+    { id: 'iron_watch', st: 'anvil', out: ['iron_watch', 1], cost: { iron_ingot: 2, iron_chain: 1, iron_stick: 1 } },
+    { id: 'golden_watch', st: 'anvil', out: ['golden_watch', 1], cost: { golden_ingot: 2, golden_chain: 1, golden_stick: 1 } },
+    /* Turret Workbench (picture puzzle per piece, harder at higher tier) */
+    { id: 'cannon_turret', st: 'turret', out: ['cannon_turret', 1], cost: { wood: 8, stone: 20, copper_ingot: 8, iron_ingot: 2 }, puz: { k: 'img', n: 3 }, tier: 1 },
+    { id: 'manual_cannon', st: 'turret', out: ['manual_cannon', 1], cost: { wood: 24, stone: 10, copper_ingot: 6, iron_ingot: 4 }, puz: { k: 'img', n: 4 }, tier: 2 },
+    /* Computer Bench */
+    { id: 'medium_battery', st: 'computer', out: ['medium_battery', 1], cost: { iron_nugget: 2, broken_copper_wire: 75, plastic_paper_package: 1 }, puz: { k: 'wire' } },
+    { id: 'ips_led', st: 'computer', out: ['ips_led', 1], cost: { mini_led_lamp: 50, broken_copper_wire: 120, rgb_lamp: 3, black_screen_cover: 5 }, puz: { k: 'mask', shape: 'plus' } },
+    { id: 'radar', st: 'computer', out: ['radar', 1], cost: { signal_chip: 1, medium_battery: 1, metal_casing: 10, ips_led: 2 }, puz: { k: 'mask', shape: 'ring' } },
+    { id: 'gps', st: 'computer', out: ['gps', 1], cost: { ips_led: 4, black_screen_cover: 2, metal_casing: 16, medium_battery: 2, signal_chip: 1, gpu_chip: 1 }, puz: { k: 'mask', shape: 'diamond' } },
+    /* Furnace (needs fuel: heat power) */
+    { id: 'melt_iron', st: 'furnace', out: ['iron_ingot', 1], cost: { iron_nugget: 8 }, heat: 40, label: 'Smelt Iron Bar' },
+    { id: 'melt_copper', st: 'furnace', out: ['copper_ingot', 1], cost: { broken_copper_wire: 25 }, heat: 30, label: 'Smelt Copper Bar' },
+    { id: 'melt_gold', st: 'furnace', out: ['golden_ingot', 1], cost: { golden_nugget: 12 }, heat: 50, label: 'Smelt Golden Bar' },
+    { id: 'make_charcoal', st: 'furnace', out: ['charcoal', 1], cost: { wood: 1 }, heat: 25, label: 'Burn Wood Log into Charcoal' },
+    /* Sink */
+    { id: 'wash_veg', st: 'sink', out: ['fresh_veg', 1], cost: { dirty_veg: 1 }, label: 'Wash Dirty Vegetables → Fresh' },
+    { id: 'wash_fruits', st: 'sink', out: ['fresh_fruits', 1], cost: { dirty_fruits: 1 }, label: 'Wash Dirty Fruits → Fresh' },
+    /* Campfire (cooking, needs fuel) */
+    { id: 'cook_fish', st: 'campfire', out: ['cooked_fish', 1], cost: { fresh_fish: 1 }, heat: 20, label: 'Cook Fresh Fish → Cooked Fish' }
   ];
 
   /* Temporary schematics (coming soon) */
@@ -209,6 +240,9 @@ window.WZ = window.WZ || {};
     trash3: { name: 'Trash (Tier 3)', rolls: 1, enabled: false, t: [['broken_dvd_player', 2], ['broken_cd', 3], ['broken_dvd', 5], ['broken_old_tv', null]] },
     table4: { name: 'Above Table (Tier 4)', rolls: 2, enabled: true, t: [['mini_led_lamp', 22], ['rgb_lamp', 8], ['black_screen_cover', 12], ['metal_casing', 18], ['plastic_paper_package', 15], ['broken_copper_wire', 15], ['gpu_chip', 5], ['iron_nugget', 5]] },
     crate1: { name: 'Wooden Crate (Tier 1)', rolls: 3, enabled: true, t: [['contaminated_veg', 20], ['dirty_veg', 20], ['contaminated_fruits', 15], ['dirty_fruits', 15], ['plastic_bottled_water', 20], ['wood_sticks', 10]] },
+    /* [LOOT TAG] truck trunk = "Iron Crate (Tier N)" (N = world tier, max 5): always 3 random picks from a modest (not high-end) list. Tier 3+ worlds use truck3 (adds iron/copper bars). */
+    truck:  { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 18], ['fresh_fruits', 10], ['fresh_veg', 10], ['iron_nugget', 18], ['broken_copper_wire', 14], ['coal', 10], ['wood_sticks', 8]] },
+    truck3: { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 14], ['fresh_fruits', 5], ['iron_nugget', 18], ['broken_copper_wire', 14], ['iron_ingot', 8], ['copper_ingot', 4], ['metal_casing', 10], ['coal', 10], ['wood_sticks', 5]] },
     crate3: { name: 'Reinforced Wooden Crate (Tier 3)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['plastic_bottled_water', 15], ['fresh_veg', 10], ['fresh_fruits', 10], ['iron_nugget', 20], ['broken_copper_wire', 15], ['metal_casing', 10], ['mini_led_lamp', 5]] },
     crate4: { name: 'Iron Crate (Tier 4)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['iron_nugget', 20], ['broken_copper_wire', 20], ['metal_casing', 15], ['mini_led_lamp', 10], ['plastic_paper_package', 10], ['black_screen_cover', 5], ['rgb_lamp', 5]] },
     crate5: { name: 'Iron Crate (Tier 5)', rolls: 3, enabled: true, t: [['medical_bag', 10], ['iron_ingot', 15], ['iron_nugget', 15], ['broken_copper_wire', 15], ['metal_casing', 15], ['rgb_lamp', 10], ['black_screen_cover', 8], ['gpu_chip', 6], ['mini_led_lamp', 6]] },
@@ -274,6 +308,15 @@ window.WZ = window.WZ || {};
 
   WZ.ITEMS = I;
   WZ.RECIPES = R;
+  /* Recipe reveal rule: 'all' = shown only when the player has at least 1 of EVERY ingredient (and is at the station). Set to 'any' to show it when at least one ingredient is owned. */
+  WZ.REVEAL = 'all';
+  /* Fuel: t = burn seconds per item, p = heat power per item */
+  WZ.FUEL = { coal: { t: 15, p: 10 }, wood: { t: 5, p: 4 }, charcoal: { t: 10, p: 10 } };
+  /* Bag rules: 24 slots; stacks of 50; tools, armor and accessories do not stack. */
+  WZ.BAG_SLOTS = 24;
+  WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
+  /* Turret blocks: a destroyed turret (by zombies) drops 20% of its crafting materials */
+  WZ.TURRET_VOX = { 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon' };
   WZ.LOOT = LOOT;
   WZ.ZOMBIES = Z;
   WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored'];
