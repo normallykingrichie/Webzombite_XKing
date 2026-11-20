@@ -1,7 +1,7 @@
 /* world.js - Webzombite */
 (function (WZ) {
   'use strict';
-  WZ.HALF = 250; WZ.SPAWN_HALF = 262.5;
+  WZ.HALF = 1000; WZ.SPAWN_HALF = 1025; /* map 2000 m x 2000 m, mob spawn ring 2050 m x 2050 m */
   function mulberry(seed) {
     return function () {
       seed |= 0; seed = seed + 0x6D2B79F5 | 0;
@@ -17,10 +17,10 @@
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
     var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
-    var ROADS = [-224, -160, -96, -32, 32, 96, 160, 224], RW = 10; W.roads = ROADS;
+    var HALF = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = HALF;
 
     var CELL = 8, sgrid = new Map();
-    function ck(cx, cz) { return (cx + 80) * 256 + (cz + 80); }
+    function ck(cx, cz) { return (cx + 200) * 512 + (cz + 200); }
     function addBox(x0, x1, y0, y1, z0, z1, isDyn) {
       var b = { x0: x0, x1: x1, y0: y0, y1: y1, z0: z0, z1: z1, on: true, dyn: !!isDyn };
       for (var cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++) for (var cz = Math.floor(z0 / CELL); cz <= Math.floor(z1 / CELL); cz++) {
@@ -31,7 +31,7 @@
     W.addBox = addBox;
 
     var vox = new Map(), VMAX = 40, info = { top: 0, bottom: 0, vox: null, box: null };
-    function vk(x, y, z) { return ((x + 300) * 1024 + (z + 300)) * 64 + y; }
+    function vk(x, y, z) { return ((x + 1100) * 4096 + (z + 1100)) * 64 + y; }
     W.vkey = vk;
     W.hit = function (x0, x1, y0, y1, z0, z1) {
       var found = false; info.top = -1e9; info.bottom = 1e9; info.vox = null; info.box = null;
@@ -101,12 +101,13 @@
         }
       });
     }
-    var FACADE_MATS = [['#a8a49b', 11], ['#b3a89a', 12], ['#929aa3', 13], ['#ab9687', 14], ['#899399', 15], ['#bdb29f', 16]].map(function (a) { return lam(0xffffff, { map: facadeTex(a[0], a[1]) }); });
-    var groundTex = canvasTex(256, 256, function (g, w, h) {
-      var r = mulberry(5); g.fillStyle = '#5c6142'; g.fillRect(0, 0, w, h);
-      for (var i = 0; i < 2200; i++) { var v = (r() * 48) | 0; g.fillStyle = r() < 0.3 ? 'rgba(65,55,38,.45)' : 'rgba(' + (72 + v) + ',' + (84 + v) + ',' + (45 + (v >> 1)) + ',.7)'; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 5); }
-      for (var j = 0; j < 260; j++) { g.fillStyle = '#737d4b'; g.fillRect(r() * w, r() * h, 1, 4 + r() * 4); }
-    }); groundTex.repeat.set(130, 130);
+    var FACADE_MATS = [['#a8a49b', 11], ['#b3a89a', 12], ['#929aa3', 13], ['#ab9687', 14], ['#899399', 15], ['#bdb29f', 16], ['#d8bb85', 21], ['#c9a46a', 22], ['#e4cf9f', 23], ['#dfe6ec', 31], ['#b9c7d6', 32], ['#cfd8e0', 33], ['#7d8f5e', 41], ['#6e7d52', 42], ['#8a7a58', 43]].map(function (a) { return lam(0xffffff, { map: facadeTex(a[0], a[1]) }); });
+    function groundTexMake(base, c1, c2, seed, rep) {
+      var t = canvasTex(256, 256, function (g, w, h) {
+        var r = mulberry(seed); g.fillStyle = base; g.fillRect(0, 0, w, h);
+        for (var i = 0; i < 2200; i++) { g.fillStyle = r() < 0.3 ? c1 : c2; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 5); }
+      }); t.repeat.set(rep, rep); return t;
+    }
     var roadTex = canvasTex(128, 128, function (g, w, h) {
       var r = mulberry(6); g.fillStyle = '#3a3d42'; g.fillRect(0, 0, w, h);
       for (var i = 0; i < 1600; i++) { var v = (r() * 42) | 0; g.fillStyle = 'rgba(' + (44 + v) + ',' + (47 + v) + ',' + (52 + v) + ',.75)'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
@@ -203,56 +204,84 @@
       for (var y = 16; y < h; y += 16) { g.fillStyle = 'rgba(55,34,14,.4)'; g.fillRect(4, y, w - 8, 2); }
     });
 
-    var ground = new THREE.Mesh(new THREE.PlaneGeometry(1100, 1100), lam(0xffffff, { map: groundTex }));
-    ground.rotation.x = -Math.PI / 2; scene.add(ground);
+    /* ground planes per biome: city (centre + south), desert (east), jungle (west), snow (north) */
+    function biomeOf(x, z) { if (z < -500) return 'snow'; if (x > 500) return 'desert'; if (x < -500) return 'jungle'; return 'city'; }
+    W.biomeOf = biomeOf;
+    (function () {
+      var E = HALF + 100, defs = [
+        ['city', -500, 500, -500, E, groundTexMake('#5c6142', 'rgba(65,55,38,.45)', 'rgba(110,125,70,.7)', 5, 1)],
+        ['desert', 500, E, -500, E, groundTexMake('#d6b676', 'rgba(170,130,70,.5)', 'rgba(235,205,140,.7)', 6, 1)],
+        ['jungle', -E, -500, -500, E, groundTexMake('#2f5a2a', 'rgba(20,50,20,.5)', 'rgba(70,120,50,.7)', 7, 1)],
+        ['snow', -E, E, -E, -500, groundTexMake('#e6eef3', 'rgba(170,190,205,.5)', 'rgba(255,255,255,.8)', 8, 1)]];
+      defs.forEach(function (d) {
+        var w = d[2] - d[1], h = d[4] - d[3], m = d[5]; m.repeat.set(w / 8.5, h / 8.5);
+        var pm = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: m })); pm.rotation.x = -Math.PI / 2; pm.position.set((d[1] + d[2]) / 2, 0, (d[3] + d[4]) / 2); scene.add(pm);
+      });
+    })();
     (function () {
       var pos = [], norm = [], uv = [], idx = [];
       function pq(v0, v1, v2, v3, sw) {
         var b = pos.length / 3; pos.push(v0[0], v0[1], v0[2], v1[0], v1[1], v1[2], v2[0], v2[1], v2[2], v3[0], v3[1], v3[2]);
         for (var i = 0; i < 4; i++) norm.push(0, 1, 0);
-        if (sw) uv.push(0, 0, 0, 1, 54, 1, 54, 0); else uv.push(0, 0, 1, 0, 1, 54, 0, 54);
+        if (sw) uv.push(0, 0, 0, 1, 214, 1, 214, 0); else uv.push(0, 0, 1, 0, 1, 214, 0, 214);
         idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
       }
       ROADS.forEach(function (c) {
-        pq([c - RW / 2, 0.02, 270], [c + RW / 2, 0.02, 270], [c + RW / 2, 0.02, -270], [c - RW / 2, 0.02, -270], false);
-        pq([-270, 0.022, c + RW / 2], [270, 0.022, c + RW / 2], [270, 0.022, c - RW / 2], [-270, 0.022, c - RW / 2], true);
+        pq([c - RW / 2, 0.02, HALF + 20], [c + RW / 2, 0.02, HALF + 20], [c + RW / 2, 0.02, -HALF - 20], [c - RW / 2, 0.02, -HALF - 20], false);
+        pq([-HALF - 20, 0.022, c + RW / 2], [HALF + 20, 0.022, c + RW / 2], [HALF + 20, 0.022, c - RW / 2], [-HALF - 20, 0.022, c - RW / 2], true);
       });
       var g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere();
       scene.add(new THREE.Mesh(g, lam(0xffffff, { map: roadTex })));
     })();
-    var dashes = inst(boxB, lam(0xe8c448), 1400, false, false);
-    ROADS.forEach(function (c) { for (var t = -255; t < 255; t += 7) { put(dashes, c, 0.03, t, 0.18, 0.01, 3.2, 0, null); put(dashes, t, 0.032, c, 3.2, 0.01, 0.18, 0, null); } });
+    var dashes = inst(boxB, lam(0xe8c448), 18500, false, false);
+    ROADS.forEach(function (c) { for (var t = -HALF - 5; t < HALF + 5; t += 7) { put(dashes, c, 0.03, t, 0.18, 0.01, 3.2, 0, null); put(dashes, t, 0.032, c, 3.2, 0.01, 0.18, 0, null); } });
 
-    var occupied = [];
+    var occGrid = new Map(), OC = 16;
+    var occupied = { push: function (o) { for (var cx = Math.floor(o[0] / OC); cx <= Math.floor(o[1] / OC); cx++) for (var cz = Math.floor(o[2] / OC); cz <= Math.floor(o[3] / OC); cz++) { var k = ck(cx, cz), l = occGrid.get(k); if (!l) { l = []; occGrid.set(k, l); } l.push(o); } } };
     function onRoad(x, z, m) { for (var i = 0; i < ROADS.length; i++) if (Math.abs(x - ROADS[i]) < RW / 2 + m || Math.abs(z - ROADS[i]) < RW / 2 + m) return true; return false; }
-    function inOcc(x, z, m) { for (var i = 0; i < occupied.length; i++) { var o = occupied[i]; if (x > o[0] - m && x < o[1] + m && z > o[2] - m && z < o[3] + m) return true; } return false; }
-    function zoneOf(x, z) { var d = Math.hypot(x, z); return d < 105 ? 'down' : d < 190 ? 'mid' : 'out'; }
+    function inOcc(x, z, m) {
+      var l = occGrid.get(ck(Math.floor(x / OC), Math.floor(z / OC))); if (!l) return false;
+      for (var i = 0; i < l.length; i++) { var o = l[i]; if (x > o[0] - m && x < o[1] + m && z > o[2] - m && z < o[3] + m) return true; }
+      return false;
+    }
+    var curBiome = 'city';
+    function zoneOf(x, z) {
+      var b = biomeOf(x, z), d;
+      if (b === 'jungle') return Math.hypot(x + 750, z - 250) < 260 ? 'mid' : 'out';
+      d = b === 'desert' ? Math.hypot(x - 750, z - 250) : b === 'snow' ? Math.hypot(x, z + 750) : Math.hypot(x, z);
+      var k = b === 'city' ? 1 : 0.8; return d < 160 * k ? 'down' : d < 340 * k ? 'mid' : 'out';
+    }
 
-    var walls = inst(box1, lam(0xffffff, { map: houseWallTex }), 2500, false, true), winM = inst(box1, lam(0xffffff, { map: winTex }), 800, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
-    var facadeBuckets = FACADE_MATS.map(function () { return { pos: [], norm: [], uv: [], idx: [] }; });
+    var walls = inst(box1, lam(0xffffff, { map: houseWallTex }), 56000, false, true), winM = inst(box1, lam(0xffffff, { map: winTex }), 20000, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
+    var CH = 20; W.CH = CH; W.chunks = new Map();
+    W.chunkOf = function (x, y, z) { return [Math.floor(x / CH), Math.floor(y / CH), Math.floor(z / CH)]; };
+    function chunkAt(cx, cz) { var k = ck(cx, cz), c = W.chunks.get(k); if (!c) { c = { cx: cx, cz: cz, g: new THREE.Group(), vis: true }; c.g.userData.c = c; scene.add(c.g); W.chunks.set(k, c); } return c; }
+    var fbMap = new Map(), rbMap = new Map();
+    function getFB(fi, x, z) { var k = fi + ':' + ck(Math.floor(x / CH), Math.floor(z / CH)), b = fbMap.get(k); if (!b) { b = { fi: fi, cx: Math.floor(x / CH), cz: Math.floor(z / CH), pos: [], norm: [], uv: [], idx: [] }; fbMap.set(k, b); } return b; }
     var roofBucket = { pos: [], norm: [], col: [], idx: [] };
+    function getRB(x, z) { var k = ck(Math.floor(x / CH), Math.floor(z / CH)), b = rbMap.get(k); if (!b) { b = { cx: Math.floor(x / CH), cz: Math.floor(z / CH), pos: [], norm: [], col: [], idx: [] }; rbMap.set(k, b); } return b; }
     function pushSide(bk, p0, p1, p2, p3, nx, ny, nz, ur, vr) {
       var b = bk.pos.length / 3; bk.pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2]);
       for (var i = 0; i < 4; i++) bk.norm.push(nx, ny, nz); bk.uv.push(0, 0, ur, 0, ur, vr, 0, vr); bk.idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
     }
     function tallBuilding(x0, x1, z0, z1, h) {
-      var w = x1 - x0, d = z1 - z0, bk = facadeBuckets[(R() * FACADE_MATS.length) | 0], uw = w / 8, ud = d / 8, vh = h / 8;
+      var w = x1 - x0, d = z1 - z0, bk = getFB(curBiome === 'desert' ? 6 + ((R() * 3) | 0) : curBiome === 'snow' ? 9 + ((R() * 3) | 0) : curBiome === 'jungle' ? 12 + ((R() * 3) | 0) : ((R() * 6) | 0), (x0 + x1) / 2, (z0 + z1) / 2), uw = w / 8, ud = d / 8, vh = h / 8;
       pushSide(bk, [x0, 0, z1], [x1, 0, z1], [x1, h, z1], [x0, h, z1], 0, 0, 1, uw, vh);
       pushSide(bk, [x1, 0, z0], [x0, 0, z0], [x0, h, z0], [x1, h, z0], 0, 0, -1, uw, vh);
       pushSide(bk, [x1, 0, z1], [x1, 0, z0], [x1, h, z0], [x1, h, z1], 1, 0, 0, ud, vh);
       pushSide(bk, [x0, 0, z0], [x0, 0, z1], [x0, h, z1], [x0, h, z0], -1, 0, 0, ud, vh);
-      var rc = new THREE.Color(pick(roofCols)), rb = roofBucket.pos.length / 3;
-      roofBucket.pos.push(x0, h, z1, x1, h, z1, x1, h, z0, x0, h, z0);
-      for (var i = 0; i < 4; i++) { roofBucket.norm.push(0, 1, 0); roofBucket.col.push(rc.r, rc.g, rc.b); }
-      roofBucket.idx.push(rb, rb + 1, rb + 2, rb, rb + 2, rb + 3);
+      var rc = new THREE.Color(pick(roofCols)), rbk = getRB((x0 + x1) / 2, (z0 + z1) / 2), rb = rbk.pos.length / 3;
+      rbk.pos.push(x0, h, z1, x1, h, z1, x1, h, z0, x0, h, z0);
+      for (var i = 0; i < 4; i++) { rbk.norm.push(0, 1, 0); rbk.col.push(rc.r, rc.g, rc.b); }
+      rbk.idx.push(rb, rb + 1, rb + 2, rb, rb + 2, rb + 3);
       addBox(x0, x1, 0, h, z0, z1, false); occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#555' });
       if (R() < 0.6) put(walls, rr(x0 + 2, x1 - 2), h + 1, rr(z0 + 2, z1 - 2), 3, 2, 3, 0, 0x6b7075);
     }
     function wallSeg(x0, x1, z0, z1, y0, y1, col) { put(walls, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, 0, col); addBox(x0, x1, y0, y1, z0, z1, false); }
 
-    var bedM = inst(box1, lam(0xffffff, { map: houseWallTex }), 400, false, true), couchM = inst(box1, lam(0xffffff, { map: houseWallTex }), 400, false, true);
+    var bedM = inst(box1, lam(0xffffff, { map: houseWallTex }), 6000, false, true), couchM = inst(box1, lam(0xffffff, { map: houseWallTex }), 6000, false, true);
     function addBed(x, z, clean) {
       put(bedM, x, 0.3, z, 2.0, 0.6, 1.0, 0, clean ? 0xe5dfd0 : 0x6e5b4d); put(bedM, x - 0.9, 0.65, z, 0.18, 0.5, 1.0, 0, clean ? 0xc89562 : 0x4a3d33);
       addBox(x - 1.0, x + 1.0, 0, 0.6, z - 0.5, z + 0.5, false); addEnt({ k: 'bed', x: x, z: z, y: 0, r: 1.3, h: 0.8, clean: clean, alive: true, dyn: false });
@@ -266,7 +295,7 @@
     var HOUSE_ROOFS = [0x8a4b3e, 0x526575, 0x6b6358, 0x546b4d, 0x7a5b40];
     function house(px, pz, face, zn) {
       var hw = rr(12, 15), hd = rr(10, 12), x0 = px - hw / 2, x1 = px + hw / 2, z0 = pz - hd / 2, z1 = pz + hd / 2, t = 0.4, H = 3.2;
-      var col = pick(HOUSE_COLS), roofCol = pick(HOUSE_ROOFS);
+      var col = pick(curBiome === 'desert' ? [0xd9b779, 0xc99a5b, 0xe6cf9a] : curBiome === 'snow' ? [0xe8eef5, 0x9fb4c8, 0xc9d6e2] : curBiome === 'jungle' ? [0x7a5a3a, 0x8a6b45, 0x5f7a4a] : HOUSE_COLS), roofCol = pick(curBiome === 'desert' ? [0x9a6b3e, 0x7a5b40] : curBiome === 'snow' ? [0xf4f8fb, 0x7d8fa3] : curBiome === 'jungle' ? [0x3f5a2e, 0x546b4d] : HOUSE_ROOFS);
       occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#' + ('000000' + col.toString(16)).slice(-6) });
       var dx = (x0 + x1) / 2 + rr(-hw / 4, hw / 4), dz = (z0 + z1) / 2 + rr(-hd / 4, hd / 4), gap = 1.0;
       [[z0, 'n'], [z1, 's']].forEach(function (s) {
@@ -298,32 +327,38 @@
 
     var trunkG = new THREE.CylinderGeometry(0.22, 0.34, 1, 7); trunkG.translate(0, 0.5, 0);
     var crownG = new THREE.ConeGeometry(1, 1, 8); crownG.translate(0, 0.5, 0);
-    var trunkM = inst(trunkG, lam(0xffffff, { map: barkTex }), 650, true, false), crownM = inst(crownG, lam(0xffffff, { map: leafTex }), 650, true, true);
+    var trunkM = inst(trunkG, lam(0xffffff, { map: barkTex }), 5200, true, false), crownM = inst(crownG, lam(0xffffff, { map: leafTex }), 5200, true, true);
     function treeMat(t, on) {
       if (!on) { put(trunkM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix); put(crownM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix); return; }
       put(trunkM, t.x, 0, t.z, 1.2 * t.s, t.th, 1.2 * t.s, t.ry, null, t.ix); put(crownM, t.x, t.th * 0.62, t.z, 2.6 * t.s, 3.4 * t.s, 2.6 * t.s, t.ry, t.cc, t.ix);
     }
     W.setTree = function (t, on) { treeMat(t, on); t.box.on = on; t.alive = on; };
-    function addTree(x, z, rng) {
+    function addTree(x, z, rng, bm) {
       var s = Math.pow(rng(), 1.6) * 1.5 + 0.7, th = 3.0 * s;
-      var t = { k: 'tree', idx: W.trees.length, x: x, z: z, y: 0, s: s, th: th, ry: rng() * 6.28, r: 0.55 * s + 0.15, h: th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s), hp: 0, yield: Math.round(3 + 5.2 * s * s), given: 0, respawn: 0, cc: pick([0x4c6e3d, 0x577c43, 0x426137, 0x677a43, 0x736d43], rng) };
+      var t = { k: 'tree', idx: W.trees.length, x: x, z: z, y: 0, s: s, th: th, ry: rng() * 6.28, r: 0.55 * s + 0.15, h: th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s), hp: 0, yield: Math.round(3 + 5.2 * s * s), given: 0, respawn: 0, cc: pick(bm === 'snow' ? [0xe8f0f5, 0xd5e2ea, 0xc6d8e0] : bm === 'jungle' ? [0x2f6b30, 0x3a7d35, 0x25602a, 0x4a8a3a] : bm === 'desert' ? [0x8a8a4a, 0x9a9055, 0x7d7d45] : [0x4c6e3d, 0x577c43, 0x426137, 0x677a43, 0x736d43], rng) };
       t.hp = t.max; t.ix = trunkM.count; trunkM.count++; crownM.count++; t.box = addBox(x - 0.3 * s, x + 0.3 * s, 0, th, z - 0.3 * s, z + 0.3 * s, true);
       treeMat(t, true); addEnt(t); W.trees.push(t);
     }
 
-    var rockG = new THREE.DodecahedronGeometry(1, 0), rockM = inst(rockG, lam(0xffffff, { map: rockTex, flatShading: true }), 220, true, true);
+    var rockG = new THREE.DodecahedronGeometry(1, 0), rockM = inst(rockG, lam(0xffffff, { map: rockTex, flatShading: true }), 2300, true, true);
     W.setRock = function (t, on) {
       if (!on) put(rockM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix);
       else put(rockM, t.x, 0.55 * t.s, t.z, 1.15 * t.s, 0.8 * t.s, 1.0 * t.s, t.ry, t.cc, t.ix);
       t.box.on = on; t.alive = on;
     };
-    function addRock(x, z, ore, rng, kind) {
-      var s = rr(0.8, 2.1, rng), t = { k: 'rock', idx: W.rocks.length, ore: ore, x: x, z: z, y: 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true, max: Math.round(((ore || kind === 'gold') ? 100 : 60) * s * s), yield: (ore || kind === 'gold') ? Math.round(2 + 4 * s * s) : kind === 'coal' ? Math.round(2 + 3 * s * s) : Math.round(4 + 6 * s * s), given: 0, respawn: 0, coal: kind === 'coal', gold: kind === 'gold', cc: ore ? 0xb37044 : kind === 'coal' ? 0x33343a : kind === 'gold' ? 0xe0b83a : 0x8d9198 };
+    /* [ORE TAG] kinds: stone | coal | copper | iron | gold.  Surface: 90% stone / 9% coal / 1% copper. Underground: 40 stone / 30 coal / 15 copper / 10 iron / 5 gold. */
+    var ORE_COL = { stone: 0x8d9198, coal: 0x33343a, copper: 0xd2733a, iron: 0xb59a8c, gold: 0xe0b83a };
+    function addRock(x, z, kindIn, rng) {
+      var kind = kindIn || 'stone', plain = kind === 'stone', s = rr(0.8, 2.1, rng);
+      var t = { k: 'rock', idx: W.rocks.length, kind: kind, ore: kind === 'iron', coal: kind === 'coal', gold: kind === 'gold', copper: kind === 'copper', x: x, z: z, y: 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true,
+        max: Math.round((plain ? 60 : kind === 'coal' ? 70 : 100) * s * s), yield: plain ? Math.round(4 + 6 * s * s) : kind === 'coal' ? Math.round(2 + 3 * s * s) : kind === 'copper' ? Math.round(4 + 6 * s * s) : Math.round(2 + 4 * s * s), given: 0, respawn: 0, cc: ORE_COL[kind] };
       t.hp = t.max; t.ix = rockM.count++; t.box = addBox(x - 0.8 * s, x + 0.8 * s, 0, 1.2 * s, z - 0.8 * s, z + 0.8 * s, true);
       W.setRock(t, true); addEnt(t); W.rocks.push(t);
     }
+    function rollSurfaceOre(rng) { var r = rng(); return r < 0.90 ? 'stone' : r < 0.99 ? 'coal' : 'copper'; }
+    function rollUgOre(rng) { var r = rng() * 100; return r < 40 ? 'stone' : r < 70 ? 'coal' : r < 85 ? 'copper' : r < 95 ? 'iron' : 'gold'; }
 
-    var pileM = inst(box1, lam(0xffffff, { map: houseWallTex }), 4000, true, true), shineM = inst(box1, lam(0xffffff), 1400, true, true), tableM = inst(box1, lam(0xffffff, { map: plankTex }), 120, true, true), tlegM = inst(box1, lam(0x3a2a1a), 480, true, true);
+    var pileM = inst(box1, lam(0xffffff, { map: houseWallTex }), 24000, true, true), shineM = inst(box1, lam(0xffffff), 6500, true, true), tableM = inst(box1, lam(0xffffff, { map: plankTex }), 400, true, true), tlegM = inst(box1, lam(0x3a2a1a), 1600, true, true);
     W.setPile = function (p, full) {
       if (p.tier === 4) { p.parts.forEach(function (q) { put(q.m, p.x + q.dx, (q.item && !full) ? -5 : q.y, p.z + q.dz, q.sx, q.sy, q.sz, q.ry, q.col, q.i); }); p.searched = !full; return; }
       var k = full ? 1 : 0.3; p.parts.forEach(function (q) { put(q.m, p.x + q.dx, q.y * k, p.z + q.dz, q.sx, q.sy * k, q.sz, q.ry, q.col, q.i); }); p.searched = !full; };
@@ -342,7 +377,7 @@
       W.setPile(p, true); addEnt(p); W.piles.push(p);
     }
 
-    var crateM = inst(box1, lam(0xffffff, { map: crateTex }), 250, true, true), lidM = inst(box1, lam(0xffffff), 250, true, true);
+    var crateM = inst(box1, lam(0xffffff, { map: crateTex }), 900, true, true), lidM = inst(box1, lam(0xffffff), 900, true, true);
     W.setCrate = function (c, full) {
       var bodyCol = c.tier === 2 ? (full ? 0xffdf9e : 0x99845a) : (full ? 0xffffff : 0x8a7558);
       var lidCol = c.tier === 2 ? 0x3b4859 : 0x4f361c;
@@ -369,104 +404,195 @@
       return e;
     }
 
+    /* Loot cars: each car has 10-25 Break Points, loot is in the trunk */
+    var carBody = inst(boxB, lam(0xffffff, { map: houseWallTex }), 1000, true, true), carTop = inst(boxB, lam(0x373b40), 1000, true, false);
+    W.cars = [];
+    W.setCar = function (c, on) {
+      if (on) { put(carBody, c.x, 0.25, c.z, c.lx, 0.9, c.lz, 0, c.col, c.ix); put(carTop, c.x, 1.15, c.z, c.horiz ? 2.2 : 1.7, 0.6, c.horiz ? 1.7 : 2.2, 0, null, c.ix); }
+      else { put(carBody, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); put(carTop, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); }
+      c.box.on = on; c.alive = on;
+    };
+    function addCar(x, z, horiz, rng) {
+      var c = { k: 'car', idx: W.cars.length, x: x, z: z, y: 0, r: 1.9, h: 1.75, horiz: horiz, lx: horiz ? 4.4 : 1.9, lz: horiz ? 1.9 : 4.4, alive: true, dyn: true, respawn: 0, col: pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
+      c.max = c.hp = 10 + Math.floor(rng() * 16); c.ix = carBody.count++; carTop.count++;
+      c.box = addBox(x - c.lx / 2, x + c.lx / 2, 0, 1.75, z - c.lz / 2, z + c.lz / 2, true); W.setCar(c, true); addEnt(c); W.cars.push(c);
+    }
+    var lakeList = [];
     /* Fixed city layout */
     for (var a = 0; a <= ROADS.length; a++) for (var b = 0; b <= ROADS.length; b++) {
-      var lx0 = a === 0 ? -250 : ROADS[a - 1] + RW / 2, lx1 = a === ROADS.length ? 250 : ROADS[a] - RW / 2;
-      var lz0 = b === 0 ? -250 : ROADS[b - 1] + RW / 2, lz1 = b === ROADS.length ? 250 : ROADS[b] - RW / 2;
+      var lx0 = a === 0 ? -HALF : ROADS[a - 1] + RW / 2, lx1 = a === ROADS.length ? HALF : ROADS[a] - RW / 2;
+      var lz0 = b === 0 ? -HALF : ROADS[b - 1] + RW / 2, lz1 = b === ROADS.length ? HALF : ROADS[b] - RW / 2;
       var cx = (lx0 + lx1) / 2, cz = (lz0 + lz1) / 2, zone = zoneOf(cx, cz), rim = a === 0 || b === 0 || a === ROADS.length || b === ROADS.length;
       if (rim) continue;
+      if (lx1 > -935 && lx0 < -875 && lz1 > -933 && lz0 < -877) continue; /* space reserved for the mineshaft mountain */
+      curBiome = biomeOf(cx, cz);
       var ins = 5, bx0 = lx0 + ins, bx1 = lx1 - ins, bz0 = lz0 + ins, bz1 = lz1 - ins;
+      if (zone === 'out' && R() < 0.04) { var lk = 12 + R() * 4; lakeList.push([cx - lk, cx + lk, cz - lk, cz + lk]); continue; }
       if (zone === 'down') {
         if (R() < 0.55) tallBuilding(bx0, bx1, bz0, bz1, rr(26, 72));
         else { var mxm = (bx0 + bx1) / 2, mzm = (bz0 + bz1) / 2, g = 2; [[bx0, mxm - g, bz0, mzm - g], [mxm + g, bx1, bz0, mzm - g], [bx0, mxm - g, mzm + g, bz1], [mxm + g, bx1, mzm + g, bz1]].forEach(function (q) { tallBuilding(q[0], q[1], q[2], q[3], rr(12, 44)); }); }
       } else if (zone === 'mid') {
         var roll = R();
-        if (roll < 0.3) tallBuilding(bx0 + 2, bx1 - 2, bz0 + 2, bz1 - 2, rr(10, 24));
+        if (roll < 0.3 && curBiome !== 'jungle') tallBuilding(bx0 + 2, bx1 - 2, bz0 + 2, bz1 - 2, rr(10, 24));
         else if (roll < 0.9) { var mx2 = (bx0 + bx1) / 2, mz2 = (bz0 + bz1) / 2; [[mx2 - 12, mz2 - 12], [mx2 + 12, mz2 - 12], [mx2 - 12, mz2 + 12], [mx2 + 12, mz2 + 12]].forEach(function (q, qi) { if (R() < 0.85) house(q[0] + rr(-1.5, 1.5), q[1] + rr(-1.5, 1.5), qi < 2 ? 's' : 'n', 'mid'); }); }
       } else {
         var mx3 = (bx0 + bx1) / 2, mz3 = (bz0 + bz1) / 2;
-        [[mx3 - 12, mz3 - 12], [mx3 + 12, mz3 - 12], [mx3 - 12, mz3 + 12], [mx3 + 12, mz3 + 12]].forEach(function (q) { if (R() < 0.55) house(q[0] + rr(-2, 2), q[1] + rr(-2, 2), pick(['n', 's', 'e', 'w']), 'out'); });
+        [[mx3 - 12, mz3 - 12], [mx3 + 12, mz3 - 12], [mx3 - 12, mz3 + 12], [mx3 + 12, mz3 + 12]].forEach(function (q) { if (R() < (curBiome === 'jungle' ? 0.5 : 0.4)) house(q[0] + rr(-2, 2), q[1] + rr(-2, 2), pick(['n', 's', 'e', 'w']), 'out'); });
       }
     }
     /* ---------------- Lakes, river and the mineshaft ---------------- */
-    var waterMat = new THREE.MeshLambertMaterial({ color: 0x2f7fa8, transparent: true, opacity: 0.82 }), shoreMat = new THREE.MeshLambertMaterial({ color: 0x8a8460 });
+    W.waterMeshes = []; var waterMat = new THREE.MeshLambertMaterial({ color: 0x2f7fa8, transparent: true, opacity: 0.82 }); W.waterMat = waterMat; var shoreMat = new THREE.MeshLambertMaterial({ color: 0x8a8460 });
     function addWater(x0, x1, z0, z1, type) {
       var sh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 + 3, z1 - z0 + 3), shoreMat); sh.rotation.x = -Math.PI / 2; sh.position.set((x0 + x1) / 2, 0.035, (z0 + z1) / 2); scene.add(sh);
-      var wm = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), waterMat); wm.rotation.x = -Math.PI / 2; wm.position.set((x0 + x1) / 2, 0.06, (z0 + z1) / 2); scene.add(wm);
+      var wm = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), waterMat); W.waterMeshes.push(wm); wm.rotation.x = -Math.PI / 2; wm.position.set((x0 + x1) / 2, 0.06, (z0 + z1) / 2); scene.add(wm);
       addBox(x0, x1, 0, 1.2, z0, z1, false); occupied.push([x0 - 2.5, x1 + 2.5, z0 - 2.5, z1 + 2.5]);
       W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#2f7fa8' }); W.waters.push({ x0: x0, x1: x1, z0: z0, z1: z1, type: type });
     }
-    addWater(176, 208, -144, -112, 'lake'); addWater(-144, -112, 176, 208, 'lake'); addWater(176, 208, 112, 144, 'lake');
-    addWater(-246, -238, -120, -60, 'river');
+    lakeList.forEach(function (l) { addWater(l[0], l[1], l[2], l[3], 'lake'); });
+    addWater(-975, -965, -300, 300, 'river');
     W.waterAt = function (x, z) { for (var i = 0; i < W.waters.length; i++) { var w = W.waters[i]; if (x > w.x0 - 0.3 && x < w.x1 + 0.3 && z > w.z0 - 0.3 && z < w.z1 + 0.3) return w.type; } return null; };
     (function () {
-      var mx0 = -246, mx1 = -230, mz0 = -246, mz1 = -230, T4 = 1, H = 4, col = 0x5a544c, gx = -238;
-      W.mine = { x0: mx0, x1: mx1, z0: mz0, z1: mz1, entrance: { x: gx, z: mz1 + 1.5 }, spawns: [[-241, -241], [-235, -241], [-241, -235], [-236, -236], [-243, -238]], ores: [[-244.5, -244.5], [-232, -244.5], [-244.5, -233], [-240, -239.5], [-233.5, -238]] };
-      occupied.push([mx0 - 2, mx1 + 2, mz0 - 2, mz1 + 5]);
-      var fl = new THREE.Mesh(new THREE.PlaneGeometry(mx1 - mx0, mz1 - mz0), new THREE.MeshLambertMaterial({ color: 0x1a1816 })); fl.rotation.x = -Math.PI / 2; fl.position.set((mx0 + mx1) / 2, 0.05, (mz0 + mz1) / 2); scene.add(fl);
-      wallSeg(mx0, mx1, mz0, mz0 + T4, 0, H, col); wallSeg(mx0, mx0 + T4, mz0, mz1, 0, H, col); wallSeg(mx1 - T4, mx1, mz0, mz1, 0, H, col);
-      wallSeg(mx0, gx - 1.5, mz1 - T4, mz1, 0, H, col); wallSeg(gx + 1.5, mx1, mz1 - T4, mz1, 0, H, col); wallSeg(gx - 1.5, gx + 1.5, mz1 - T4, mz1, 3, H, col);
-      wallSeg(mx0, mx1, mz0, mz1, H, H + 0.6, 0x3a3631);
-      /* inner walls make one winding path */
-      wallSeg(mx0 + T4, mx1 - 6, -240.5, -239.5, 0, H, col); wallSeg(mx0 + 6, mx1 - T4, -235.5, -234.5, 0, H, col);
-      W.rects.push({ x0: mx0, x1: mx1, z0: mz0, z1: mz1, c: '#6b5a2a' });
-    })();
-    facadeBuckets.forEach(function (bk, fi) {
-      if (!bk.pos.length) return;
-      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(bk.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(bk.norm, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(bk.uv, 2)); g.setIndex(bk.idx); g.computeBoundingSphere(); scene.add(new THREE.Mesh(g, FACADE_MATS[fi]));
-    });
-    if (roofBucket.pos.length) {
-      var rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(roofBucket.pos, 3)); rg.setAttribute('normal', new THREE.Float32BufferAttribute(roofBucket.norm, 3));
-      rg.setAttribute('color', new THREE.Float32BufferAttribute(roofBucket.col, 3)); rg.setIndex(roofBucket.idx); rg.computeBoundingSphere(); scene.add(new THREE.Mesh(rg, new THREE.MeshLambertMaterial({ vertexColors: true })));
-    }
-    var carBody = inst(boxB, lam(0xffffff, { map: houseWallTex }), 80, false, true), carTop = inst(boxB, lam(0x373b40), 80, false, false), cars = 0, cTry = 0;
-    while (cars < 55 && cTry++ < 600) {
-      var vl = pick(ROADS), alongV = rr(-240, 240), lane = (R() < 0.5 ? -1 : 1) * rr(1.2, 3), horiz = R() < 0.5;
-      var cxx = horiz ? alongV : vl + lane, czz = horiz ? vl + lane : alongV, lenX = horiz ? 4.4 : 1.9, lenZ = horiz ? 1.9 : 4.4;
-      put(carBody, cxx, 0.25, czz, lenX, 0.9, lenZ, 0, pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b]));
-      put(carTop, cxx, 1.15, czz, horiz ? 2.2 : 1.7, 0.6, horiz ? 1.7 : 2.2, 0, null);
-      addBox(cxx - lenX / 2, cxx + lenX / 2, 0, 1.75, czz - lenZ / 2, czz + lenZ / 2, false); cars++;
-    }
-    var postM = inst(boxB, lam(0xc44230), 360, false, false);
-    for (var pt = -250; pt <= 250; pt += 6) { put(postM, pt, 0, -250, 0.25, 1.6, 0.25, 0, null); put(postM, pt, 0, 250, 0.25, 1.6, 0.25, 0, null); put(postM, -250, 0, pt, 0.25, 1.6, 0.25, 0, null); put(postM, 250, 0, pt, 0.25, 1.6, 0.25, 0, null); }
+      /* ---- Surface mineshaft: an irregular rocky mini-mountain (snow biome, NW). The entrance leads down to the Underground. ---- */
+      var MR = mulberry(4242), MCX = -905, MCZ = -905;
+      function mr(a, b) { return a + (b - a) * MR(); }
+      var notch = { x0: MCX - 3, x1: MCX + 3, z0: MCZ + 1, z1: MCZ + 18 };
+      function hitsNotch(x0, x1, z0, z1) { return x0 < notch.x1 && x1 > notch.x0 && z0 < notch.z1 && z1 > notch.z0; }
+      var LC = [0x6b6560, 0x77716b, 0x5c5953, 0x807a73];
+      wallSeg(MCX - 13, MCX + 13, MCZ - 14, MCZ + 1, 0, 6.4, 0x5f5a55);
+      for (var L = 0; L < 5; L++) {
+        var y0 = L < 2 ? 0 : 6.4 + (L - 2) * 3.4, y1 = L < 2 ? 6.4 : y0 + 3.4, rad = 24 * (1 - L * 0.17), nb = 15 - L * 2;
+        if (L === 1) continue;
+        for (var q = 0; q < nb; q++) {
+          var w = mr(7, 15) * (1 - L * 0.1), d = mr(7, 15) * (1 - L * 0.1), ang = MR() * 6.283, rr2 = Math.sqrt(MR()) * rad, bx = MCX + Math.cos(ang) * rr2, bz = MCZ - 2 + Math.sin(ang) * rr2 * 0.8;
+          var x0 = bx - w / 2, x1 = bx + w / 2, z0 = bz - d / 2, z1 = bz + d / 2;
+          if (L < 2 && hitsNotch(x0 - 0.4, x1 + 0.4, z0 - 0.4, z1 + 0.4)) continue;
+          if (L >= 2 && L < 4 && Math.hypot(bx - MCX, bz - MCZ) > rad) continue;
+          wallSeg(x0, x1, z0, z1, L === 0 ? 0 : y0, L === 0 ? 6.4 : y1, L >= 3 ? (L === 4 ? 0xe9eff2 : 0xb7c0c6) : LC[(MR() * 4) | 0]);
+        }
+      }
+      wallSeg(MCX - 5, MCX + 5, MCZ - 6, MCZ + 1, 6.4, 12.5, 0x74706a);
+      put(walls, MCX, 1.6, MCZ + 1.05, 3.6, 3.2, 0.25, 0, 0x120f0c); put(walls, MCX - 2.1, 1.6, MCZ + 2.2, 0.4, 3.2, 0.4, 0, 0x6b4d30); put(walls, MCX + 2.1, 1.6, MCZ + 2.2, 0.4, 3.2, 0.4, 0, 0x6b4d30); put(walls, MCX, 3.3, MCZ + 2.2, 4.6, 0.4, 0.4, 0, 0x6b4d30);
+      occupied.push([MCX - 28, MCX + 28, MCZ - 26, MCZ + 24]);
+      W.rects.push({ x0: MCX - 24, x1: MCX + 24, z0: MCZ - 22, z1: MCZ + 16, c: '#7d8388' });
+      W.mine = { x0: MCX - 26, x1: MCX + 26, z0: MCZ - 24, z1: MCZ + 18, door: { x: MCX, z: MCZ + 2.6 }, entrance: { x: MCX, z: MCZ + 8 } };
 
+      /* ---- Underground: a separate cave level far outside the map. Reached only through the mineshaft door. ---- */
+      var N = 61, CS = 6, UH = 5, UX = 1200, UZ = -183, grid = [], i, j;
+      for (i = 0; i < N; i++) grid.push(new Uint8Array(N));
+      function op(a, b) { if (a > 0 && b > 0 && a < N - 1 && b < N - 1) grid[a][b] = 1; }
+      var stack = [[1, 1]]; op(1, 1);
+      while (stack.length) {
+        var cur = stack[stack.length - 1], nbs = [];
+        [[2, 0], [-2, 0], [0, 2], [0, -2]].forEach(function (dd) { var ni = cur[0] + dd[0], nj = cur[1] + dd[1]; if (ni > 0 && nj > 0 && ni < N - 1 && nj < N - 1 && !grid[ni][nj]) nbs.push(dd); });
+        if (!nbs.length) { stack.pop(); continue; }
+        var dd2 = nbs[(MR() * nbs.length) | 0]; op(cur[0] + dd2[0] / 2, cur[1] + dd2[1] / 2); op(cur[0] + dd2[0], cur[1] + dd2[1]); stack.push([cur[0] + dd2[0], cur[1] + dd2[1]]);
+      }
+      for (var br = 0; br < 160; br++) { var bi = 1 + ((MR() * 59) | 0), bj = 1 + ((MR() * 59) | 0); if ((bi + bj) % 2 === 1) op(bi, bj); }               /* loops */
+      for (var rm = 0; rm < 34; rm++) { var ri = 3 + 2 * ((MR() * 28) | 0), rj = 3 + 2 * ((MR() * 28) | 0), rw = MR() < 0.5 ? 1 : 2; for (i = -rw; i <= rw; i++) for (j = -rw; j <= rw; j++) if (Math.abs(i) + Math.abs(j) < rw * 2 + 1) op(ri + i, rj + j); } /* irregular chambers */
+      for (i = 1; i <= 3; i++) for (j = 1; j <= 3; j++) op(i, j);
+      function cx(i) { return UX + (i + 0.5) * CS; } function cz(j) { return UZ + (j + 0.5) * CS; }
+      var open = [];
+      for (i = 1; i < N - 1; i++) for (j = 1; j < N - 1; j++) if (grid[i][j] && (i > 5 || j > 5)) open.push([cx(i), cz(j)]);
+      var UC = [0x4a4640, 0x55504a, 0x3e3b37, 0x5b4a3c];
+      function bound(a, b) { if (grid[a][b]) return false; for (var u = -1; u <= 1; u++) for (var v = -1; v <= 1; v++) { var na = a + u, nb2 = b + v; if (na >= 0 && nb2 >= 0 && na < N && nb2 < N && grid[na][nb2]) return true; } return false; }
+      for (j = 0; j < N; j++) {
+        var run = -1;
+        for (i = 0; i <= N; i++) {
+          var bd = i < N && bound(i, j);
+          if (bd && run < 0) run = i;
+          if (!bd && run >= 0) { wallSeg(UX + run * CS, UX + i * CS, UZ + j * CS, UZ + (j + 1) * CS, 0, UH, UC[(MR() * 4) | 0]); run = -1; }
+        }
+      }
+      for (var tx = 0; tx < 19; tx++) for (var tz = 0; tz < 19; tz++) put(walls, UX + tx * 20 + 10, UH + 0.5, UZ + tz * 20 + 10, 20, 1, 20, 0, 0x2a2724);
+      var ugFloor = new THREE.Mesh(new THREE.PlaneGeometry(N * CS + 8, N * CS + 8), new THREE.MeshLambertMaterial({ color: 0x24211d })); ugFloor.rotation.x = -Math.PI / 2; ugFloor.position.set(UX + N * CS / 2, 0.03, UZ + N * CS / 2); ugFloor.visible = false; scene.add(ugFloor);
+      put(walls, cx(1), 1.2, cz(1), 1.4, 2.4, 0.5, 0, 0xc9a23a);
+      W.ug = { x0: UX, z0: UZ, x1: UX + N * CS, z1: UZ + N * CS, spawn: { x: cx(3), z: cz(3) }, exit: { x: cx(1), z: cz(1) }, open: open, floor: ugFloor };
+    })();
+    var roofMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    fbMap.forEach(function (bk) {
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(bk.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(bk.norm, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(bk.uv, 2)); g.setIndex(bk.idx); var m = new THREE.Mesh(g, FACADE_MATS[bk.fi]); m.frustumCulled = false; chunkAt(bk.cx, bk.cz).g.add(m);
+    });
+    rbMap.forEach(function (bk) {
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(bk.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(bk.norm, 3));
+      g.setAttribute('color', new THREE.Float32BufferAttribute(bk.col, 3)); g.setIndex(bk.idx); var m = new THREE.Mesh(g, roofMat); m.frustumCulled = false; chunkAt(bk.cx, bk.cz).g.add(m);
+    });
+    var postM = inst(boxB, lam(0xc44230), 1400, false, false);
+    for (var pt = -HALF; pt <= HALF; pt += 6) { put(postM, pt, 0, -HALF, 0.25, 1.6, 0.25, 0, null); put(postM, pt, 0, HALF, 0.25, 1.6, 0.25, 0, null); put(postM, -HALF, 0, pt, 0.25, 1.6, 0.25, 0, null); put(postM, HALF, 0, pt, 0.25, 1.6, 0.25, 0, null); }
+
+    /* Bake static instanced meshes into 20 m chunks so the renderer can skip whole chunks */
+    function bake(m) {
+      var n = m.count, a = m.instanceMatrix.array, ca = m.instanceColor ? m.instanceColor.array : null, bs = new Map(), i;
+      for (i = 0; i < n; i++) { var cx = Math.floor(a[i * 16 + 12] / CH), cz = Math.floor(a[i * 16 + 14] / CH), k = ck(cx, cz), l = bs.get(k); if (!l) { l = { cx: cx, cz: cz, ids: [] }; bs.set(k, l); } l.ids.push(i); }
+      bs.forEach(function (l) {
+        var im = new THREE.InstancedMesh(m.geometry, m.material, l.ids.length); im.frustumCulled = false;
+        if (ca) im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(l.ids.length * 3), 3);
+        for (var j = 0; j < l.ids.length; j++) { var s0 = l.ids[j] * 16; for (var q = 0; q < 16; q++) im.instanceMatrix.array[j * 16 + q] = a[s0 + q]; if (ca) for (var u = 0; u < 3; u++) im.instanceColor.array[j * 3 + u] = ca[l.ids[j] * 3 + u]; }
+        chunkAt(l.cx, l.cz).g.add(im);
+      });
+      scene.remove(m); m.visible = false;
+    }
+    [walls, winM, dashes, postM].forEach(bake);
+    /* chunk visibility: render distance (in chunks), optional 180-degree back culling */
+    var cvT = 0;
+    W.updateChunks = function (px, pz, fx, fz, rd, cull) {
+      var lim = rd >= 9999 ? 1e9 : (rd + 0.9) * CH, fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl; var shown = 0;
+      W.chunks.forEach(function (c) {
+        var dx = (c.cx + 0.5) * CH - px, dz = (c.cz + 0.5) * CH - pz, d = Math.hypot(dx, dz), v = d < lim;
+        if (v && cull && (dx * fx + dz * fz) < -CH) v = false; /* 180-degree back culling with 1 chunk of slack */
+        if (v !== c.vis) { c.vis = v; c.g.visible = v; }
+        if (v) shown++;
+      });
+      W.shownChunks = shown;
+    };
     var staticCrateCount = W.crates.length;
-    function spawnNature(seed) {
-      W.seed = seed; var Rn = mulberry(seed), tries = 0;
-      while (W.trees.length < 520 && tries++ < 20000) {
-        var tx = rr(-248, 248, Rn), tz = rr(-248, 248, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), z0n = zoneOf(tx, tz);
-        if (Rn() > (edge > 229 ? 0.95 : z0n === 'out' ? 0.35 : z0n === 'mid' ? 0.12 : 0.03) || onRoad(tx, tz, 1.5) || inOcc(tx, tz, 2)) continue;
-        addTree(tx, tz, Rn);
+    function spawnNature(seed, keep) {
+      W.seed = seed; var Rn = mulberry(seed), tries = 0, n = 0;
+      function free(x, z, m) { return !(keep && W.hit(x - m, x + m, 0, 3, z - m, z + m)); }
+      while (n < 5000 && tries++ < 200000) {
+        var tx = rr(-HALF + 4, HALF - 4, Rn), tz = rr(-HALF + 4, HALF - 4, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), bm = biomeOf(tx, tz), z0n = zoneOf(tx, tz);
+        var pr = bm === 'jungle' ? 0.8 : bm === 'snow' ? 0.22 : bm === 'desert' ? 0.02 : (z0n === 'out' ? 0.3 : z0n === 'mid' ? 0.1 : 0.03);
+        if (edge > HALF - 21) pr = 0.95;
+        if (Rn() > pr || onRoad(tx, tz, 1.5) || inOcc(tx, tz, 2) || !free(tx, tz, 1)) continue;
+        addTree(tx, tz, Rn, bm); n++;
       }
       var rocks = 0; tries = 0;
-      while (rocks < 150 && tries++ < 12000) {
-        var rx = rr(-246, 246, Rn), rz = rr(-246, 246, Rn);
-        if ((zoneOf(rx, rz) === 'down' && Rn() < 0.8) || onRoad(rx, rz, 2) || inOcc(rx, rz, 2.5)) continue;
-        addRock(rx, rz, rocks % 4 === 0, Rn, (rocks % 4 !== 0 && rocks % 5 === 2) ? 'coal' : null); rocks++;
+      while (rocks < 1500 && tries++ < 60000) {
+        var rx = rr(-HALF + 6, HALF - 6, Rn), rz = rr(-HALF + 6, HALF - 6, Rn), rz0 = zoneOf(rx, rz);
+        if ((rz0 === 'down' && Rn() < 0.8) || onRoad(rx, rz, 2) || inOcc(rx, rz, 2.5) || !free(rx, rz, 1.5)) continue;
+        addRock(rx, rz, rollSurfaceOre(Rn), Rn); rocks++;
       }
-      W.mine.ores.forEach(function (o) { addRock(o[0], o[1], false, Rn, 'gold'); });
+      /* underground ore field: 260 spots on the cave floor */
+      var ugn = 0, ugt = 0, uo = W.ug.open;
+      while (ugn < 260 && ugt++ < 4000) { var oc = uo[(Rn() * uo.length) | 0], ox = oc[0] + rr(-1.4, 1.4, Rn), oz = oc[1] + rr(-1.4, 1.4, Rn); if (W.hit(ox - 1.8, ox + 1.8, 0.1, 1.8, oz - 1.8, oz + 1.8)) continue; addRock(ox, oz, rollUgOre(Rn), Rn); ugn++; }
       var piles = 0; tries = 0;
-      while (piles < 430 && tries++ < 30000) {
-        var side = Rn() < 0.5, line = pick(ROADS, Rn), off = (Rn() < 0.5 ? -1 : 1) * rr(RW / 2 + 0.8, RW / 2 + 3.2, Rn), along = rr(-244, 244, Rn);
+      while (piles < 3600 && tries++ < 120000) {
+        var side = Rn() < 0.5, line = pick(ROADS, Rn), off = (Rn() < 0.5 ? -1 : 1) * rr(RW / 2 + 0.8, RW / 2 + 3.2, Rn), along = rr(-HALF + 6, HALF - 6, Rn);
         if (Rn() < 0.18) off = rr(-RW / 2 + 1, RW / 2 - 1, Rn);
         var px = side ? line + off : along, pz = side ? along : line + off;
-        if (inOcc(px, pz, 0.5) || Math.max(Math.abs(px), Math.abs(pz)) > 246) continue;
+        if (inOcc(px, pz, 0.5) || Math.max(Math.abs(px), Math.abs(pz)) > HALF - 4 || !free(px, pz, 1)) continue;
         var zn = zoneOf(px, pz); addPile(px, pz, zn === 'down' ? 2 : zn === 'mid' ? (Rn() < 0.45 ? 2 : 1) : 1, Rn); piles++;
       }
       var tb = 0; tries = 0;
-      while (tb < 26 && tries++ < 8000) {
-        var tl = pick(ROADS, Rn), toff = (Rn() < 0.5 ? -1 : 1) * rr(RW / 2 + 1.5, RW / 2 + 3.5, Rn), talong = rr(-110, 110, Rn), tside = Rn() < 0.5, tpx = tside ? tl + toff : talong, tpz = tside ? talong : tl + toff;
-        if (inOcc(tpx, tpz, 1.2) || zoneOf(tpx, tpz) !== 'down') continue; addPile(tpx, tpz, 4, Rn); tb++;
+      while (tb < 150 && tries++ < 60000) {
+        var tl = pick(ROADS, Rn), toff = (Rn() < 0.5 ? -1 : 1) * rr(RW / 2 + 1.5, RW / 2 + 3.5, Rn), talong = rr(-HALF + 6, HALF - 6, Rn), tside = Rn() < 0.5, tpx = tside ? tl + toff : talong, tpz = tside ? talong : tl + toff;
+        if (inOcc(tpx, tpz, 1.2) || zoneOf(tpx, tpz) !== 'down' || !free(tpx, tpz, 1.5)) continue; addPile(tpx, tpz, 4, Rn); tb++;
       }
       var cr = 0; tries = 0;
-      while (cr < 90 && tries++ < 8000) {
-        var qx = rr(-240, 240, Rn), qz = rr(-240, 240, Rn), czn = zoneOf(qx, qz);
-        if (onRoad(qx, qz, 1) || inOcc(qx, qz, 1) || (czn === 'down' && Rn() < 0.65)) continue;
+      while (cr < 600 && tries++ < 40000) {
+        var qx = rr(-HALF + 10, HALF - 10, Rn), qz = rr(-HALF + 10, HALF - 10, Rn), czn = zoneOf(qx, qz);
+        if (onRoad(qx, qz, 1) || inOcc(qx, qz, 1) || (czn === 'down' && Rn() < 0.65) || !free(qx, qz, 1)) continue;
         addCrate(qx, qz, true, Rn, czn === 'down' ? 2 : (czn === 'mid' && Rn() < 0.5 ? 2 : 1)); cr++;
       }
+      var cn = 0; tries = 0;
+      while (cn < 800 && tries++ < 20000) {
+        var vl = pick(ROADS, Rn), alongV = rr(-HALF + 10, HALF - 10, Rn), lane = (Rn() < 0.5 ? -1 : 1) * rr(1.2, 3, Rn), horiz = Rn() < 0.5;
+        var cxx = horiz ? alongV : vl + lane, czz = horiz ? vl + lane : alongV, lenX = horiz ? 4.4 : 1.9, lenZ = horiz ? 1.9 : 4.4;
+        if (W.hit(cxx - lenX / 2 - 0.5, cxx + lenX / 2 + 0.5, 0.1, 1.8, czz - lenZ / 2 - 0.5, czz + lenZ / 2 + 0.5)) continue;
+        addCar(cxx, czz, horiz, Rn); cn++;
+      }
     }
-    spawnNature(initSeed != null ? initSeed : rndSeed());
+    spawnNature(initSeed != null ? initSeed : rndSeed(), false);
 
     var VM = {
       1: inst(box1, lam(0xffffff, { map: plankTex }), 2600, true, false),
@@ -483,7 +609,7 @@
     W.voxCount = function () { return vcount; };
     W.getVox = function (x, y, z) { return vox.get(vk(x, y, z)) || null; };
     W.setVox = function (x, y, z, t, hp) {
-      if (y < 0 || y >= VMAX || Math.abs(x) > 252 || Math.abs(z) > 252) return false;
+      if (y < 0 || y >= VMAX || Math.abs(x) > HALF + 2 || Math.abs(z) > HALF + 2) return false;
       var k = vk(x, y, z); if (vox.has(k)) return false;
       var arr = vkeys[t]; if (!arr || arr.length >= VM[t].instanceMatrix.count) return false;
       var idx = arr.length; arr.push([x, y, z]); vox.set(k, { t: t, hp: hp, idx: idx });
@@ -502,32 +628,34 @@
     W.voxList = function () {
       var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70 }, out = [];
       vox.forEach(function (v) {
-        var a = vkeys[v.t][v.idx], p = ((a[0] + 256) * 1024 + (a[2] + 256)) * 1024 + a[1] * 16 + (v.t - 1);
+        var a = vkeys[v.t][v.idx], p = ((a[0] + 1024) * 2048 + (a[2] + 1024)) * 1024 + a[1] * 16 + (v.t - 1);
         out.push(Math.round(v.hp) < HP[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
       });
       return out;
     };
     W.voxLoad = function (list, ver) {
       if (!Array.isArray(list)) return;
-      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70 }, v2 = (ver || 1) >= 2;
+      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70 }, v2 = (ver || 1) >= 3;
       list.forEach(function (en) {
         var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, t, y, r, z, x;
-        if (v2) { t = (n % 16) + 1; y = ((n / 16) | 0) % 64; r = Math.floor(n / 1024); z = (r % 1024) - 256; x = Math.floor(r / 1024) - 256; }
-        else { t = (n % 4) + 1; y = ((n / 4) | 0) % 64; r = Math.floor(n / 256); z = (r % 1024) - 256; x = Math.floor(r / 1024) - 256; }
+        if (!v2) return;
+        t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024;
         if (t >= 1 && t <= 9) W.setVox(x, y, z, t, hp != null ? hp : HP[t]);
       });
     };
-    W.resetWorld = function (newSeed) {
-      vox.clear(); [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
-      vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0;
+    W.resetWorld = function (newSeed, keepBuild) {
+      if (!keepBuild) {
+        vox.clear(); [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
+        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0;
+      }
       sgrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
-      egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
-      W.ents = W.ents.filter(function (e) { return !e.dyn; });
-      W.trees.length = 0; W.rocks.length = 0; W.piles.length = 0; W.crates.length = staticCrateCount;
+      egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn && l[i].vx == null) l.splice(i, 1); });
+      W.ents = W.ents.filter(function (e) { return !e.dyn || e.vx != null; });
+      W.trees.length = 0; W.rocks.length = 0; W.piles.length = 0; W.cars.length = 0; W.crates.length = staticCrateCount;
       for (var ci = 0; ci < staticCrateCount; ci++) { W.crates[ci].respawn = 0; W.setCrate(W.crates[ci], true); }
-      trunkM.count = crownM.count = rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = 0;
+      trunkM.count = crownM.count = rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = carBody.count = carTop.count = 0;
       crateM.count = lidM.count = staticCrateCount;
-      spawnNature(newSeed != null ? newSeed : rndSeed());
+      spawnNature(newSeed != null ? newSeed : rndSeed(), !!keepBuild);
     };
 
     var skyColor = new THREE.Color(0x88b8de), fogColor = new THREE.Color(0x9bc4e6);
@@ -559,7 +687,10 @@
     var cA = new THREE.Color(), cB = new THREE.Color();
     function lerpCol(out, hexA, hexB, f) { cA.setHex(hexA); cB.setHex(hexB); out.copy(cA).lerp(cB, f); }
 
+    var ugMode = false;
+    W.setUnderground = function (on) { ugMode = !!on; if (W.ug) W.ug.floor.visible = ugMode; skyGrp.visible = !ugMode; };
     W.updateSky = function (hour, px, pz) {
+      if (ugMode) { skyColor.setHex(0x080706); fogColor.setHex(0x080706); scene.fog.color.copy(fogColor); hemi.color.setHex(0x9a8c78); hemi.groundColor.setHex(0x2a2520); hemi.intensity = 0.8; sun.intensity = 0; return; }
       var h = ((hour % 24) + 24) % 24, i = 0;
       while (i < KEYS.length - 2 && h >= KEYS[i + 1][0]) i++;
       var k0 = KEYS[i], k1 = KEYS[i + 1], f = (h - k0[0]) / (k1[0] - k0[0] || 1);

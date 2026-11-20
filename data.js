@@ -30,14 +30,14 @@ window.WZ = window.WZ || {};
   item('broken_cardboards', '📦', 'Broken Cardboards', 'Flat, damp cardboard.');
   item('broken_wood_planks', '🪵', 'Broken Wood Planks', 'A split wooden plank. Still sturdy enough to hit things with.');
   item('iron_ingot', '🧱', 'Iron Bar', 'A bar of pure iron. Used for iron tools, sinks, anvils and iron armor.');
-  item('copper_ingot', '🟧', 'Copper Bar', 'A bar of pure copper. No recipe uses it yet.');
+  item('copper_ingot', '🟧', 'Copper Bar', 'A bar of pure copper. Used for the copper tools and armor.');
   item('feather', '🪶', 'Feather', 'Light and soft. Perfect for the tail of an arrow.');
   item('string', '🧶', 'String', 'A tough thin string. Used for bows and fishing rods.');
   item('iron_chain', '⛓️', 'Iron Chain', 'A short chain of iron links. Made at an Iron Anvil.');
   item('iron_stick', '📏', 'Iron Stick', 'A straight iron rod. Made at an Iron Anvil.');
   item('rope', '🪢', 'Rope', 'A thick rope twisted from strings. Used for the Stone Sword.');
   item('coal', '⚫', 'Coal', 'A black lump of coal. Mined from dark rocks. Used for campfires.');
-  item('golden_nugget', '🟡', 'Golden Nugget', 'A shiny golden nugget mined deep in the mineshaft.', { note: '12 nuggets smelt into 1 Golden Bar in the Smelting Furnace.' });
+  item('golden_nugget', '🟡', 'Golden Nugget', 'A shiny golden nugget mined deep in the mineshaft.', { note: '12 nuggets smelt into 1 Golden Bar in the Smelting Furnace. Mined from Gold Ore (underground only).' });
   item('golden_ingot', '🥇', 'Golden Bar', 'A bar of pure gold. Used for the Golden Watch.');
   item('golden_chain', '⛓️', 'Golden Chain', 'A delicate golden chain. Made at an Iron Anvil.');
   item('golden_stick', '📏', 'Golden Stick', 'A straight golden rod. Made at an Iron Anvil.');
@@ -84,6 +84,13 @@ window.WZ = window.WZ || {};
   item('wood_sword', '🗡️', 'Wooden Sword', 'Quiet powerful for newbie...', { type: 'tool', tool: 'sword', bd: 1, dmg: 8 });
   item('stone_sword', '🗡️', 'Stone Sword', 'Better one can slash anythings in your front... Even it is on stone ages!', { type: 'tool', tool: 'sword', bd: 1, dmg: 10 });
   item('iron_sword', '⚔️', 'Iron Sword', 'Have a good day on medieval ages! Zombies!', { type: 'tool', tool: 'sword', bd: 1, dmg: 14 });
+  /* [TIER TAG] copper set (tier 'copper') and golden set (tier 'golden'): sword, pickaxe, axe, 4 armor pieces */
+  item('copper_axe', '🪓', 'Copper Axe', 'A copper axe. Between crude and iron.', { type: 'tool', tool: 'axe', bd: 6, dmg: 12 });
+  item('copper_pickaxe', '⛏️', 'Copper Pickaxe', 'A copper pickaxe. Mines ore faster than crude tools.', { type: 'tool', tool: 'pick', bd: 6, dmg: 9 });
+  item('copper_sword', '🗡️', 'Copper Sword', 'A reddish copper blade. Better than stone, a bit under iron.', { type: 'tool', tool: 'sword', bd: 1, dmg: 12 });
+  item('golden_axe', '🪓', 'Golden Axe', 'Soft but extremely fast at chopping trees.', { type: 'tool', tool: 'axe', bd: 10, dmg: 11 });
+  item('golden_pickaxe', '⛏️', 'Golden Pickaxe', 'Soft but extremely fast at mining.', { type: 'tool', tool: 'pick', bd: 10, dmg: 8 });
+  item('golden_sword', '🗡️', 'Golden Sword', 'A shiny golden blade. Looks great, cuts fine.', { type: 'tool', tool: 'sword', bd: 1, dmg: 11 });
   item('wood_bow', '🏹', 'Wooden Bow', 'Quiet cheap, but extremely good for you and newbies that trying hunting out zombies without getting closer...', { type: 'tool', tool: 'bow', bd: 0, dmg: 5, note: 'Needs Arrows in your bag. Hold left click to shoot.' });
   item('arrow', '➴', 'Arrow', 'If you have bow, but don\'t have this, then your life are already dead! since 999 years ago!!', { note: 'Ammo for the Wooden Bow. No extra buff.' });
   item('wood_rod', '🎣', 'Wooden Fishing Rod', 'Survive from apocalypse not from killing zombie through, but also fishing!', { type: 'tool', tool: 'rod', bd: 0, dmg: 2, power: 5, note: 'Fishing Power: 5%. Aim at a lake and left click to cast.' });
@@ -99,6 +106,14 @@ window.WZ = window.WZ || {};
   item('iron_chest', '🛡️', 'Iron Chestplate', 'Thick iron chest protection. Buff: +5 Max HP and +6% Melee Damage.', { type: 'armor', slot: 'chest', tier: 'iron', def: 3 });
   item('iron_legs', '👖', 'Iron Leggings', 'Sturdy steel leg protection. Buff: +5 Max HP and +6% Melee Damage.', { type: 'armor', slot: 'legs', tier: 'iron', def: 2 });
   item('iron_boots', '🥾', 'Iron Boots', 'Heavy steel boots. Buff: +5 Max HP and +6% Melee Damage.', { type: 'armor', slot: 'boots', tier: 'iron', def: 2 });
+  item('copper_helmet', '🪖', 'Copper Helmet', 'A copper helmet. Buff: +3 Max HP and +3% Melee Damage.', { type: 'armor', slot: 'head', tier: 'copper', def: 1 });
+  item('copper_chest', '🛡️', 'Copper Chestplate', 'Copper chest protection. Buff: +3 Max HP and +3% Melee Damage.', { type: 'armor', slot: 'chest', tier: 'copper', def: 2 });
+  item('copper_legs', '👖', 'Copper Leggings', 'Copper leg protection. Buff: +3 Max HP and +3% Melee Damage.', { type: 'armor', slot: 'legs', tier: 'copper', def: 1 });
+  item('copper_boots', '🥾', 'Copper Boots', 'Copper boots. Buff: +3 Max HP and +3% Melee Damage.', { type: 'armor', slot: 'boots', tier: 'copper', def: 1 });
+  item('golden_helmet', '👑', 'Golden Helmet', 'A golden helmet. Buff: +3% Move Speed and +4% Melee Damage.', { type: 'armor', slot: 'head', tier: 'golden', def: 2 });
+  item('golden_chest', '🛡️', 'Golden Chestplate', 'Golden chest protection. Buff: +3% Move Speed and +4% Melee Damage.', { type: 'armor', slot: 'chest', tier: 'golden', def: 2 });
+  item('golden_legs', '👖', 'Golden Leggings', 'Golden leg protection. Buff: +3% Move Speed and +4% Melee Damage.', { type: 'armor', slot: 'legs', tier: 'golden', def: 2 });
+  item('golden_boots', '🥾', 'Golden Boots', 'Golden boots. Buff: +3% Move Speed and +4% Melee Damage.', { type: 'armor', slot: 'boots', tier: 'golden', def: 1 });
   item('iron_bucket', '🪣', 'Iron Bucket', 'ey! super multifunction bucket allow you to carry liquid or if you need more armor just equip it on your head!', { type: 'armor', slot: 'head', tier: 'bucket', def: 3, note: 'Head slot. Halves the chance of getting Water Poison.' });
 
   /* ---------- Accessories ---------- */
@@ -151,6 +166,20 @@ window.WZ = window.WZ || {};
     { id: 'iron_chest', out: ['iron_chest', 1], cost: { iron_ingot: 7 } },
     { id: 'iron_legs', out: ['iron_legs', 1], cost: { iron_ingot: 5 } },
     { id: 'iron_boots', out: ['iron_boots', 1], cost: { iron_ingot: 4 } },
+    { id: 'copper_axe', out: ['copper_axe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
+    { id: 'copper_pickaxe', out: ['copper_pickaxe', 1], cost: { copper_ingot: 3, wood_sticks: 2 } },
+    { id: 'copper_sword', out: ['copper_sword', 1], cost: { copper_ingot: 5, wood_sticks: 6 }, anvil: true },
+    { id: 'copper_helmet', out: ['copper_helmet', 1], cost: { copper_ingot: 4 } },
+    { id: 'copper_chest', out: ['copper_chest', 1], cost: { copper_ingot: 7 } },
+    { id: 'copper_legs', out: ['copper_legs', 1], cost: { copper_ingot: 5 } },
+    { id: 'copper_boots', out: ['copper_boots', 1], cost: { copper_ingot: 4 } },
+    { id: 'golden_axe', out: ['golden_axe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
+    { id: 'golden_pickaxe', out: ['golden_pickaxe', 1], cost: { golden_ingot: 3, wood_sticks: 2 } },
+    { id: 'golden_sword', out: ['golden_sword', 1], cost: { golden_ingot: 5, wood_sticks: 6 }, anvil: true },
+    { id: 'golden_helmet', out: ['golden_helmet', 1], cost: { golden_ingot: 4 } },
+    { id: 'golden_chest', out: ['golden_chest', 1], cost: { golden_ingot: 7 } },
+    { id: 'golden_legs', out: ['golden_legs', 1], cost: { golden_ingot: 5 } },
+    { id: 'golden_boots', out: ['golden_boots', 1], cost: { golden_ingot: 4 } },
     { id: 'iron_chain', out: ['iron_chain', 1], cost: { iron_ingot: 2 }, anvil: true },
     { id: 'iron_stick', out: ['iron_stick', 1], cost: { iron_ingot: 1 }, anvil: true },
     { id: 'iron_bucket', out: ['iron_bucket', 1], cost: { iron_ingot: 2, iron_chain: 1 }, anvil: true },
@@ -180,6 +209,9 @@ window.WZ = window.WZ || {};
     trash3: { name: 'Trash (Tier 3)', rolls: 1, enabled: false, t: [['broken_dvd_player', 2], ['broken_cd', 3], ['broken_dvd', 5], ['broken_old_tv', null]] },
     table4: { name: 'Above Table (Tier 4)', rolls: 2, enabled: true, t: [['mini_led_lamp', 22], ['rgb_lamp', 8], ['black_screen_cover', 12], ['metal_casing', 18], ['plastic_paper_package', 15], ['broken_copper_wire', 15], ['gpu_chip', 5], ['iron_nugget', 5]] },
     crate1: { name: 'Wooden Crate (Tier 1)', rolls: 3, enabled: true, t: [['contaminated_veg', 20], ['dirty_veg', 20], ['contaminated_fruits', 15], ['dirty_fruits', 15], ['plastic_bottled_water', 20], ['wood_sticks', 10]] },
+    crate3: { name: 'Reinforced Wooden Crate (Tier 3)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['plastic_bottled_water', 15], ['fresh_veg', 10], ['fresh_fruits', 10], ['iron_nugget', 20], ['broken_copper_wire', 15], ['metal_casing', 10], ['mini_led_lamp', 5]] },
+    crate4: { name: 'Iron Crate (Tier 4)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['iron_nugget', 20], ['broken_copper_wire', 20], ['metal_casing', 15], ['mini_led_lamp', 10], ['plastic_paper_package', 10], ['black_screen_cover', 5], ['rgb_lamp', 5]] },
+    crate5: { name: 'Iron Crate (Tier 5)', rolls: 3, enabled: true, t: [['medical_bag', 10], ['iron_ingot', 15], ['iron_nugget', 15], ['broken_copper_wire', 15], ['metal_casing', 15], ['rgb_lamp', 10], ['black_screen_cover', 8], ['gpu_chip', 6], ['mini_led_lamp', 6]] },
     crate2: { name: 'Wooden Crate (Tier 2)', rolls: 3, enabled: true, t: [['medical_bag', 20], ['plastic_bottled_water', 20], ['fresh_veg', 15], ['fresh_fruits', 15], ['iron_nugget', 15], ['broken_fabric_cloth', 15]] }
   };
 
@@ -194,25 +226,57 @@ window.WZ = window.WZ || {};
     ]
   };
 
-  /* ---------- Zombies ---------- */
+  /* ---------- Zombies ----------
+     Every mob has a [MOB TAG] comment line so any AI/dev can read the rules quickly.
+     rarity: common | rare (1/4 of normal spawn) | epic (1/10) | legendary (1/25) | mythical (1/100) | boss (spawns only by rule) | miniboss (manual spawn only, none yet)
+     tier  : world tier needed before it can spawn (world tier is by day, see WZ.TIER_DAYS)
+     biome : 'desert' = only spawns on the desert side; undefined = anywhere
+     coin  : [kills needed, coins given]
+     nospawn: never spawned by the normal spawner (boss / special spawns) */
   var Z = {
-    walker:  { name: 'Walker',   hp: 80,  spd: 1.1, dmg: 5,  def: 0, tier: 1, scale: 1.0,  color: 0x6d7a5a, cd: 1.0, w: 40 },
-    runner:  { name: 'Runner',   hp: 50,  spd: 1.6, dmg: 5,  def: 0, tier: 1, scale: 0.92, color: 0x8a6a52, cd: 0.8, w: 22 },
-    big:     { name: 'Big',      hp: 150, spd: 0.8, dmg: 8,  def: 0, tier: 1, scale: 1.3,  color: 0x56654f, cd: 1.1, w: 12 },
-    bomber:  { name: 'Bomber',   hp: 60,  spd: 1.2, dmg: 60, def: 0, tier: 1, scale: 1.05, color: 0x9a5a2a, cd: 0,   w: 10, splash: 4 },
-    brute:   { name: 'Brute',    hp: 275, spd: 0.5, dmg: 12, def: 0, tier: 2, scale: 1.55, color: 0x4a3f55, cd: 1.3, w: 6 },
-    soldier: { name: 'Soldier',  hp: 100, spd: 1.0, dmg: 9,  def: 2, tier: 2, scale: 1.05, color: 0x3d5a3a, cd: 1.0, w: 8 },
-    spider:  { name: 'Spider',   hp: 40,  spd: 1.5, dmg: 5,  def: 1, tier: 1, scale: 0.7,  color: 0x3b3340, cd: 0.8, w: 8 },
-    programmer: { name: 'Programmer', hp: 70, spd: 0.9, dmg: 10, def: -5, tier: 4, scale: 1.0, color: 0x35506b, cd: 1.0, w: 4, ranged: true },
-    miner:   { name: 'Miner Zombie Walker', hp: 90, spd: 0.8, dmg: 12, def: 3, tier: 2, scale: 1.05, color: 0x7a6a3a, cd: 1.0, w: 0, nospawn: true },
-    zfish:   { name: 'Zombie Fish', hp: 30, spd: 0.9, dmg: 4, def: -1, tier: 1, scale: 0.55, color: 0x3a8f87, cd: 1.0, w: 0, nospawn: true, wpoison: true }
+    /* [MOB TAG] id=walker | rarity=common | tier=T1 | biome=any | coin=3 kills -> 1 coin */
+    walker:  { name: 'Walker',   hp: 80,  spd: 1.1, dmg: 5,  def: 0, tier: 1, rarity: 'common', scale: 1.0,  color: 0x6d7a5a, cd: 1.0, w: 40, coin: [3, 1] },
+    /* [MOB TAG] id=runner | rarity=common | tier=T1 | biome=any | coin=2 kills -> 1 coin */
+    runner:  { name: 'Runner',   hp: 50,  spd: 1.6, dmg: 5,  def: 0, tier: 1, rarity: 'common', scale: 0.92, color: 0x8a6a52, cd: 0.8, w: 22, coin: [2, 1] },
+    /* [MOB TAG] id=big | rarity=common | tier=T1 | biome=any | coin=1 kill -> 1 coin */
+    big:     { name: 'Big',      hp: 150, spd: 0.8, dmg: 8,  def: 0, tier: 1, rarity: 'common', scale: 1.3,  color: 0x56654f, cd: 1.1, w: 12, coin: [1, 1] },
+    /* [MOB TAG] id=bomber | rarity=common | tier=T1 | biome=any | coin=1 kill -> 2 coins (from the earlier spec) */
+    bomber:  { name: 'Bomber',   hp: 60,  spd: 1.2, dmg: 60, def: 0, tier: 1, rarity: 'common', scale: 1.05, color: 0x9a5a2a, cd: 0,   w: 10, splash: 4, coin: [1, 2] },
+    /* [MOB TAG] id=brute | rarity=common | tier=T2 | biome=any | coin=1 kill -> 2 coins */
+    brute:   { name: 'Brute',    hp: 275, spd: 0.5, dmg: 12, def: 0, tier: 2, rarity: 'common', scale: 1.55, color: 0x4a3f55, cd: 1.3, w: 6, coin: [1, 2] },
+    /* [MOB TAG] id=soldier | rarity=common | tier=T2 | biome=any | coin=1 kill -> 3 coins */
+    soldier: { name: 'Soldier',  hp: 100, spd: 1.0, dmg: 9,  def: 2, tier: 2, rarity: 'common', scale: 1.05, color: 0x3d5a3a, cd: 1.0, w: 8, coin: [1, 3] },
+    /* [MOB TAG] id=spider | rarity=common | tier=T1 | biome=any | coin=none | drops String 33.33% */
+    spider:  { name: 'Spider',   hp: 40,  spd: 1.5, dmg: 5,  def: 1, tier: 1, rarity: 'common', scale: 0.7,  color: 0x3b3340, cd: 0.8, w: 8 },
+    /* [MOB TAG] id=antlion | AntlionZ | rarity=common | tier=T3 | biome=DESERT ONLY | coin=1 kill -> 4 coins | skill: moves 2x faster when HP < 20% */
+    antlion: { name: 'AntlionZ', hp: 75,  spd: 1.2, dmg: 7,  def: 3, tier: 3, rarity: 'common', biome: 'desert', scale: 1.0, color: 0xe07a1a, cd: 0.9, w: 10, coin: [1, 4], rage: true },
+    /* [MOB TAG] id=zcorpion | Zcorpionz | rarity=RARE | tier=T4 | biome=DESERT ONLY | coin=1 kill -> 6 coins | RNG 1.2 (reach x1.2) | skill: shoots "Acidic Poison", each hit makes the poison 3x deadlier (stacks up to 3) */
+    zcorpion:{ name: 'Zcorpionz', hp: 90, spd: 1.1, dmg: 18, def: 2, tier: 4, rarity: 'rare', biome: 'desert', scale: 1.0, color: 0xc9a050, cd: 1.0, w: 10, coin: [1, 6], rng: 1.2, ranged: 'acid', acidic: true },
+    /* [MOB TAG] id=programmer | Programmer Zombie | rarity=RARE | tier=T4 | biome=any | coin=1 kill -> 7 coins | shoots Keybind Error Virus | drops Signal Finder Chip 10% */
+    programmer: { name: 'Programmer Zombie', hp: 70, spd: 0.9, dmg: 10, def: -5, tier: 4, rarity: 'rare', scale: 1.0, color: 0x35506b, cd: 1.0, w: 10, ranged: 'virus', coin: [1, 7] },
+    /* [MOB TAG] id=miner | Miner Zombie Walker | rarity=special | spawns only inside the mineshaft | coin=none */
+    miner:   { name: 'Miner Zombie Walker', hp: 90, spd: 0.8, dmg: 12, def: 3, tier: 2, rarity: 'common', scale: 1.05, color: 0x7a6a3a, cd: 1.0, w: 0, nospawn: true },
+    /* [MOB TAG] id=zfish | Zombie Fish | rarity=special (fishing only) | tier=T-Flexible | coin=1 kill -> 1 coin | attack gives Water Poison */
+    zfish:   { name: 'Zombie Fish', hp: 30, spd: 0.9, dmg: 4, def: -1, tier: 1, rarity: 'common', scale: 0.55, color: 0x3a8f87, cd: 1.0, w: 0, nospawn: true, wpoison: true, coin: [1, 1] },
+    /* [MOB TAG] id=gigantus | Gigantus Zombie | rarity=BOSS (tier 1 -> 2) | spawns ONCE at day 10 | coin=1 kill -> 25 coins | SPLASH 1 | weakness: attacks 3x slower than normal zombies (cd 1.0 x3) */
+    gigantus:{ name: 'Gigantus Zombie', hp: 500, spd: 0.4, dmg: 20, def: 0, tier: 2, rarity: 'boss', scale: 2.3, color: 0x4f5a44, cd: 3.0, w: 0, nospawn: true, boss: true, splash: 1, coin: [1, 25] },
+    /* [MOB TAG] id=armored | Armored-Full Zombie Mk-1 | rarity=BOSS (tier 2 -> 3) | spawns ONCE at day 30 | coin=1 kill -> 100 coins | weakness: attacks 4x slower than normal zombies (cd 1.0 x4) */
+    armored: { name: 'Armored-Full Zombie Mk-1', hp: 1000, spd: 0.25, dmg: 35, def: 7, tier: 3, rarity: 'boss', scale: 1.8, color: 0x6c7077, cd: 4.0, w: 0, nospawn: true, boss: true, coin: [1, 100] }
+    /* [MOB TAG] miniboss: none defined yet. A Mini-Boss must carry rarity:'miniboss' + nospawn:true and is only spawned manually by the developer. */
   };
+
+  /* World tier by day: tier N is reached on day WZ.TIER_DAYS[N-1] (T2 = day 10, T3 = day 30 as requested; T4+ are placeholders) */
+  WZ.TIER_DAYS = [1, 10, 30, 60, 100, 150, 210, 280, 360, 450];
+  /* Blood Moon chance (percent) per day by world tier T1..T10 (capped at T10) */
+  WZ.BLOOD = [0, 1, 2, 3, 4, 6, 8, 10, 12.5, 15];
+  /* Spawn weight of a rarity group relative to the whole common spawn */
+  WZ.RARITY = { common: 1, rare: 1 / 4, epic: 1 / 10, legendary: 1 / 25, mythical: 1 / 100 };
 
   WZ.ITEMS = I;
   WZ.RECIPES = R;
   WZ.LOOT = LOOT;
   WZ.ZOMBIES = Z;
-  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish'];
+  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored'];
   WZ.rollLoot = function (key, rnd) {
     var t = LOOT[key].t, r = rnd() * 100, acc = 0;
     for (var i = 0; i < t.length; i++) {

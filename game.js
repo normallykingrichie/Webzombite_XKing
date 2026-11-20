@@ -24,24 +24,26 @@
   var inv = {}, hot = [null, null, null, null, null, null, null, null], sel = 0;
   var equip = { head: null, chest: null, legs: null, boots: null };
   var T = 0, kills = 0, dead = false, rest = null, status = freshStatus();
+  var coins = 0, kc = {}, bf = [0, 0], baseSeed = 20261116, epoch = 0, bloodOn = false, bmAnn = -1, bossT = 2, dorm = { n: 0, t: 0 }, ugCd = 0, ugOn = false;
+  var gfx = loadGfx(), chunkT = 0, waterT = 0, cubeCam = null, fogObj = null, lastBiome = 'city';
   var zombies = [], zMap = Object.create(null), nextZid = 1;
   var keys = {}, lmb = false, swingCd = 0, eatT = 0, spawnT = 3, stepT = 0, groanT = 4, voxVer = 0, cache = { ver: -1, list: [] };
   var mode = 'boot', selItem = null, lastHud = 0, respawnCheck = 0, fallbackLook = false, playerName = 'Survivor';
 
-  function freshStatus() { return { poison: 0, stomach: 0, wpoison: 0, keylock: 0 }; }
+  function freshStatus() { return { poison: 0, stomach: 0, wpoison: 0, keylock: 0, acid: 0, acidN: 0 }; }
   var acc = [null, null, null, null], corpses = [], cooking = [], fish = null, bobber = null, tracers = [], virus = [], mineT = 5, sb = null, userId = null, userName = '', fpsAcc = 0, fpsN = 0, fpsVal = 0, dbgOn = false;
   var mp = { role: 'solo', room: '', slot: 0, online: false, peers: Object.create(null), lastHostSeen: 0, lastPoseSent: 0, lastZSent: 0, swingPulse: 0, joinTimer: null };
   var SLOT_COLS = [0xe3b02a, 0x3b82f6, 0x22c55e, 0xec4899], SLOT_HEX = ['#e3b02a', '#3b82f6', '#22c55e', '#ec4899'];
 
   function armorStats() {
-    var def = 0, woodN = 0, ironN = 0, bucket = false, slots = ['head', 'chest', 'legs', 'boots'];
+    var def = 0, woodN = 0, ironN = 0, copN = 0, goldN = 0, bucket = false, slots = ['head', 'chest', 'legs', 'boots'];
     for (var i = 0; i < slots.length; i++) {
       var it = ITEMS[equip[slots[i]]];
       if (!it || it.type !== 'armor') continue;
       def += it.def || 0;
-      if (it.tier === 'wood') woodN++; else if (it.tier === 'iron') ironN++; else if (it.tier === 'bucket') bucket = true;
+      if (it.tier === 'wood') woodN++; else if (it.tier === 'iron') ironN++; else if (it.tier === 'copper') copN++; else if (it.tier === 'golden') goldN++; else if (it.tier === 'bucket') bucket = true;
     }
-    return { def: def, woodN: woodN, ironN: ironN, bucket: bucket, spdBonus: 1 + woodN * 0.03, energyDrain: 1 - woodN * 0.06, comfortDrain: 1 - woodN * 0.06, hpMax: 100 + ironN * 5, dmgMult: 1 + ironN * 0.06, poisonResist: 1, wpResist: bucket ? 0.5 : 1 };
+    return { def: def, woodN: woodN, ironN: ironN, bucket: bucket, spdBonus: 1 + woodN * 0.03 + goldN * 0.03, energyDrain: 1 - woodN * 0.06, comfortDrain: 1 - woodN * 0.06, hpMax: 100 + ironN * 5 + copN * 3, dmgMult: 1 + ironN * 0.06 + copN * 0.03 + goldN * 0.04, poisonResist: 1, wpResist: bucket ? 0.5 : 1 };
   }
   function accStats() {
     var o = { watch: 0, radar: false, gps: false };
@@ -50,60 +52,91 @@
   }
 
   /* ---------------- Save & load code ---------------- */
-  var te = new TextEncoder(), td = new TextDecoder();
-  function fnv1a(str) {
-    var h = 0x811c9dc5;
-    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-    return ('000000' + (h >>> 0).toString(16)).slice(-6);
+  /* ---- helpers: tiers, blood moon, seeds, graphics ---- */
+  function worldTier(day) { var t = 1; for (var i = 0; i < WZ.TIER_DAYS.length; i++) if (day >= WZ.TIER_DAYS[i]) t = i + 1; return t; }
+  function hash32(a) { a = Math.imul(a ^ (a >>> 16), 0x85ebca6b); a = Math.imul(a ^ (a >>> 13), 0xc2b2ae35); return (a ^ (a >>> 16)) >>> 0; }
+  function bloodFlag(night) { if (night < 1) return false; var pc = WZ.BLOOD[Math.min(worldTier(night), 10) - 1]; if (!pc) return false; return (hash32((baseSeed | 0) ^ Math.imul(night, 0x9e3779b1)) % 10000) / 100 < pc; }
+  function curSeed(base, ep) { return ep <= 0 ? base : (hash32((base | 0) ^ Math.imul(ep, 0x7f4a7c15)) || 1); }
+  function epochOf(t) { return Math.floor((clockInfo(t).day - 1) / 10); }
+  function newWorld(seed) { W.resetWorld(seed); baseSeed = W.seed; epoch = 0; bf = [0, 0]; }
+  function GFXD() { return { rd: 12, ed: 8, fog: true, shadow: true, water: true, cull: true }; }
+  function loadGfx() {
+    var g = GFXD(), GFX_DEF = g; try { var q = JSON.parse(localStorage.getItem('wz_gfx') || 'null'); if (q) { ['rd', 'ed'].forEach(function (k) { if (typeof q[k] === 'number' && q[k] >= 2) g[k] = q[k] >= 9999 ? 9999 : Math.min(100, Math.round(q[k])); }); ['fog', 'shadow', 'water', 'cull'].forEach(function (k) { if (typeof q[k] === 'boolean') g[k] = q[k]; }); } } catch (e) {}
+    return g;
   }
+  function saveGfx() { try { localStorage.setItem('wz_gfx', JSON.stringify(gfx)); } catch (e) {} }
+  function rdMeters() { return gfx.rd >= 9999 ? 1e9 : gfx.rd * 20; }
+  function edMeters() { return gfx.ed >= 9999 ? 1e9 : gfx.ed * 20; }
+  function entVisible(x, z) {
+    var dx = x - P.x, dz = z - P.z, d = Math.hypot(dx, dz); if (d > rdMeters() + 10) return false;
+    if (gfx.cull && (dx * -Math.sin(P.yaw) + dz * -Math.cos(P.yaw)) < -20) return false; return true; /* 1 chunk of slack */
+  }
+
+  /* ---- save codes ---- */
+  var te = new TextEncoder(), td = new TextDecoder();
   function b64e(bytes) {
-    var bin = '', ch = 0x8000;
-    for (var i = 0; i < bytes.length; i += ch) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + ch));
+    var bin = ''; for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function b64d(str) {
-    var s = str.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
-    var bin = atob(s), out = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-    return out;
+    var q = str.replace(/-/g, '+').replace(/_/g, '/'); while (q.length % 4) q += '=';
+    var bin = atob(q), out = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
   }
   function snapshot(worldOnly) {
     if (cache.ver !== voxVer) { cache.list = W.voxList(); cache.ver = voxVer; }
-    var o = { v: 2, sd: W.seed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [] };
+    var o = { v: 3, sd: baseSeed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [], cs: [], bf: bf.slice() };
     W.trees.forEach(function (t, i) { if (!t.alive || t.hp < t.max) o.tr.push([i, Math.round(t.hp), t.given, Math.round(t.respawn)]); });
     W.rocks.forEach(function (t, i) { if (!t.alive || t.hp < t.max) o.rk.push([i, Math.round(t.hp), t.given, Math.round(t.respawn)]); });
     W.piles.forEach(function (p, i) { if (p.searched) o.pl.push([i, Math.round(p.respawn)]); });
     W.crates.forEach(function (p, i) { if (p.searched) o.cr.push([i, Math.round(p.respawn)]); });
+    W.cars.forEach(function (c, i) { if (!c.alive || c.hp < c.max) o.cs.push([i, Math.round(c.hp)]); });
     if (!worldOnly) {
-      o.k = kills; o.p = [r2(P.x), r2(P.y), r2(P.z), Math.round(P.yaw * 1000) / 1000, Math.round(P.pitch * 1000) / 1000];
+      o.k = kills; o.cn = coins; o.kc = kc; o.p = [r2(P.x), r2(P.y), r2(P.z), Math.round(P.yaw * 1000) / 1000, Math.round(P.pitch * 1000) / 1000];
       o.s = [Math.round(P.hp), Math.round(P.hunger), Math.round(P.thirst), Math.round(P.energy), Math.round(P.comfort), Math.round(status.poison * 10) / 10, Math.round(status.stomach * 10) / 10, Math.round(status.wpoison * 10) / 10];
       o.i = inv; o.h = hot; o.l = sel; o.eq = equip; o.ac = acc; o.co = corpses.filter(function (c) { return c.mine; }).map(function (c) { return [r2(c.x), r2(c.z), c.loot]; });
     }
     return o;
   }
-  function encodeSaveCode() { var b = b64e(te.encode(JSON.stringify(snapshot(false)))); return 'WZL1:' + b + '.' + fnv1a(b); }
-  function decodeSaveCode(raw) {
-    var s = String(raw || '').trim().replace(/\s+/g, '');
-    if (s.indexOf('WZL1:') !== 0) return { err: 'Wrong format. A save code must start with "WZL1:".' };
-    var restStr = s.slice(5), dot = restStr.lastIndexOf('.');
-    if (dot <= 0) return { err: 'The save code is damaged or incomplete.' };
-    var b64 = restStr.slice(0, dot), chk = restStr.slice(dot + 1).toLowerCase();
-    if (fnv1a(b64) !== chk) return { err: 'The save code does not match (characters missing or changed).' };
-    try {
-      var obj = JSON.parse(td.decode(b64d(b64)));
-      if (!obj || (obj.v !== 1 && obj.v !== 2) || !Array.isArray(obj.p) || typeof obj.i !== 'object') return { err: 'The save code structure is not recognized.' };
+  /* WZL2 = AES-GCM(PBKDF2(password)) + account id bound inside the encrypted payload (a save can only be loaded by the same account with the right password) */
+  function accountId() { return userId || 'guest'; }
+  function pwKey(pw, salt) {
+    return crypto.subtle.importKey('raw', te.encode(pw), 'PBKDF2', false, ['deriveKey']).then(function (k) {
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: 150000, hash: 'SHA-256' }, k, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    });
+  }
+  function encodeSaveCode(pw) {
+    if (!window.crypto || !crypto.subtle) return Promise.reject(new Error('Encryption is not available in this browser.'));
+    var salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), snap = snapshot(false); snap.u = accountId();
+    return pwKey(pw, salt).then(function (k) { return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, te.encode(JSON.stringify(snap))); }).then(function (ct) {
+      var c = new Uint8Array(ct), all = new Uint8Array(28 + c.length); all.set(salt, 0); all.set(iv, 16); all.set(c, 28); return 'WZL2:' + b64e(all);
+    });
+  }
+  function decodeSaveCode(raw, pw) {
+    var q = String(raw || '').trim().replace(/\s+/g, '');
+    if (q.indexOf('WZL1:') === 0) return Promise.resolve({ err: 'This is an old WZL1 code from the 500 m map. Old codes cannot be loaded into the 2000 m world.' });
+    if (q.indexOf('WZL2:') !== 0) return Promise.resolve({ err: 'Wrong format. A save code must start with "WZL2:".' });
+    if (!pw) return Promise.resolve({ err: 'Enter the security password of this save code.' });
+    var bytes; try { bytes = b64d(q.slice(5)); } catch (e) { return Promise.resolve({ err: 'The save code is damaged or incomplete.' }); }
+    if (bytes.length < 45) return Promise.resolve({ err: 'The save code is damaged or incomplete.' });
+    return pwKey(pw, bytes.subarray(0, 16)).then(function (k) { return crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.subarray(16, 28) }, k, bytes.subarray(28)); }).then(function (pt) {
+      var obj = JSON.parse(td.decode(pt));
+      if (!obj || obj.v !== 3 || !Array.isArray(obj.p) || typeof obj.i !== 'object') return { err: 'The save code structure is not recognized.' };
+      if (obj.u !== accountId()) return { err: 'This save code belongs to a different account and cannot be loaded here.' };
       return { data: obj };
-    } catch (e) { return { err: 'Could not read the save code.' }; }
+    }, function () { return { err: 'Wrong password, or the code was changed / damaged.' }; });
   }
   function applySave(s, worldOnly) {
-    if (!s || (s.v !== 1 && s.v !== 2)) return false;
-    W.resetWorld(s.sd != null ? s.sd : 20261116); T = s.t || 0; W.voxLoad(s.b || [], s.v || 1); voxVer++;
+    if (!s || s.v !== 3) return false;
+    baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], 3); voxVer++;
+    bf = Array.isArray(s.bf) ? [s.bf[0] | 0, s.bf[1] | 0] : [0, 0];
     (s.tr || []).forEach(function (a) { var t = W.trees[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setTree(t, false); });
     (s.rk || []).forEach(function (a) { var t = W.rocks[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setRock(t, false); });
     (s.pl || []).forEach(function (a) { var p = W.piles[a[0]]; if (p) { W.setPile(p, false); p.respawn = a[1]; } });
     (s.cr || []).forEach(function (a) { var p = W.crates[a[0]]; if (p) { W.setCrate(p, false); p.respawn = a[1]; } });
+    (s.cs || []).forEach(function (a) { var c = W.cars[a[0]]; if (!c) return; c.hp = a[1]; if (c.hp <= 0) W.setCar(c, false); });
     if (!worldOnly) {
-      kills = s.k || 0; P.x = clamp(s.p[0] || -32, -249, 249); P.y = Math.max(0, s.p[1] || 0); P.z = clamp(s.p[2] || 32, -249, 249);
+      kills = s.k || 0; coins = s.cn || 0; kc = s.kc && typeof s.kc === 'object' ? s.kc : {};
+      P.x = clamp(s.p[0] || -32, -W.half + 1, W.ug.x1 - 7); P.y = Math.max(0, s.p[1] || 0); P.z = clamp(s.p[2] || 32, -W.half + 1, W.half - 1); if (inUG(P.x)) { P.z = clamp(s.p[2], W.ug.z0 + 7, W.ug.z1 - 7); ugOn = true; W.setUnderground(true); torchOn = true; } else { ugOn = false; W.setUnderground(false); }
       P.vx = P.vz = P.vy = 0; P.yaw = s.p[3] || 0; P.pitch = clamp(s.p[4] || 0, -1.5, 1.5);
       equip = { head: null, chest: null, legs: null, boots: null };
       if (s.eq) { ['head', 'chest', 'legs', 'boots'].forEach(function (sl) { var id = s.eq[sl]; if (id && ITEMS[id] && ITEMS[id].slot === sl) equip[sl] = id; }); }
@@ -111,7 +144,7 @@
       if (Array.isArray(s.s)) {
         P.hp = s.s[0] > 0 ? clamp(s.s[0], 1, mxHp) : mxHp; P.hunger = clamp(s.s[1] != null ? s.s[1] : 100, 0, 100);
         P.thirst = clamp(s.s[2] != null ? s.s[2] : 100, 0, 100); P.energy = clamp(s.s[3] != null ? s.s[3] : 100, 0, 100);
-        P.comfort = clamp(s.s[4] != null ? s.s[4] : 100, 0, 100); status = { poison: s.s[5] || 0, stomach: s.s[6] || 0, wpoison: s.s[7] || 0, keylock: 0 };
+        P.comfort = clamp(s.s[4] != null ? s.s[4] : 100, 0, 100); status = freshStatus(); status.poison = s.s[5] || 0; status.stomach = s.s[6] || 0; status.wpoison = s.s[7] || 0;
       }
       inv = {}; for (var k in (s.i || {})) if (ITEMS[k] && s.i[k] > 0) inv[k] = s.i[k];
       acc = [null, null, null, null]; (s.ac || []).slice(0, 4).forEach(function (id, i) { if (id && ITEMS[id] && ITEMS[id].type === 'acc') acc[i] = id; });
@@ -124,7 +157,7 @@
 
   function placeAtSpawn(slotIdx) {
     var off = slotIdx || 0; P.x = W.spawn.x + (off % 2) * 1.4; P.z = W.spawn.z + Math.floor(off / 2) * 1.4;
-    P.y = 0; P.vx = P.vz = P.vy = 0; P.yaw = 0; P.pitch = 0;
+    P.y = 0; P.vx = P.vz = P.vy = 0; P.yaw = 0; P.pitch = 0; ugOn = false; if (W.setUnderground) { W.setUnderground(false); }
     while (W.hit(P.x - 0.3, P.x + 0.3, P.y, P.y + 1.8, P.z - 0.3, P.z + 0.3) && P.y < 30) P.y += 1;
   }
   function newPlayerState(slotIdx) {
@@ -134,7 +167,7 @@
     P.hp = P.hunger = P.thirst = P.energy = P.comfort = 100; status = freshStatus(); kills = 0; dead = false; rest = null;
     $('#dark').style.opacity = 0; placeAtSpawn(slotIdx || 0);
   }
-  function clearZombies() { zombies.forEach(function (z) { scene.remove(z.g); }); zombies.length = 0; zMap = Object.create(null); }
+  function clearZombies() { zombies.forEach(function (z) { scene.remove(z.g); }); zombies.length = 0; dorm.n = 0; zMap = Object.create(null); }
 
   function count(id) { return inv[id] || 0; }
   function give(id, n) {
@@ -238,11 +271,11 @@
     mode = 'menu'; keys = {}; lmb = false; eatT = 0; queue.length = 0; $('#hud').hidden = true; $('#inv').hidden = true; $('#eat').style.display = 'none';
     if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) {} }
     screen('<div class="card"><span class="tag">Under Development &middot; Beta</span><h1><b>Webzombite</b></h1>' +
-      '<p>Survive in the ruins of XKing City, a 500 m &times; 500 m map with a Morning–Noon–Afternoon–Night cycle. Chop trees, mine rocks, fish, craft gear and build a base for up to 4 players.</p>' +
+      '<p>Survive in the ruins of XKing City, a 2000 m &times; 2000 m map with four biomes (City, Desert City, Jungle Village, Snow City) and a Morning–Noon–Afternoon–Night cycle. Chop trees, mine rocks, fish, craft gear and build a base for up to 4 players.</p>' +
       '<div class="warn-note">Progress only lasts for this session and is <b>erased when the tab closes</b>. Use <b>Save Code &amp; Load</b> (or Cloud Save) to keep your world safe!</div>' +
       '<div class="box-sub"><div class="row" style="justify-content:space-between"><label style="font-size:.86rem;color:var(--muted)">Survivor name</label><span style="font-size:.78rem;color:var(--muted)">' + esc(userName || 'Signed in') + ' &middot; <a href="#" id="bSignOut" style="color:var(--gold)">Sign out</a></span></div>' +
       '<input type="text" id="inpName" maxlength="16" value="' + esc(playerName) + '" placeholder="Enter your name...">' +
-      '<div class="row"><button class="btn primary" id="bSolo">Play Solo</button><button class="btn" id="bHost">Create Room (Max 4)</button><button class="btn" id="bOpenLoad">Load Save Code</button></div></div>' +
+      '<div class="row"><button class="btn primary" id="bSolo">Play Solo</button><button class="btn" id="bHost">Create Room (Max 4)</button><button class="btn" id="bOpenLoad">Load Save Code</button><button class="btn" id="bGfx">Graphics Settings</button></div></div>' +
       '<div class="box-sub"><div style="font-size:.88rem;font-weight:700">Join a Friend\'s Room (6 random characters)</div>' +
       '<div class="row" style="flex-wrap:nowrap"><input type="text" id="inpRoom" maxlength="6" placeholder="Example: k4m9p2 (not case sensitive)" style="text-transform:lowercase;letter-spacing:.12em"><button class="btn primary" id="bJoin" style="white-space:nowrap">Join Room</button></div>' +
       '<div class="err" id="menuErr">' + esc(errMsg || '') + '</div></div>' +
@@ -250,11 +283,12 @@
 
     function syncName() { playerName = ($('#inpName').value || '').trim().slice(0, 16) || 'Survivor'; }
     $('#bSignOut').onclick = function (ev) { ev.preventDefault(); signOut(); };
-    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); leaveRoom(); W.resetWorld(); newPlayerState(0); T = 0; spawnT = 3; clearZombies(); enterGame(); say('30 seconds of safe time have started! Gather materials quickly.'); };
+    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); leaveRoom(); newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); enterGame(); say('30 seconds of safe time have started! Gather materials quickly.'); };
     $('#bHost').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); hostRoom(false); };
     $('#bJoin').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); var c = Net.normalizeCode($('#inpRoom').value); if (c.length !== 6) { $('#menuErr').textContent = 'Enter exactly 6 letters/numbers for the room code.'; return; } joinRoom(c); };
     $('#inpRoom').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('#bJoin').click(); });
     $('#bOpenLoad').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); openCodeModal('menu'); };
+    $('#bGfx').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); openGfxModal('menu'); };
   }
   function enterGame() {
     renderHotbar(); renderStats(); $('#hud').hidden = false; mode = 'ready'; fallbackLook = false; $('#altHint').classList.remove('on');
@@ -305,14 +339,20 @@
   }
   function signOut() { leaveRoom(); var done = function () { userId = null; askLogin(); }; if (sb) sb.auth.signOut().then(done, done); else done(); }
 
+  var PWS = 'width:100%;min-height:44px;padding:10px 14px;border-radius:14px;border:1.5px solid var(--line);background:#100e0b;color:var(--fg);font:inherit;user-select:text';
   function openCodeModal(from) {
-    var prev = mode; mode = 'modal'; var canExp = from === 'pause', canImp = mp.role !== 'client', code = canExp ? encodeSaveCode() : '';
+    var prev = mode; mode = 'modal'; var canExp = from === 'pause', canImp = mp.role !== 'client', code = '';
     screen('<div class="card"><h2>Save Code &amp; Load</h2>' +
-      (canExp ? '<div class="box-sub"><div style="font-size:.88rem;font-weight:700">Your Current World Save Code</div><textarea id="txSave" readonly>' + esc(code) + '</textarea><div class="row"><button class="btn primary sm" id="bCopySave">Copy Code</button><button class="btn sm" id="bDlSave">Download .txt</button><button class="btn sm" id="bCloudSave">Save to Cloud</button><span class="okmsg" id="copyMsg"></span></div></div>' : '') +
+      (canExp ? '<div class="box-sub"><div style="font-size:.88rem;font-weight:700">Your Current World Save Code (password protected)</div><input type="password" id="inpSavePw" maxlength="40" autocomplete="off" placeholder="Choose a security password (min. 4 characters)" style="' + PWS + '"><div class="row"><button class="btn primary sm" id="bMakeCode">Generate Code</button><button class="btn sm" id="bCopySave" disabled>Copy Code</button><button class="btn sm" id="bDlSave" disabled>Download .txt</button><button class="btn sm" id="bCloudSave">Save to Cloud</button><span class="okmsg" id="copyMsg"></span></div><textarea id="txSave" readonly placeholder="Your secured code appears here. Remember the password: it is needed to load the code, and the code only works on this account."></textarea></div>' : '') +
       '<div class="box-sub"><div style="font-size:.88rem;font-weight:700">Load a World from a Save Code</div>' +
-      (canImp ? '<textarea id="txLoad" placeholder="Paste the WZL1:... code here"></textarea><div class="row"><button class="btn primary sm" id="bDoLoadSolo">Load &amp; Play Solo</button><button class="btn sm" id="bDoLoadHost">Load &amp; Create Room (Max 4)</button><button class="btn sm" id="bCloudLoad">Load from Cloud</button><label class="btn sm" style="cursor:pointer">Choose .txt File<input type="file" id="fLoad" accept=".txt" hidden></label></div><div class="err" id="loadErr"></div>' : '<p style="font-size:.85rem;color:#ff8b8f">Only the Host or Solo mode can load a save code.</p>') +
+      (canImp ? '<textarea id="txLoad" placeholder="Paste the WZL2:... code here"></textarea><input type="password" id="inpLoadPw" maxlength="40" autocomplete="off" placeholder="Security password of this code" style="' + PWS + '"><div class="row"><button class="btn primary sm" id="bDoLoadSolo">Load &amp; Play Solo</button><button class="btn sm" id="bDoLoadHost">Load &amp; Create Room (Max 4)</button><button class="btn sm" id="bCloudLoad">Load from Cloud</button><label class="btn sm" style="cursor:pointer">Choose .txt File<input type="file" id="fLoad" accept=".txt" hidden></label></div><div class="err" id="loadErr"></div>' : '<p style="font-size:.85rem;color:#ff8b8f">Only the Host or Solo mode can load a save code.</p>') +
       '</div><div class="row"><button class="btn" id="bCloseCode">Back</button></div></div>');
     if (canExp) {
+      $('#bMakeCode').onclick = function () {
+        var pw = $('#inpSavePw').value; if (!pw || pw.length < 4) { $('#copyMsg').textContent = 'Password must be at least 4 characters.'; return; }
+        $('#copyMsg').textContent = 'Encrypting...';
+        encodeSaveCode(pw).then(function (c) { code = c; $('#txSave').value = c; $('#bCopySave').disabled = false; $('#bDlSave').disabled = false; $('#copyMsg').textContent = 'Code ready!'; }, function (e) { $('#copyMsg').textContent = 'Failed: ' + (e && e.message ? e.message : 'error'); });
+      };
       $('#bCopySave').onclick = function () {
         var tx = $('#txSave'); tx.select();
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(function () { $('#copyMsg').textContent = 'Code copied!'; }, function () { try { document.execCommand('copy'); $('#copyMsg').textContent = 'Code copied!'; } catch (e) {} });
@@ -326,12 +366,16 @@
     }
     if (canImp) {
       $('#fLoad').onchange = function (ev) { var f = ev.target.files && ev.target.files[0]; if (!f) return; var fr = new FileReader(); fr.onload = function () { $('#txLoad').value = String(fr.result || '').trim(); }; fr.readAsText(f); };
-      function runImp(asHost, data) {
-        var res = data ? { data: data } : decodeSaveCode($('#txLoad').value); if (res.err) { $('#loadErr').textContent = res.err; return; }
+      function finishImp(asHost, data) {
         if (!asHost && mp.role === 'host') leaveRoom();
-        applySave(res.data, false); clearZombies(); if (T >= 30) { for (var i = 0; i < 4; i++) spawnZombie(); }
+        applySave(data, false); clearZombies(); if (T >= 30) { for (var i = 0; i < 4; i++) spawnZombie(); }
         if (asHost) { if (mp.role === 'host') { Net.send({ t: 'worldsync', snap: snapshot(true) }); enterGame(); } else hostRoom(true); say('Save loaded into the room!'); }
         else { enterGame(); say('Save loaded successfully!'); }
+      }
+      function runImp(asHost, data) {
+        if (data) { if (data.v !== 3) { $('#loadErr').textContent = 'This cloud save is from the old 500 m map and cannot be loaded.'; return; } finishImp(asHost, data); return; }
+        $('#loadErr').textContent = 'Decrypting...';
+        decodeSaveCode($('#txLoad').value, $('#inpLoadPw').value).then(function (res) { if (res.err) { $('#loadErr').textContent = res.err; return; } finishImp(asHost, res.data); });
       }
       $('#bDoLoadSolo').onclick = function () { runImp(false); }; $('#bDoLoadHost').onclick = function () { runImp(true); };
       $('#bCloudLoad').onclick = function () {
@@ -342,13 +386,61 @@
     $('#bCloseCode').onclick = function () { mode = prev; if (from === 'pause') showPause(); else showMainMenu(); };
   }
 
+  /* ---------------- Graphics settings ---------------- */
+  function applyGfx() {
+    if (!renderer || !W) return;
+    var unl = gfx.rd >= 9999; camera.far = unl ? 3200 : Math.max(300, (gfx.rd + 1) * 20 + 80); camera.updateProjectionMatrix();
+    fogObj = scene.fog;
+    if (gfx.fog) { fogObj.far = unl ? 800 : Math.max(60, gfx.rd * 20 * 0.96); fogObj.near = fogObj.far * 0.3; } else { fogObj.near = 1e6; fogObj.far = 2e6; }
+    zombies.forEach(function (z) { if (z.sh) z.sh.visible = gfx.shadow; });
+    for (var pid in mp.peers) { var pm = mp.peers[pid].mesh; if (pm && pm.sh) pm.sh.visible = gfx.shadow; }
+    var m = W.waterMat; if (m) {
+      if (gfx.water) { if (!cubeCam) { cubeCam = new THREE.CubeCamera(0.3, 420, new THREE.WebGLCubeRenderTarget(64)); scene.add(cubeCam); } m.envMap = cubeCam.renderTarget.texture; m.reflectivity = 0.5; m.combine = THREE.MixOperation; waterT = 0; }
+      else m.envMap = null;
+      m.needsUpdate = true;
+    }
+    chunkT = 0; if (W.updateChunks) W.updateChunks(P.x, P.z, -Math.sin(P.yaw), -Math.cos(P.yaw), gfx.rd, gfx.cull);
+  }
+  function updateWater(dt) {
+    if (!gfx.water || !cubeCam) return; waterT -= dt; if (waterT > 0) return; waterT = 1.3;
+    var best = null, bd = 140; W.waterMeshes.forEach(function (m) {
+      var pr = m.geometry.parameters, qx = clamp(P.x, m.position.x - pr.width / 2, m.position.x + pr.width / 2), qz = clamp(P.z, m.position.z - pr.height / 2, m.position.z + pr.height / 2), d = Math.hypot(qx - P.x, qz - P.z);
+      if (d < bd) { bd = d; best = { x: qx, z: qz }; }
+    });
+    if (!best) return;
+    cubeCam.position.set(best.x, 1.4, best.z); W.waterMeshes.forEach(function (m) { m.visible = false; }); cubeCam.update(renderer, scene); W.waterMeshes.forEach(function (m) { m.visible = true; });
+  }
+  function openGfxModal(from) {
+    var prev = mode; mode = 'modal';
+    function dist(id, label, val, note) {
+      var un = val >= 9999;
+      return '<div class="box-sub"><div class="row" style="justify-content:space-between"><b style="font-size:.9rem">' + label + '</b><span id="' + id + 'Val" style="color:var(--gold);font-size:.85rem"></span></div><input type="range" id="' + id + '" min="2" max="100" step="1" value="' + (un ? 100 : val) + '"' + (un ? ' disabled' : '') + ' style="width:100%"><label style="font-size:.8rem;color:var(--muted)"><input type="checkbox" id="' + id + 'U"' + (un ? ' checked' : '') + '> Unlimited (only if your device can handle it)</label><div style="font-size:.78rem;color:var(--muted)">' + note + '</div></div>';
+    }
+    function chk(id, label, note, on) { return '<label class="box-sub" style="cursor:pointer;flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + '><span><b style="font-size:.9rem">' + label + '</b><br><span style="font-size:.78rem;color:var(--muted)">' + note + '</span></span></label>'; }
+    screen('<div class="card"><span class="tag">Graphics Settings</span><h2>Graphics &amp; Performance</h2><p>The world is cut into 20 &times; 20 m chunks. Lower distances save memory, CPU and GPU. Changes apply instantly and are remembered on this device.</p>' +
+      dist('gRd', 'Render Distance', gfx.rd, 'How far chunks are drawn (2 – 100 chunks).') + dist('gEd', 'Entity Distance (Simulation)', gfx.ed, 'Zombies farther than this keep running as tiny 256-bit records instead of full 3D mobs.') +
+      '<div style="font-size:.88rem;font-weight:700">Shader Settings</div>' +
+      chk('gFog', 'Fog (light)', 'Soft distance fog that hides chunk edges.', gfx.fog) + chk('gSh', 'Shadows (simple)', 'Cheap blob shadows under mobs and players.', gfx.shadow) + chk('gWa', 'Reflective Water', 'Lakes and rivers reflect the sky and nearby scenery.', gfx.water) +
+      chk('gCu', 'Culling (hide the 180° behind you)', 'Chunks and mobs behind the player are not rendered.', gfx.cull) +
+      '<div class="row"><button class="btn" id="bGfxBack">Back</button><button class="btn sm" id="bGfxReset">Defaults</button></div></div>');
+    function lab() { $('#gRdVal').textContent = gfx.rd >= 9999 ? 'Unlimited' : gfx.rd + ' chunks (' + gfx.rd * 20 + ' m)'; $('#gEdVal').textContent = gfx.ed >= 9999 ? 'Unlimited' : gfx.ed + ' chunks (' + gfx.ed * 20 + ' m)'; }
+    function bind(id, key) {
+      $('#' + id).oninput = function () { gfx[key] = parseInt(this.value, 10); lab(); saveGfx(); applyGfx(); };
+      $('#' + id + 'U').onchange = function () { var on = this.checked; $('#' + id).disabled = on; gfx[key] = on ? 9999 : parseInt($('#' + id).value, 10); lab(); saveGfx(); applyGfx(); };
+    }
+    bind('gRd', 'rd'); bind('gEd', 'ed'); lab();
+    [['gFog', 'fog'], ['gSh', 'shadow'], ['gWa', 'water'], ['gCu', 'cull']].forEach(function (a) { $('#' + a[0]).onchange = function () { gfx[a[1]] = this.checked; saveGfx(); applyGfx(); }; });
+    $('#bGfxReset').onclick = function () { var gd = GFXD(); for (var k in gd) gfx[k] = gd[k]; saveGfx(); applyGfx(); openGfxModal(from); };
+    $('#bGfxBack').onclick = function () { mode = prev; if (from === 'pause') showPause(); else showMainMenu(); };
+  }
+
   function showPause() {
     mode = 'pause'; keys = {}; lmb = false; eatT = 0; queue.length = 0; $('#eat').style.display = 'none';
     if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) {} }
     var mpHtml = mp.role !== 'solo' ? '<div class="box-sub"><div class="row" style="justify-content:space-between"><div>Room Code: <span class="code-pill">' + esc(mp.room) + '</span></div><button class="btn sm" id="bCopyRoom">Copy Code</button></div><div style="font-size:.82rem;color:var(--muted)">Players (' + totalPlayers() + '/' + MAX_PLAYERS + ') &middot; ' + (mp.online ? 'Connected Online' : 'Connecting / Local') + ' &middot; Not case sensitive</div>' + playerListHtml() + '</div>' : '';
     screen('<div class="card"><span class="tag">Webzombite &middot; Paused</span><h1>Game Paused</h1>' +
       '<p>Survived: <b>' + fmtTime(T) + '</b> &middot; Kills: <b>' + kills + '</b>. Don\'t forget to save your world code before leaving!</p>' + mpHtml +
-      '<div class="row"><button class="btn primary" id="bResume">Resume</button><button class="btn" id="bInv">Bag, Gear &amp; Crafting</button><button class="btn" id="bSaveCode">Save / Load Code</button></div>' +
+      '<div class="row"><button class="btn primary" id="bResume">Resume</button><button class="btn" id="bInv">Bag, Gear &amp; Crafting</button><button class="btn" id="bSaveCode">Save / Load Code</button><button class="btn" id="bGfx">Graphics Settings</button></div>' +
       controlsHtml() + '<div class="row"><button class="btn" id="bMenu">Main Menu</button>' +
       (mp.role !== 'client' ? '<button class="btn danger" id="bReset">Reset World</button>' : '') +
       '<a class="btn sm" href="' + esc(C.coreUrl || '../index.html') + '">Back to XKing Core</a></div></div>');
@@ -356,10 +448,11 @@
     $('#bResume').onclick = function () { SFX.play('click'); enterGame(); };
     $('#bInv').onclick = function () { SFX.play('click'); $('#screen').hidden = true; openInv(); };
     $('#bSaveCode').onclick = function () { SFX.play('click'); openCodeModal('pause'); };
+    $('#bGfx').onclick = function () { SFX.play('click'); openGfxModal('pause'); };
     $('#bMenu').onclick = function () { SFX.play('click'); leaveRoom(); showMainMenu(); };
     if ($('#bReset')) $('#bReset').onclick = function () {
       if (confirm('Reset the world with new random tree & rock positions?')) {
-        W.resetWorld(); newPlayerState(mp.slot); T = 0; spawnT = 3; clearZombies();
+        newWorld(); newPlayerState(mp.slot); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies();
         if (mp.role === 'host') Net.send({ t: 'worldsync', snap: snapshot(true) }); enterGame(); say('A new random world was created! 30 seconds of safe time have started.');
       }
     };
@@ -383,26 +476,30 @@
       return '<div class="bar ' + d[2] + '"><i style="width:' + pct + '%"></i><span><b>' + d[1] + '</b><b>' + v + (mx > 100 ? '/' + mx : '') + '</b></span></div>';
     }).join('');
     var s = [];
-    if (status.poison > 0) s.push('Poisoned'); if (status.stomach > 0) s.push('Stomachache'); if (status.wpoison > 0) s.push('Water Poison'); if (status.keylock > 0) s.push('Keybind Error ' + Math.ceil(status.keylock) + 's'); if (cooking.length) s.push('Cooking ' + Math.ceil(cooking[0].t) + 's');
+    if (status.poison > 0) s.push('Poisoned'); if (status.stomach > 0) s.push('Stomachache'); if (status.wpoison > 0) s.push('Water Poison'); if (status.keylock > 0) s.push('Keybind Error ' + Math.ceil(status.keylock) + 's'); if (status.acid > 0) s.push('Acidic Poison x' + Math.pow(3, Math.max(0, status.acidN - 1))); if (cooking.length) s.push('Cooking ' + Math.ceil(cooking[0].t) + 's');
     if (P.comfort <= 30) s.push('Uncomfortable'); if (rest) s.push(rest.k === 'sleep' ? 'Sleeping' : 'Resting');
     $('#status').innerHTML = s.map(function (t) { return '<span>' + t + '</span>'; }).join('');
     var clk = clockInfo(T), safeTxt = T < 30 ? ' · Safe time <b>' + Math.ceil(30 - T) + 's</b>' : '', hh = Math.floor(clk.hour);
     var timeTxt = as.watch === 0 ? '<b>Time unknown</b> (equip a watch)' : 'Day <b>' + clk.day + '</b> · <b>' + (as.watch === 1 ? (hh < 10 ? '0' : '') + hh + ':00' : clk.str) + '</b> (' + clk.fase + ')';
-    var zc = 0; if (as.radar) for (var zi = 0; zi < zombies.length; zi++) if (Math.hypot(zombies[zi].x - P.x, zombies[zi].z - P.z) < 70) zc++;
+    var zc = 0; if (as.radar) { for (var zi = 0; zi < zombies.length; zi++) if (Math.hypot(zombies[zi].x - P.x, zombies[zi].z - P.z) < 70) zc++; zc += dormNear(70); }
     var roomTxt = mp.role !== 'solo' ? '<br>Room <b>' + esc(mp.room) + '</b> (' + totalPlayers() + '/' + MAX_PLAYERS + ')' + (mp.online ? ' · Online' : ' · Local') : '';
     $('#info').innerHTML = timeTxt + safeTxt +
       '<br>DEF <b>' + ast.def + '</b> · Kills <b>' + kills + '</b> · Zombies nearby <b>' + (as.radar ? zc : '?') + '</b>' + (as.radar ? '' : ' (equip a Radar)') +
+      '<br>Tier <b>T' + worldTier(clk.day) + '</b> · Coins <b>' + coins + '</b> · Biome <b>' + ({ city: 'City', desert: 'Desert City', jungle: 'Jungle Village', snow: 'Snow City' }[W.biomeOf(P.x, P.z)]) + '</b>' + (bloodOn ? '<br><b style="color:#ff5a5a">BLOOD MOON · double zombies!</b>' : '') +
       '<br>[F] Flashlight: <b>' + (torchOn ? 'On' : 'Off') + '</b> · [M] Sound: <b>' + (SFX.isMuted() ? 'Muted' : 'On') + '</b>' + roomTxt;
   }
   var mini, mctx;
   function drawMini() {
     if (!mctx) return; var as = accStats(); mini.style.display = as.gps ? 'block' : 'none'; if (!as.gps) return;
-    var S = 170, k = S / 220, g = mctx, cx = P.x, cz = P.z;
+    var S = 170, k = S / 220, g = mctx, cx = P.x, cz = P.z, H = W.half;
     function X(x) { return S / 2 + (x - cx) * k; } function Y(z) { return S / 2 + (z - cz) * k; }
-    g.fillStyle = '#14120f'; g.fillRect(0, 0, S, S); g.fillStyle = '#2d2a22'; g.fillRect(X(-250), Y(-250), 500 * k, 500 * k);
-    g.fillStyle = '#4a4c50'; W.roads.forEach(function (r) { g.fillRect(X(r - 5), Y(-250), 10 * k, 500 * k); g.fillRect(X(-250), Y(r - 5), 500 * k, 10 * k); });
+    function R(x0, z0, x1, z1, c) { g.fillStyle = c; g.fillRect(X(x0), Y(z0), (x1 - x0) * k, (z1 - z0) * k); }
+    g.fillStyle = '#14120f'; g.fillRect(0, 0, S, S);
+    R(-H, -H, H, H, '#2d2a22'); R(-H, -H, H, -500, '#8d9aa0'); R(500, -500, H, H, '#7a6638'); R(-H, -500, -500, H, '#2c4a2a');
+    g.fillStyle = '#4a4c50'; W.roads.forEach(function (r) { if (Math.abs(r - cx) < 120) g.fillRect(X(r - 5), Y(-H), 10 * k, 2 * H * k); if (Math.abs(r - cz) < 120) g.fillRect(X(-H), Y(r - 5), 2 * H * k, 10 * k); });
     W.rects.forEach(function (r) { if (r.x1 < cx - 115 || r.x0 > cx + 115 || r.z1 < cz - 115 || r.z0 > cz + 115) return; g.fillStyle = r.c; g.fillRect(X(r.x0), Y(r.z0), (r.x1 - r.x0) * k, (r.z1 - r.z0) * k); });
-    g.strokeStyle = '#b33a2a'; g.lineWidth = 2; g.strokeRect(X(-250), Y(-250), 500 * k, 500 * k);
+    g.fillStyle = '#2f7fa8'; W.waterMeshes.forEach(function (m) { var pr = m.geometry.parameters, wx = m.position.x, wz = m.position.z; if (Math.abs(wx - cx) < 115 + pr.width / 2 && Math.abs(wz - cz) < 115 + pr.height / 2) g.fillRect(X(wx - pr.width / 2), Y(wz - pr.height / 2), pr.width * k, pr.height * k); });
+    g.strokeStyle = '#b33a2a'; g.lineWidth = 2; g.strokeRect(X(-H), Y(-H), 2 * H * k, 2 * H * k);
     g.fillStyle = '#ff4b4b'; if (as.radar) zombies.forEach(function (z) { if (Math.abs(z.x - cx) < 110 && Math.abs(z.z - cz) < 110) g.fillRect(X(z.x) - 2, Y(z.z) - 2, 4, 4); });
     for (var pid in mp.peers) { var pr = mp.peers[pid]; if (Math.abs(pr.x - cx) < 110 && Math.abs(pr.z - cz) < 110) { g.fillStyle = SLOT_HEX[pr.slot % 4]; g.beginPath(); g.arc(X(pr.x), Y(pr.z), 4, 0, Math.PI * 2); g.fill(); } }
     g.save(); g.translate(S / 2, S / 2); g.rotate(-P.yaw); g.fillStyle = SLOT_HEX[mp.slot % 4];
@@ -432,7 +529,7 @@
     if (P.onGround && Math.hypot(P.vx, P.vz) > 1.2) { stepT -= dt; if (stepT <= 0) { stepT = sprint ? 0.28 : 0.42; SFX.play('step'); } } else stepT = 0.08;
     var n = Math.max(1, Math.ceil(dt / 0.012)), h = dt / n;
     for (var i = 0; i < n; i++) { P.vy -= 17 * h; if (P.vy < -40) P.vy = -40; moveBody(P, P.vx * h, 0, 0, 0.3, 1.8, P.onGround); moveBody(P, 0, 0, P.vz * h, 0.3, 1.8, P.onGround); moveBody(P, 0, P.vy * h, 0, 0.3, 1.8, false); }
-    P.x = clamp(P.x, -249.6, 249.6); P.z = clamp(P.z, -249.6, 249.6);
+    if (inUG(P.x)) { P.x = clamp(P.x, W.ug.x0 + 6.4, W.ug.x1 - 6.4); P.z = clamp(P.z, W.ug.z0 + 6.4, W.ug.z1 - 6.4); } else { P.x = clamp(P.x, -W.half + 0.4, W.half - 0.4); P.z = clamp(P.z, -W.half + 0.4, W.half - 0.4); }
   }
 
   var DIR = new THREE.Vector3(), tmpE = [];
@@ -450,7 +547,7 @@
     }
     return null;
   }
-  function unkey(k) { var y = k % 64, r = Math.floor(k / 64), z = (r % 1024) - 300, x = Math.floor(r / 1024) - 300; return [x, y, z]; }
+  function unkey(k) { var y = k % 64, r = Math.floor(k / 64), z = (r % 4096) - 1100, x = Math.floor(r / 4096) - 1100; return [x, y, z]; }
   var VNAME = { 1: 'Wood Block', 2: 'Stone Block', 3: 'Smelting Furnace', 4: 'Cozy Bed', 5: 'Cozy Couch', 6: 'Sink', 7: 'Campfire', 8: 'Iron Anvil', 9: 'Computer Bench' };
   var VITEM = { 1: 'wood_block', 2: 'stone_block', 3: 'furnace', 4: 'bed_block', 5: 'couch_block', 6: 'sink_block', 7: 'campfire', 8: 'anvil_block', 9: 'computer_bench' };
 
@@ -465,11 +562,11 @@
   }
   function applyEntHit(e, bd, targetPid) {
     e.hp -= bd;
-    var goal = e.hp <= 0 ? e.yield : Math.floor(e.yield * (1 - Math.max(0, e.hp) / e.max)), gain = goal - e.given, item = e.k === 'tree' ? 'wood' : (e.ore ? 'iron_nugget' : e.gold ? 'golden_nugget' : e.coal ? 'coal' : 'stone');
+    var goal = e.hp <= 0 ? e.yield : Math.floor(e.yield * (1 - Math.max(0, e.hp) / e.max)), gain = goal - e.given, item = e.k === 'tree' ? 'wood' : (e.ore ? 'iron_nugget' : e.gold ? 'golden_nugget' : e.copper ? 'broken_copper_wire' : e.coal ? 'coal' : 'stone');
     if (gain > 0) { e.given = goal; if (targetPid === 'self') { give(item, gain); say('+' + gain + ' ' + ITEMS[item].name); } else if (mp.role === 'host') Net.send({ t: 'give', to: targetPid, id: item, n: gain, msg: '+' + gain + ' ' + ITEMS[item].name }); }
     if (e.hp <= 0) {
       e.respawn = T + (e.k === 'tree' ? 600 : 720); if (e.k === 'tree') W.setTree(e, false); else W.setRock(e, false);
-      var msg = e.k === 'tree' ? 'The tree fell.' : (e.ore ? 'The iron ore is mined out.' : e.gold ? 'The gold ore is mined out.' : e.coal ? 'The coal is mined out.' : 'The rock is destroyed.');
+      var msg = e.k === 'tree' ? 'The tree fell.' : (e.ore ? 'The iron ore is mined out.' : e.gold ? 'The gold ore is mined out.' : e.copper ? 'The copper ore is mined out.' : e.coal ? 'The coal is mined out.' : 'The rock is destroyed.');
       if (targetPid === 'self') say(msg); else if (mp.role === 'host') Net.send({ t: 'say', to: targetPid, msg: msg });
     }
     if (mp.role === 'host') Net.send({ t: 'ent', k: e.k, idx: e.idx, hp: Math.round(e.hp), given: e.given, alive: e.alive });
@@ -496,6 +593,7 @@
     if (h.kind !== 'ent') { SFX.play('swing'); return; }
     var e = h.e;
     if (e.vx != null) { hitVoxAt(e.vx, e.vy, e.vz, it.bd); return; }
+    if (e.k === 'car') { SFX.play('block'); if (mp.role === 'client') Net.send({ t: 'hitEnt', k: 'car', idx: e.idx, bd: it.bd || 1 }); else applyCarHit(e, it.bd || 1, 'self'); return; }
     if (e.k === 'tree' || e.k === 'rock') {
       var need = e.k === 'tree' ? 'axe' : 'pick';
       if (it.tool !== need) { say(e.k === 'tree' ? 'You need an axe to chop trees.' : 'You need a pickaxe to mine rocks.', true); return; }
@@ -508,12 +606,17 @@
     var dx = z.x - P.x, dz = z.z - P.z, l = Math.hypot(dx, dz) || 1; moveBody(z, dx / l * 0.35, 0, dz / l * 0.35, z.rad, 1.7, false);
     if (z.hp <= 0) killZombie(z, attacker);
   }
+  function awardKill(type) {
+    var d = ZDEF[type]; if (!d || !d.coin) return; kc[type] = (kc[type] || 0) + 1;
+    if (kc[type] >= d.coin[0]) { kc[type] = 0; coins += d.coin[1]; say('+' + d.coin[1] + ' Coin' + (d.coin[1] > 1 ? 's' : '') + ' (' + d.name + ')'); }
+  }
   function killZombie(z, attacker) {
     scene.remove(z.g); var i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1); delete zMap[z.id];
     var dropId = null, zt = z.type;
+    if (z.def.boss && mp.role !== 'client') { var bi = zt === 'gigantus' ? 0 : 1; bf[bi] = 2; }
     if (zt === 'spider') dropId = rnd() < 1 / 3 ? 'string' : null; else if (zt === 'programmer') dropId = rnd() < 0.10 ? 'signal_chip' : null; else if (zt !== 'miner' && zt !== 'zfish') dropId = rnd() < 0.15 ? WZ.rollLoot('trash1', rnd) : null;
-    if (attacker === 'self' || !attacker) { kills++; if (dropId) { give(dropId, 1); say('+1 ' + ITEMS[dropId].name); } }
-    else if (mp.role === 'host') Net.send({ t: 'zkill', to: attacker, drop: dropId });
+    if (attacker === 'self' || !attacker) { kills++; awardKill(zt); if (dropId) { give(dropId, 1); say('+1 ' + ITEMS[dropId].name); } }
+    else if (mp.role === 'host') Net.send({ t: 'zkill', to: attacker, drop: dropId, ty: z.ti });
   }
   function eatTick(dt) {
     var id = hot[sel], it = id ? ITEMS[id] : null;
@@ -555,7 +658,7 @@
   }
   function applySearchEnt(e, targetPid) {
     if (e.searched) { if (targetPid === 'self') say('Already searched.'); else if (mp.role === 'host') Net.send({ t: 'say', to: targetPid, msg: 'Already searched.' }); return; }
-    var key = e.k === 'pile' ? (e.tier === 4 ? 'table4' : e.tier === 2 && WZ.LOOT.trash2.enabled ? 'trash2' : 'trash1') : (e.tier === 2 ? 'crate2' : 'crate1');
+    var key = e.k === 'pile' ? (e.tier === 4 ? 'table4' : e.tier === 2 && WZ.LOOT.trash2.enabled ? 'trash2' : 'trash1') : ('crate' + Math.max(1, Math.min(e.tier || 1, worldTier(clockInfo(T).day), 5)));
     var rolls = WZ.LOOT[key].rolls || 1, got = {};
     for (var i = 0; i < rolls; i++) { var id = WZ.rollLoot(key, rnd); got[id] = (got[id] || 0) + 1; }
     Object.keys(got).forEach(function (id) {
@@ -638,6 +741,7 @@
     else if (Math.hypot(P.vx, P.vz) < 0.2) P.energy = Math.min(100, P.energy + 0.3 * dt);
     if (status.poison > 0) { status.poison -= dt; P.hp -= 1.2 * dt; } if (status.stomach > 0) status.stomach -= dt;
     if (status.wpoison > 0) { status.wpoison -= dt; P.hp -= 2.4 * dt; } if (status.keylock > 0) status.keylock -= dt;
+    if (status.acid > 0) { status.acid -= dt; P.hp -= Math.pow(3, Math.max(0, status.acidN - 1)) * dt; if (status.acid <= 0) status.acidN = 0; }
     if (P.hunger <= 0) P.hp -= 0.8 * dt; if (P.thirst <= 0) P.hp -= 0.8 * dt;
     if (P.hp <= 0 && !dead) { die(); return; }
     if (P.hunger > 40 && P.thirst > 40 && status.poison <= 0 && status.wpoison <= 0 && P.hp < ast.hpMax) P.hp = Math.min(ast.hpMax, P.hp + 0.4 * dt);
@@ -690,31 +794,58 @@
     camera.getWorldDirection(DIR); addTracer(h ? h.t : 48);
     if (h && h.kind === 'zombie') { SFX.play('hit'); if (mp.role === 'client') { h.z.flash = 0.14; Net.send({ t: 'hitZ', id: h.z.id, dmg: it.dmg }); } else hitZombie(h.z, it.dmg, 'self'); }
   }
-  function spawnVirus(x, z, dx, dz, vis) {
-    var m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0x39ff88 })); m.position.set(x, 1.3, z); scene.add(m);
-    virus.push({ m: m, x: x, z: z, dx: dx, dz: dz, life: 1.6, vis: vis });
+  function spawnVirus(x, z, dx, dz, vis, kind) {
+    var acid = kind === 'acid', m = new THREE.Mesh(new THREE.SphereGeometry(acid ? 0.3 : 0.22, 8, 6), new THREE.MeshBasicMaterial({ color: acid ? 0xb6ff00 : 0x39ff88 })); m.position.set(x, 1.3, z); scene.add(m);
+    virus.push({ m: m, x: x, z: z, dx: dx, dz: dz, life: 1.6, vis: vis, kind: kind || 'virus' });
   }
   function fireVirus(z, tgt) {
-    var dx = tgt.x - z.x, dz = tgt.z - z.z, l = Math.hypot(dx, dz) || 1; spawnVirus(z.x, z.z, dx / l, dz / l, mp.role === 'client');
-    if (mp.role === 'host') Net.send({ t: 'vp', x: r2(z.x), z: r2(z.z), dx: r2(dx / l), dz: r2(dz / l) });
+    var dx = tgt.x - z.x, dz = tgt.z - z.z, l = Math.hypot(dx, dz) || 1, kind = z.def.ranged === 'acid' ? 'acid' : 'virus'; spawnVirus(z.x, z.z, dx / l, dz / l, mp.role === 'client', kind);
+    if (mp.role === 'host') Net.send({ t: 'vp', x: r2(z.x), z: r2(z.z), dx: r2(dx / l), dz: r2(dz / l), k: kind });
   }
+  /* Acidic Poison: every hit stacks (max 3) and makes the poison 3x deadlier: 1, 3, 9 damage per second for 10 s (ignores armor) */
+  function applyAcid() { status.acidN = Math.min(3, status.acidN + 1); status.acid = 10; say('Acidic Poison! x' + Math.pow(3, status.acidN - 1) + ' deadlier', true); SFX.play('hurt'); }
   function stepVirus(dt) {
     for (var i = virus.length - 1; i >= 0; i--) {
       var v = virus[i], gone = false; v.x += v.dx * 9 * dt; v.z += v.dz * 9 * dt; v.m.position.x = v.x; v.m.position.z = v.z; v.life -= dt;
       if (v.life <= 0 || W.hit(v.x - 0.1, v.x + 0.1, 1.2, 1.4, v.z - 0.1, v.z + 0.1)) gone = true;
       else if (!v.vis) {
-        if (!dead && Math.hypot(P.x - v.x, P.z - v.z) < 0.8 && P.y < 2) { infectKeys(8); gone = true; }
-        else if (mp.role === 'host') for (var pid in mp.peers) { var pr = mp.peers[pid]; if (!pr.dead && Math.hypot(pr.x - v.x, pr.z - v.z) < 0.8) { Net.send({ t: 'virus', to: pid }); gone = true; break; } }
+        if (!dead && Math.hypot(P.x - v.x, P.z - v.z) < 0.8 && P.y < 2) { if (v.kind === 'acid') applyAcid(); else infectKeys(8); gone = true; }
+        else if (mp.role === 'host') for (var pid in mp.peers) { var pr = mp.peers[pid]; if (!pr.dead && Math.hypot(pr.x - v.x, pr.z - v.z) < 0.8) { Net.send({ t: 'virus', to: pid, k: v.kind }); gone = true; break; } }
       }
       if (gone) { scene.remove(v.m); virus.splice(i, 1); }
     }
   }
+  /* Underground miners: Miner Zombie Walkers spawn only underground, near players who are underground (max 10). They vanish when nobody is underground. */
   function mineLogic(dt) {
-    mineT -= dt; if (mineT > 0 || !W.mine) return; mineT = 15;
-    var n = 0, near = false, cx = (W.mine.x0 + W.mine.x1) / 2, cz = (W.mine.z0 + W.mine.z1) / 2;
-    zombies.forEach(function (z) { if (z.type === 'miner') n++; }); if (n >= 4) return;
-    if (!dead && Math.hypot(P.x - cx, P.z - cz) < 140) near = true; for (var pid in mp.peers) if (Math.hypot(mp.peers[pid].x - cx, mp.peers[pid].z - cz) < 140) near = true;
-    if (!near) return; var sp = W.mine.spawns[(rnd() * W.mine.spawns.length) | 0]; zombies.push(makeZombie('miner', sp[0], sp[1]));
+    mineT -= dt; if (mineT > 0 || !W.ug) return; mineT = 5;
+    var ugp = []; if (!dead && inUG(P.x)) ugp.push(P); for (var pid in mp.peers) if (!mp.peers[pid].dead && inUG(mp.peers[pid].x)) ugp.push(mp.peers[pid]);
+    var n = 0, i; zombies.forEach(function (z) { if (z.type === 'miner') n++; });
+    if (!ugp.length) { if (n) for (i = zombies.length - 1; i >= 0; i--) if (zombies[i].type === 'miner') { scene.remove(zombies[i].g); delete zMap[zombies[i].id]; zombies.splice(i, 1); } return; }
+    if (n >= 10) return; var pl = ugp[(rnd() * ugp.length) | 0];
+    for (var tr = 0; tr < 30; tr++) { var c = W.ug.open[(rnd() * W.ug.open.length) | 0], d = Math.hypot(c[0] - pl.x, c[1] - pl.z); if (d > 20 && d < 75) { zombies.push(makeZombie('miner', c[0], c[1])); return; } }
+  }
+  /* Loot cars: every car has 10-25 Break Points; breaking it opens the trunk. Loot tier is random 2..world tier (max 5); world tier 1 gives crate tier 1. */
+  function applyCarHit(e, bd, pid) {
+    if (!e.alive) return; e.hp -= Math.max(1, Math.round(bd / 2));
+    if (e.hp <= 0) {
+      var wt = worldTier(clockInfo(T).day), tier = wt < 2 ? 1 : 2 + ((rnd() * (Math.min(5, wt) - 1)) | 0), key = 'crate' + tier, rolls = WZ.LOOT[key].rolls || 3, got = {};
+      for (var i = 0; i < rolls; i++) { var id = WZ.rollLoot(key, rnd); got[id] = (got[id] || 0) + 1; }
+      if (pid === 'self') say('Trunk opened! (' + WZ.LOOT[key].name + ')'); else if (mp.role === 'host') Net.send({ t: 'say', to: pid, msg: 'Trunk opened! (' + WZ.LOOT[key].name + ')' });
+      Object.keys(got).forEach(function (id) {
+        if (pid === 'self') { give(id, got[id]); say('+' + got[id] + ' ' + ITEMS[id].name); }
+        else if (mp.role === 'host') Net.send({ t: 'give', to: pid, id: id, n: got[id], msg: '+' + got[id] + ' ' + ITEMS[id].name });
+      });
+      W.setCar(e, false);
+    }
+    if (mp.role === 'host') Net.send({ t: 'ent', k: 'car', idx: e.idx, hp: Math.round(e.hp), alive: e.alive });
+  }
+  /* Underground doors */
+  function enterUG() {
+    ugCd = 2; P.x = W.ug.spawn.x; P.z = W.ug.spawn.z; P.y = 0; P.vx = P.vz = P.vy = 0; ugOn = true; W.setUnderground(true); torchOn = true; chunkT = 0;
+    say('You went underground. Find the glowing yellow marker to return to the surface.');
+  }
+  function exitUG() {
+    ugCd = 2; P.x = W.mine.entrance.x; P.z = W.mine.entrance.z; P.y = 0; P.vx = P.vz = P.vy = 0; ugOn = false; W.setUnderground(false); applyGfx(); say('Back on the surface.');
   }
   function cookTick(dt) {
     if (!cooking.length || !nearArr(W.camps)) return; cooking[0].t -= dt;
@@ -723,18 +854,18 @@
   function toggleDebug() { dbgOn = !dbgOn; var d = $('#dbg'); if (d) d.style.display = dbgOn ? 'block' : 'none'; if (dbgOn) renderDebug(); }
   function renderDebug() {
     var d = $('#dbg'); if (!d || !renderer) return; var ri = renderer.info || { render: {}, memory: {} };
-    d.textContent = 'FPS ' + fpsVal + '\nZombies ' + zombies.length + '\nBlocks ' + (W ? W.voxCount() : 0) + '/' + (W ? W.MAX_VOX : 0) + '\nDraw calls ' + (ri.render.calls || 0) + '\nTriangles ' + (ri.render.triangles || 0) + '\nPos ' + r2(P.x) + ', ' + r2(P.y) + ', ' + r2(P.z) + '\nRoom ' + (mp.role === 'solo' ? 'solo' : mp.room + ' (' + totalPlayers() + ')') + '\nT ' + Math.round(T) + 's';
+    d.textContent = 'FPS ' + fpsVal + '\nZombies active ' + zombies.length + ' / dormant ' + dorm.n + ' (' + dorm.n * 16 + ' B)\nChunks ' + (W && W.chunks ? W.shownChunks + '/' + W.chunks.size : 0) + ' · RD ' + (gfx.rd >= 9999 ? 'inf' : gfx.rd) + ' ED ' + (gfx.ed >= 9999 ? 'inf' : gfx.ed) + '\nChunk ' + (W ? W.chunkOf(P.x, P.y, P.z).join(',') : '') + '\nBlocks ' + (W ? W.voxCount() : 0) + '/' + (W ? W.MAX_VOX : 0) + '\nDraw calls ' + (ri.render.calls || 0) + '\nTriangles ' + (ri.render.triangles || 0) + '\nPos ' + r2(P.x) + ', ' + r2(P.y) + ', ' + r2(P.z) + '\nRoom ' + (mp.role === 'solo' ? 'solo' : mp.room + ' (' + totalPlayers() + ')') + '\nT ' + Math.round(T) + 's';
   }
 
   /* ---------------- Zombies ---------------- */
-  var BOX = new THREE.BoxGeometry(1, 1, 1), EYE = new THREE.MeshBasicMaterial({ color: 0xff3030 }), FLASH_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaa2222 }), Z_MATS = Object.create(null), MAT_YEL = new THREE.MeshLambertMaterial({ color: 0xe3b02a }), MAT_GLASS = new THREE.MeshBasicMaterial({ color: 0x66ccff });
+  var BOX = new THREE.BoxGeometry(1, 1, 1), EYE = new THREE.MeshBasicMaterial({ color: 0xff3030 }), FLASH_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaa2222 }), Z_MATS = Object.create(null), MAT_YEL = new THREE.MeshLambertMaterial({ color: 0xe3b02a }), MAT_GLASS = new THREE.MeshBasicMaterial({ color: 0x66ccff }), MAT_ACID = new THREE.MeshBasicMaterial({ color: 0xb6ff00 }), MAT_STEEL = new THREE.MeshLambertMaterial({ color: 0x8b9096 }), SHADOW_GEO = new THREE.CircleGeometry(0.5, 12), SHADOW_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
   function tint(c, k) { var col = new THREE.Color(c); col.multiplyScalar(1 + k); return col; }
   function getZMats(type) {
     if (Z_MATS[type]) return Z_MATS[type]; var d = ZDEF[type];
     return (Z_MATS[type] = { skin: new THREE.MeshLambertMaterial({ color: d.color }), cloth: new THREE.MeshLambertMaterial({ color: tint(d.color, -0.4) }), pants: new THREE.MeshLambertMaterial({ color: tint(d.color, -0.6) }), helmet: type === 'soldier' ? new THREE.MeshLambertMaterial({ color: 0x2f4a2c }) : null, bombGlow: type === 'bomber' ? new THREE.MeshBasicMaterial({ color: 0xff7a1a }) : null, pack: type === 'bomber' ? new THREE.MeshLambertMaterial({ color: 0x3a2a1e }) : null });
   }
   function makeZombie(type, x, z, forcedId) {
-    var d = ZDEF[type], m = getZMats(type), g = new THREE.Group(), sw = [], wide = type === 'big' || type === 'brute' ? 1.25 : type === 'bomber' ? 1.3 : type === 'spider' ? 1.5 : 1;
+    var d = ZDEF[type], m = getZMats(type), g = new THREE.Group(), sw = [], wide = type === 'big' || type === 'brute' ? 1.25 : type === 'bomber' ? 1.3 : type === 'spider' ? 1.5 : type === 'gigantus' ? 1.5 : type === 'armored' ? 1.3 : 1;
     function bx(w, h, dd, mat, px, py, pz, p, fl) { var o = new THREE.Mesh(BOX, mat); o.scale.set(w, h, dd); o.position.set(px, py, pz); (p || g).add(o); if (fl) sw.push({ mesh: o, orig: mat }); }
     bx(0.52 * wide, 0.7, 0.3 * wide, m.cloth, 0, 1.05, 0, null, true); bx(0.32, 0.32, 0.32, m.skin, 0, 1.55, 0, null, true);
     bx(0.07, 0.05, 0.02, EYE, -0.08, 1.58, -0.17); bx(0.07, 0.05, 0.02, EYE, 0.08, 1.58, -0.17);
@@ -750,17 +881,74 @@
     if (type === 'programmer') bx(0.36, 0.14, 0.05, MAT_GLASS, 0, 1.58, -0.19);
     if (type === 'spider') for (var sl = 0; sl < 4; sl++) { bx(0.9, 0.05, 0.05, m.skin, 0, 0.55, -0.25 + sl * 0.17); bx(0.05, 0.05, 0.05, EYE, 0.1 * (sl % 2 ? 1 : -1), 1.45, -0.19); }
     if (type === 'zfish') { bx(0.2, 0.12, 0.3, MAT_GLASS, 0, 0.6, 0.35); }
+    if (type === 'antlion') { bx(0.04, 0.4, 0.04, MAT_YEL, -0.1, 1.85, -0.1); bx(0.04, 0.4, 0.04, MAT_YEL, 0.1, 1.85, -0.1); for (var al = 0; al < 3; al++) { bx(0.95, 0.05, 0.05, MAT_YEL, 0, 0.75, -0.2 + al * 0.2); } bx(0.5, 0.35, 0.6, m.cloth, 0, 0.95, 0.4); }
+    if (type === 'zcorpion') { bx(0.12, 0.12, 0.3, m.skin, 0, 0.95, 0.3); bx(0.12, 0.3, 0.12, m.skin, 0, 1.15, 0.5); bx(0.12, 0.12, 0.3, m.skin, 0, 1.35, 0.35); bx(0.08, 0.08, 0.2, MAT_ACID, 0, 1.4, 0.15); bx(0.28, 0.12, 0.22, m.skin, -0.55, 1.05, -0.35); bx(0.28, 0.12, 0.22, m.skin, 0.55, 1.05, -0.35); }
+    if (type === 'gigantus') { bx(0.2, 0.3, 0.2, m.cloth, -0.5, 1.5, 0); bx(0.2, 0.3, 0.2, m.cloth, 0.5, 1.5, 0); bx(0.06, 0.06, 0.02, EYE, 0, 1.64, -0.17); }
+    if (type === 'armored') { bx(0.66, 0.6, 0.4, MAT_STEEL, 0, 1.08, 0); bx(0.38, 0.38, 0.38, MAT_STEEL, 0, 1.58, 0); bx(0.3, 0.05, 0.02, EYE, 0, 1.58, -0.2); bx(0.22, 0.5, 0.26, MAT_STEEL, -0.18 * wide, 0.35, 0); bx(0.22, 0.5, 0.26, MAT_STEEL, 0.18 * wide, 0.35, 0); }
+    var sh = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.07; sh.scale.set(0.95 * wide, 0.95 * wide, 1); sh.visible = gfx.shadow; g.add(sh);
     g.scale.setScalar(d.scale); g.position.set(x, 0, z); scene.add(g);
     var id = forcedId != null ? forcedId : nextZid++, zb = { id: id, type: type, ti: ZTYPES.indexOf(type), def: d, g: g, x: x, y: 0, z: z, tx: x, tz: z, try: 0, hp: d.hp, rad: 0.32 * Math.sqrt(d.scale) * wide * 0.9, r2: Math.pow(0.52 * d.scale * wide, 2), h: 1.9 * d.scale, cd: 0.4, anim: rnd() * 6, legs: [lL, lR], arms: [aL, aR], swaps: sw, flash: 0, flashing: false };
-    zMap[id] = zb; return zb;
+    zb.sh = sh; zMap[id] = zb; return zb;
   }
-  function spawnZombie() {
-    var pool = [], sum = 0, tier2 = T > 300; for (var k in ZDEF) if (!ZDEF[k].nospawn && (ZDEF[k].tier === 1 || (ZDEF[k].tier < 4 && tier2) || (ZDEF[k].tier === 4 && T > 900))) { pool.push(k); sum += ZDEF[k].w; }
-    var r = rnd() * sum, type = pool[0]; for (var i = 0; i < pool.length; i++) { r -= ZDEF[pool[i]].w; if (r <= 0) { type = pool[i]; break; } }
-    var tgts = []; if (!dead) tgts.push({ x: P.x, z: P.z }); for (var pid in mp.peers) { var pr = mp.peers[pid]; if (!pr.dead && pr.hp > 0) tgts.push({ x: pr.x, z: pr.z }); }
-    var ref = tgts.length ? tgts[(rnd() * tgts.length) | 0] : { x: P.x, z: P.z }, H = WZ.SPAWN_HALF, best = null;
+  /* ---- Dormant zombies: 256 bits (8 x 32-bit words) per zombie. Max 150 zombies in total. ----
+     word0: type(5 bits) | hp 0..4095 (12 bits)    word1: x (float32)   word2: z (float32)   word3: heading (float32)
+     word4: age in 0.1 s     word5: personal random seed     word6: zombie id     word7: checksum of words 0-6 (bad records are dropped) */
+  var DMAX = 192, ZCAP = 150, DBUF = new ArrayBuffer(4 * 8 * DMAX), DU = new Uint32Array(DBUF), DF = new Float32Array(DBUF);
+  function dSum(o) { var h = 2166136261; for (var k = 0; k < 7; k++) { h ^= DU[o + k]; h = Math.imul(h, 16777619); } return h >>> 0; }
+  function dAdd(ti, x, z, hpf, rot, id) {
+    if (dorm.n >= DMAX) return false; var o = dorm.n * 8;
+    DU[o] = ((ti & 31) | (Math.round(clamp(hpf, 0, 1) * 4095) << 5)) >>> 0; DF[o + 1] = x; DF[o + 2] = z; DF[o + 3] = rot; DU[o + 4] = Math.round(T * 10) >>> 0; DU[o + 5] = (Math.random() * 4294967296) >>> 0; DU[o + 6] = id >>> 0; DU[o + 7] = dSum(o); dorm.n++; return true;
+  }
+  function dDel(i) { var last = dorm.n - 1, k; if (i !== last) for (k = 0; k < 8; k++) DU[i * 8 + k] = DU[last * 8 + k]; dorm.n--; }
+  function dormNear(r) { var c = 0; for (var i = 0; i < dorm.n; i++) if (Math.hypot(DF[i * 8 + 1] - P.x, DF[i * 8 + 2] - P.z) < r) c++; return c; }
+  function dormCount(excludeBoss) { var c = 0; for (var i = 0; i < dorm.n; i++) { var d = ZDEF[ZTYPES[DU[i * 8] & 31]]; if (d && !(excludeBoss && d.boss)) c++; } return c; }
+  function onSurface(x) { return x <= W.half + 50; }
+  function inUG(x) { return x > W.half + 50; }
+  function targets() { var a = []; if (!dead && onSurface(P.x)) a.push({ x: P.x, z: P.z }); for (var pid in mp.peers) { var pr = mp.peers[pid]; if (!pr.dead && pr.hp > 0 && onSurface(pr.x)) a.push({ x: pr.x, z: pr.z }); } return a; }
+  function nearestT(tg, x, z) { var bd = 1e9, b = null; for (var i = 0; i < tg.length; i++) { var d = Math.hypot(tg[i].x - x, tg[i].z - z); if (d < bd) { bd = d; b = tg[i]; } } return { d: bd, t: b }; }
+  function hydrate(i) {
+    var o = i * 8, ti = DU[o] & 31, hpf = ((DU[o] >>> 5) & 4095) / 4095, x = DF[o + 1], z = DF[o + 2], rot = DF[o + 3], id = DU[o + 6]; dDel(i);
+    var zb = makeZombie(ZTYPES[ti], x, z, id); zb.hp = Math.max(1, Math.round(hpf * zb.def.hp)); zb.g.rotation.y = rot; zb.try = rot; zombies.push(zb);
+  }
+  function dormTick(dt) {
+    dorm.t += dt; if (dorm.t < 0.5) return; var st = dorm.t; dorm.t = 0; var tg = targets(); if (!tg.length) return; var E = edMeters(), i;
+    for (i = dorm.n - 1; i >= 0; i--) {
+      var o = i * 8; if (dSum(o) !== DU[o + 7]) { dDel(i); continue; }
+      var ti = DU[o] & 31, type = ZTYPES[ti], d = ZDEF[type]; if (!d) { dDel(i); continue; }
+      var x = DF[o + 1], z = DF[o + 2], nt = nearestT(tg, x, z); if (nt.d < E) { hydrate(i); continue; }
+      var hpf = ((DU[o] >>> 5) & 4095) / 4095, sp = d.spd * 2.2 * 2.5 * (d.rage && hpf < 0.2 ? 2 : 1), mv = Math.min(nt.d - E + 1, sp * st), dx = nt.t.x - x, dz = nt.t.z - z;
+      x += dx / nt.d * mv; z += dz / nt.d * mv; DF[o + 1] = x; DF[o + 2] = z; DF[o + 3] = Math.atan2(-dx, -dz); DU[o + 7] = dSum(o);
+    }
+    if (E < 1e8) for (i = zombies.length - 1; i >= 0; i--) {
+      var zb = zombies[i]; if (zb.type === 'miner' || zb.type === 'zfish' || dorm.n >= DMAX) continue;
+      if (nearestT(tg, zb.x, zb.z).d > E + 30) { dAdd(zb.ti, zb.x, zb.z, zb.hp / zb.def.hp, zb.g.rotation.y, zb.id); scene.remove(zb.g); zombies.splice(i, 1); delete zMap[zb.id]; }
+    }
+  }
+  function placeZombie(type, x, z) {
+    var tg = targets(), bd = nearestT(tg, x, z).d;
+    if (tg.length && bd > edMeters() && type !== 'miner' && type !== 'zfish' && dorm.n < DMAX) { dAdd(ZTYPES.indexOf(type), x, z, 1, 0, nextZid++); return; }
+    zombies.push(makeZombie(type, x, z));
+  }
+  function ringPoint(ref) {
+    var H = WZ.SPAWN_HALF, best = null;
     for (var j = 0; j < 3; j++) { var side = (rnd() * 4) | 0, t = (rnd() * 2 - 1) * H, x = side < 2 ? t : (side === 2 ? -H : H), z = side < 2 ? (side === 0 ? -H : H) : t, d = Math.hypot(x - ref.x, z - ref.z); if (!best || d < best.d) best = { x: x, z: z, d: d }; }
-    zombies.push(makeZombie(type, best.x, best.z));
+    return best;
+  }
+  /* spawn rule: weight = base weight x rarity factor (rare 1/4, epic 1/10, legendary 1/25, mythical 1/100); tier gate by world day; desert-only mobs need a desert spawn point; bosses/mini-bosses never use this */
+  function spawnZombie() {
+    var tg = targets(); if (!tg.length) return; var ref = tg[(rnd() * tg.length) | 0], best = ringPoint(ref), biome = W.biomeOf(best.x, best.z), tier = worldTier(clockInfo(T).day);
+    var pool = [], sum = 0; for (var k in ZDEF) { var d = ZDEF[k]; if (d.nospawn || d.boss) continue; if (d.tier > tier) continue; if (d.biome && d.biome !== biome) continue; var wgt = d.w * (WZ.RARITY[d.rarity] || 0); if (wgt <= 0) continue; pool.push([k, wgt]); sum += wgt; }
+    if (!pool.length) return; var r = rnd() * sum, type = pool[0][0]; for (var i = 0; i < pool.length; i++) { r -= pool[i][1]; if (r <= 0) { type = pool[i][0]; break; } }
+    placeZombie(type, best.x, best.z);
+  }
+  function ann(msg) { say(msg, true); if (mp.role === 'host') Net.send({ t: 'ann', msg: msg }); }
+  function bossAlive(type) { var ti = ZTYPES.indexOf(type), i; for (i = 0; i < zombies.length; i++) if (zombies[i].type === type) return true; for (i = 0; i < dorm.n; i++) if ((DU[i * 8] & 31) === ti) return true; return false; }
+  /* boss rule: Gigantus Zombie appears ONCE when day 10 starts (tier 1->2); Armored-Full Zombie Mk-1 ONCE at day 30 (tier 2->3). bf[i]: 0 not spawned, 1 alive, 2 dead */
+  function bossLogic(dt) {
+    bossT -= dt; if (bossT > 0) return; bossT = 3; var day = clockInfo(T).day, tg = targets(); if (!tg.length) return;
+    [['gigantus', 10, 'GIGANTUS ZOMBIE has appeared! The world is entering Tier 2...'], ['armored', 30, 'ARMORED-FULL ZOMBIE Mk-1 has appeared! The world is entering Tier 3...']].forEach(function (b, bi) {
+      if (day >= b[1] && bf[bi] !== 2 && !bossAlive(b[0])) { var pt = ringPoint(tg[0]); placeZombie(b[0], pt.x, pt.z); if (bf[bi] === 0) ann(b[2]); bf[bi] = 1; }
+    });
   }
   function explode(z) {
     var s = z.def.splash || 4; if (mp.role === 'host') Net.send({ t: 'boom', x: r2(z.x), y: r2(z.y), z: r2(z.z), dmg: z.def.dmg, splash: s, zid: z.id });
@@ -775,26 +963,36 @@
     else if (z.flashing) { z.flashing = false; z.swaps.forEach(function (s) { s.mesh.material = s.orig; }); }
   }
   var ANG = [0, 0.7, -0.7, 1.4, -1.4, 2.2, -2.2];
+  function zombieHit(z, tgt) {
+    var d = z.def, reach = (1.15 + d.scale * 0.35) * (d.rng || 1);
+    function one(isSelf, pid) { if (isSelf) { hurt(d.dmg); if (d.wpoison) applyWaterPoison(); } else if (mp.role === 'host') Net.send({ t: 'hurt', to: pid, dmg: d.dmg, wp: d.wpoison ? 1 : 0 }); }
+    one(tgt.isSelf, tgt.pid);
+    if (d.splash && z.type !== 'bomber') { /* SPLASH: other players next to the zombie get hit too */
+      if (!tgt.isSelf && !dead && onSurface(P.x) && Math.hypot(P.x - z.x, P.z - z.z) < reach + d.splash) one(true);
+      for (var pid in mp.peers) { var pr = mp.peers[pid]; if ((tgt.isSelf || pid !== tgt.pid) && !pr.dead && pr.hp > 0 && Math.hypot(pr.x - z.x, pr.z - z.z) < reach + d.splash) one(false, pid); }
+    }
+  }
   function stepZombie(z, dt) {
     var tgt = null, bd = 1e9;
-    if (!dead) { bd = Math.hypot(P.x - z.x, P.z - z.z); tgt = { isSelf: true, x: P.x, y: P.y, z: P.z, d: bd }; }
-    for (var pid in mp.peers) { var pr = mp.peers[pid]; if (pr.dead || pr.hp <= 0) continue; var pd = Math.hypot(pr.x - z.x, pr.z - z.z); if (pd < bd) { bd = pd; tgt = { isSelf: false, pid: pid, x: pr.x, y: pr.y, z: pr.z, d: pd }; } }
+    if (!dead && (z.type === 'miner' ? inUG(P.x) : onSurface(P.x))) { bd = Math.hypot(P.x - z.x, P.z - z.z); tgt = { isSelf: true, x: P.x, y: P.y, z: P.z, d: bd }; }
+    for (var pid in mp.peers) { var pr = mp.peers[pid]; if (pr.dead || pr.hp <= 0 || (z.type === 'miner' ? !inUG(pr.x) : !onSurface(pr.x))) continue; var pd = Math.hypot(pr.x - z.x, pr.z - z.z); if (pd < bd) { bd = pd; tgt = { isSelf: false, pid: pid, x: pr.x, y: pr.y, z: pr.z, d: pd }; } }
     if (!tgt) return;
-    var dx = tgt.x - z.x, dz = tgt.z - z.z, dist = tgt.d, base = Math.atan2(dz, dx), sp = z.def.spd * 2.2;
+    var dx = tgt.x - z.x, dz = tgt.z - z.z, dist = tgt.d, base = Math.atan2(dz, dx), sp = z.def.spd * 2.2 * (z.def.rage && z.hp < z.def.hp * 0.2 ? 2 : 1), reach = (1.15 + z.def.scale * 0.35) * (z.def.rng || 1);
     if (z.type === 'miner' && dist > 22) { updateZombieVisuals(z, dt); return; }
-    if (z.def.ranged) { z.vcd = (z.vcd == null ? 2 : z.vcd) - dt; if (dist > 3 && dist < 14 && z.vcd <= 0) { z.vcd = 4; fireVirus(z, tgt); } }
+    if (z.def.ranged) { z.vcd = (z.vcd == null ? 2 : z.vcd) - dt; if (dist > 3 && dist < 14 && z.vcd <= 0) { z.vcd = z.def.ranged === 'acid' ? 3 : 4; fireVirus(z, tgt); } }
     z.cd -= dt; z.anim += dt * sp * 2.2;
-    if (dist > 0.01 && Math.abs(tgt.y - z.y) < 2.2 && dist < 1.15 + z.def.scale * 0.35) {
+    if (dist > 0.01 && Math.abs(tgt.y - z.y) < 2.2 && dist < reach) {
       if (z.type === 'bomber') { explode(z); return; }
-      if (z.cd <= 0) { z.cd = z.def.cd; if (tgt.isSelf) { hurt(z.def.dmg); if (z.def.wpoison) applyWaterPoison(); } else if (mp.role === 'host') Net.send({ t: 'hurt', to: tgt.pid, dmg: z.def.dmg, wp: z.def.wpoison ? 1 : 0 }); }
+      if (z.cd <= 0) { z.cd = z.def.cd; zombieHit(z, tgt); }
     }
     if (z.type === 'bomber' && dist < 2.1 && Math.abs(tgt.y - z.y) < 2.2) { explode(z); return; }
     var moved = false, hitInfo = null;
     for (var a = 0; a < ANG.length && !moved; a++) { var ang = base + ANG[a], mx = Math.cos(ang) * sp * dt, mz = Math.sin(ang) * sp * dt, i = W.hit(z.x + mx - z.rad, z.x + mx + z.rad, 0.05, 1.7, z.z + mz - z.rad, z.z + mz + z.rad); if (!i) { z.x += mx; z.z += mz; moved = true; } else if (a === 0) hitInfo = { vox: i.vox }; }
     if (!moved && hitInfo && hitInfo.vox != null && z.cd <= 0) { if (z.type === 'bomber') { explode(z); return; } z.cd = z.def.cd || 1; var c = unkey(hitInfo.vox); damageVoxLocal(c[0], c[1], c[2], z.def.dmg * 3, null); SFX.play('wood'); }
-    for (var k = 0; k < zombies.length; k++) { var o = zombies[k]; if (o === z) continue; var ex = z.x - o.x, ez = z.z - o.z, d2 = ex * ex + ez * ez; if (d2 < 0.5 && d2 > 0.0001) { var d = Math.sqrt(d2), p = (0.7 - d) * 0.5; z.x += ex / d * p * dt * 6; z.z += ez / d * p * dt * 6; } }
+    for (var k = 0; k < zombies.length; k++) { var o = zombies[k]; if (o === z) continue; var ex = z.x - o.x, ez = z.z - o.z, d2 = ex * ex + ez * ez; if (d2 < 0.5 && d2 > 0.0001) { var d = Math.sqrt(d2), pp = (0.7 - d) * 0.5; z.x += ex / d * pp * dt * 6; z.z += ez / d * pp * dt * 6; } }
     z.g.position.set(z.x, 0, z.z); if (dist > 0.01) z.g.rotation.y = Math.atan2(-dx, -dz); updateZombieVisuals(z, dt);
   }
+  function zombieCap() { return Math.min(ZCAP, Math.round((16 + Math.floor(T / 60) * 3 + (mp.role === 'host' ? (totalPlayers() - 1) * 4 : 0)) * 0.9 * (bloodOn ? 2 : 1))); }
   function zombieLogic(dt, isNight) {
     groanT -= dt;
     if (groanT <= 0) {
@@ -803,17 +1001,16 @@
     }
     if (mp.role === 'client') {
       var f = Math.min(1, dt * 12);
-      for (var i = 0; i < zombies.length; i++) { var z = zombies[i], dx = z.tx - z.x, dz = z.tz - z.z, mv = Math.hypot(dx, dz); z.x += dx * f; z.z += dz * f; z.g.position.set(z.x, 0, z.z); z.g.rotation.y = z.try; z.anim += dt * (mv > 0.02 ? z.def.spd * 4.5 : 1.5); updateZombieVisuals(z, dt); }
+      for (var i = 0; i < zombies.length; i++) { var z = zombies[i], dx = z.tx - z.x, dz = z.tz - z.z, mv = Math.hypot(dx, dz); z.x += dx * f; z.z += dz * f; z.g.visible = entVisible(z.x, z.z); if (!z.g.visible) continue; z.g.position.set(z.x, 0, z.z); z.g.rotation.y = z.try; z.anim += dt * (mv > 0.02 ? z.def.spd * 4.5 : 1.5); updateZombieVisuals(z, dt); }
       return;
     }
     if (T < 30) return; /* first 30 seconds of a new world: no zombies spawn */
     spawnT -= dt;
-    var cap = Math.round(Math.min(48, 16 + Math.floor(T / 60) * 3 + (mp.role === 'host' ? (totalPlayers() - 1) * 4 : 0)) * 0.9);
-    var interval = (Math.max(1.2, 6 - T / 120) / 0.9) * (isNight ? 0.8 : 1);
-    mineLogic(dt);
-    var hostile = 0; for (var hz = 0; hz < zombies.length; hz++) if (zombies[hz].type !== 'miner' && zombies[hz].type !== 'zfish') hostile++;
+    var cap = zombieCap(), interval = (Math.max(1.2, 6 - T / 120) / 0.9) * (isNight ? 0.8 : 1) / (bloodOn ? 2 : 1);
+    mineLogic(dt); bossLogic(dt); dormTick(dt);
+    var hostile = dormCount(true); for (var hz = 0; hz < zombies.length; hz++) { var zt = zombies[hz]; if (zt.type !== 'miner' && zt.type !== 'zfish' && !zt.def.boss) hostile++; }
     if (spawnT <= 0 && hostile < cap) { spawnZombie(); spawnT = interval; }
-    for (var j = zombies.length - 1; j >= 0; j--) stepZombie(zombies[j], dt);
+    for (var j = zombies.length - 1; j >= 0; j--) { var zz = zombies[j]; zz.g.visible = entVisible(zz.x, zz.z); stepZombie(zz, dt); }
   }
 
   /* ---------------- Multiplayer avatars & sync ---------------- */
@@ -830,7 +1027,7 @@
     bx(0.5, 0.68, 0.28, shirt, 0, 1.05, 0); bx(0.32, 0.32, 0.32, skin, 0, 1.55, 0);
     var lL = new THREE.Group(), lR = new THREE.Group(), aR = new THREE.Group(); lL.position.set(-0.13, 0.7, 0); lR.position.set(0.13, 0.7, 0); aR.position.set(0.35, 1.35, 0); g.add(lL); g.add(lR); g.add(aR);
     bx(0.2, 0.7, 0.22, pants, 0, -0.35, 0, lL); bx(0.2, 0.7, 0.22, pants, 0, -0.35, 0, lR); bx(0.14, 0.6, 0.14, skin, -0.35, 1.05, 0); bx(0.14, 0.6, 0.14, skin, 0, -0.3, 0, aR);
-    var tag = makeNameSprite(name, slot); g.add(tag.sprite); scene.add(g); return { g: g, lL: lL, lR: lR, aR: aR, anim: 0, tag: tag };
+    var tag = makeNameSprite(name, slot); g.add(tag.sprite); var psh = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); psh.rotation.x = -Math.PI / 2; psh.position.y = 0.07; psh.scale.set(0.9, 0.9, 1); psh.visible = gfx.shadow; g.add(psh); scene.add(g); return { g: g, lL: lL, lR: lR, aR: aR, anim: 0, tag: tag, sh: psh };
   }
   function removePeer(pid) { var pr = mp.peers[pid]; if (!pr) return; if (pr.mesh) { scene.remove(pr.mesh.g); if (pr.mesh.tag && pr.mesh.tag.tex) pr.mesh.tag.tex.dispose(); } delete mp.peers[pid]; }
   function stepPeers(dt) {
@@ -838,7 +1035,7 @@
     for (var pid in mp.peers) {
       var pr = mp.peers[pid]; if (now - pr.lastSeen > 9000) { say(pr.name + ' left the room.'); removePeer(pid); continue; }
       var dx = pr.tx - pr.x, dz = pr.tz - pr.z, spd = Math.hypot(dx, dz); pr.x += dx * f; pr.y += (pr.ty - pr.y) * f; pr.z += dz * f;
-      pr.mesh.g.visible = !pr.dead; pr.mesh.g.position.set(pr.x, pr.y, pr.z); pr.mesh.g.rotation.y = pr.tyaw;
+      pr.mesh.g.visible = !pr.dead && entVisible(pr.x, pr.z); pr.mesh.g.position.set(pr.x, pr.y, pr.z); pr.mesh.g.rotation.y = pr.tyaw;
       if (spd > 0.02) { pr.mesh.anim += dt * 10; var sw = Math.sin(pr.mesh.anim) * 0.65; pr.mesh.lL.rotation.x = sw; pr.mesh.lR.rotation.x = -sw; }
       else { pr.mesh.lL.rotation.x *= 0.8; pr.mesh.lR.rotation.x *= 0.8; }
       if (pr.sw > 0) { pr.sw -= dt; pr.mesh.aR.rotation.x = -1.4; } else pr.mesh.aR.rotation.x *= 0.8;
@@ -848,7 +1045,7 @@
   function leaveRoom() { Net.disconnect(); if (mp.joinTimer) { clearTimeout(mp.joinTimer); mp.joinTimer = null; } Object.keys(mp.peers).forEach(removePeer); mp.role = 'solo'; mp.room = ''; mp.slot = 0; mp.online = false; }
   function hostRoom(keep) {
     leaveRoom(); var code = Net.genCode(); mp.role = 'host'; mp.room = code; mp.slot = 0;
-    if (!keep) { W.resetWorld(); newPlayerState(0); T = 0; spawnT = 3; clearZombies(); }
+    if (!keep) { newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); }
     Net.start('host', code, onNetMessage, function (st) { mp.online = st.online; }); enterGame(); say('Room created! Code: ' + code + (T < 30 ? ' (30 seconds of safe time)' : ''));
   }
   function joinRoom(code) {
@@ -884,7 +1081,8 @@
     if (msg.t === 'mv') { if (mp.role === 'client' && msg.slot === 0) mp.lastHostSeen = performance.now(); upsertPeer({ pid: msg.f, slot: msg.slot, name: msg.n, x: msg.x, y: msg.y, z: msg.z, yaw: msg.yw, hp: msg.hp, dead: msg.d, sw: msg.sw }); return; }
     if (msg.t === 'corpse') { if (!corpses.some(function (c) { return c.id === msg.id; })) addCorpse(msg.x, msg.z, null, false, msg.n, msg.id); return; }
     if (msg.t === 'corpseGone') { var cg = corpses.filter(function (c) { return c.id === msg.id; })[0]; if (cg) removeCorpse(cg); return; }
-    if (msg.t === 'vp') { spawnVirus(msg.x, msg.z, msg.dx, msg.dz, true); return; }
+    if (msg.t === 'vp') { spawnVirus(msg.x, msg.z, msg.dx, msg.dz, true, msg.k); return; }
+    if (msg.t === 'ann') { say(msg.msg, true); return; }
     if (mp.role === 'host') {
       if (msg.t === 'spz') { zombies.push(makeZombie('zfish', msg.x, msg.z)); }
       else if (msg.t === 'join') {
@@ -897,7 +1095,7 @@
         Net.send({ t: 'welcome', to: msg.f, slot: slot, hostName: playerName, hx: r2(P.x), hy: r2(P.y), hz: r2(P.z), snap: snapshot(true), zs: packZombies() });
       } else if (msg.t === 'hitZ') { var z = zMap[msg.id]; if (z) hitZombie(z, msg.dmg || 4, msg.f); }
       else if (msg.t === 'dmgVox') damageVoxLocal(msg.x, msg.y, msg.z, msg.dmg || 2, msg.f);
-      else if (msg.t === 'hitEnt') { var e = (msg.k === 'tree' ? W.trees : W.rocks)[msg.idx]; if (e && e.alive) applyEntHit(e, msg.bd || 1, msg.f); }
+      else if (msg.t === 'hitEnt') { var e = (msg.k === 'tree' ? W.trees : msg.k === 'car' ? W.cars : W.rocks)[msg.idx]; if (e && e.alive) { if (msg.k === 'car') applyCarHit(e, msg.bd || 1, msg.f); else applyEntHit(e, msg.bd || 1, msg.f); } }
       else if (msg.t === 'search') { var se = (msg.k === 'pile' ? W.piles : W.crates)[msg.idx]; if (se) applySearchEnt(se, msg.f); }
       else if (msg.t === 'place') {
         if (!W.getVox(msg.x, msg.y, msg.z) && !W.hit(msg.x + 0.02, msg.x + 0.98, msg.y + 0.02, msg.y + 0.98, msg.z + 0.02, msg.z + 0.98) && W.setVox(msg.x, msg.y, msg.z, msg.vt, msg.hp)) {
@@ -922,11 +1120,13 @@
         else if (msg.k === 'rock') { var rk = W.rocks[msg.idx]; if (rk) { rk.hp = msg.hp; rk.given = msg.given; if (rk.alive !== msg.alive) W.setRock(rk, msg.alive); } }
         else if (msg.k === 'pile') { var pl = W.piles[msg.idx]; if (pl) W.setPile(pl, !msg.searched); }
         else if (msg.k === 'crate') { var cr = W.crates[msg.idx]; if (cr) W.setCrate(cr, !msg.searched); }
+        else if (msg.k === 'car') { var cc = W.cars[msg.idx]; if (cc) { cc.hp = msg.hp; if (cc.alive !== msg.alive) W.setCar(cc, msg.alive); } }
       } else if (msg.t === 'give' && msg.to === myPid) { give(msg.id, msg.n); if (msg.msg) say(msg.msg); }
       else if (msg.t === 'say' && msg.to === myPid) say(msg.msg);
       else if (msg.t === 'hurt' && msg.to === myPid) { hurt(msg.dmg || 5); if (msg.wp) applyWaterPoison(); }
-      else if (msg.t === 'virus' && msg.to === myPid) infectKeys(8);
-      else if (msg.t === 'zkill' && msg.to === myPid) { kills++; if (msg.drop) { give(msg.drop, 1); say('+1 ' + ITEMS[msg.drop].name); } }
+      else if (msg.t === 'virus' && msg.to === myPid) { if (msg.k === 'acid') applyAcid(); else infectKeys(8); }
+      else if (msg.t === 'refresh') { epoch = msg.ep; W.resetWorld(msg.seed, true); say('10 days passed: loot, ore, trees, rocks and cars respawned in new places!', true); }
+      else if (msg.t === 'zkill' && msg.to === myPid) { kills++; if (msg.ty != null) awardKill(ZTYPES[msg.ty]); if (msg.drop) { give(msg.drop, 1); say('+1 ' + ITEMS[msg.drop].name); } }
       else if (msg.t === 'boom') {
         var dist = Math.hypot(P.x - msg.x, P.y + 0.9 - msg.y - 0.9, P.z - msg.z); if (dist < msg.splash) hurt(Math.round(msg.dmg * (1 - Math.max(0, dist - 1.5) / (msg.splash - 1.5 + 0.001))));
         SFX.play('boom'); var bz = zMap[msg.zid]; if (bz) { scene.remove(bz.g); var bi = zombies.indexOf(bz); if (bi >= 0) zombies.splice(bi, 1); delete zMap[msg.zid]; }
@@ -1043,7 +1243,7 @@
   });
 
   /* ---------------- Main loop & render ---------------- */
-  var clock = { last: 0 };
+  var clock = { last: 0 }, BM_COL = new THREE.Color(0x5a0c0c), bmEl = null;
   function respawnWorld() {
     if (mp.role === 'client') return;
     W.trees.forEach(function (t) { if (!t.alive && T >= t.respawn) { t.hp = t.max; t.given = 0; W.setTree(t, true); if (mp.role === 'host') Net.send({ t: 'ent', k: 'tree', idx: t.idx, hp: t.hp, given: 0, alive: true }); } });
@@ -1054,6 +1254,10 @@
   function update(dt, nowMs, clk) {
     drain(); T += dt; swingCd -= dt; stepPlayer(dt); stats(dt); if (dead) return;
     if (lmb) { var it = curItem(); if (it.type === 'tool' && swingCd <= 0) swing(); }
+    ugCd -= dt; if (W.ug) { if (!inUG(P.x)) { if (ugCd <= 0 && Math.hypot(P.x - W.mine.door.x, P.z - W.mine.door.z) < 1.5 && P.y < 1.5) enterUG(); } else if (ugCd <= 0 && Math.hypot(P.x - W.ug.exit.x, P.z - W.ug.exit.z) < 1.8) exitUG(); }
+    var nd = clk.hour < 5.5 ? clk.day - 1 : clk.day, bo = clk.night && bloodFlag(nd);
+    if (bo && !bloodOn && bmAnn !== nd) { bmAnn = nd; say('The BLOOD MOON rises! Zombies spawn twice as fast.', true); } bloodOn = !!bo;
+    if (mp.role !== 'client') { var ep = epochOf(T); if (ep !== epoch) { epoch = ep; var sd = curSeed(baseSeed, ep); W.resetWorld(sd, true); while (W.hit(P.x - 0.3, P.x + 0.3, P.y, P.y + 1.8, P.z - 0.3, P.z + 0.3) && P.y < 30) P.y += 1; if (mp.role === 'host') Net.send({ t: 'refresh', seed: sd, ep: ep }); say('10 days passed: loot, ore, trees, rocks and cars respawned in new places!', true); } }
     eatTick(dt); fishTick(dt); cookTick(dt); zombieLogic(dt, clk.night); stepPeers(dt); networkTick(nowMs);
     if (T - respawnCheck > 1) { respawnCheck = T; respawnWorld(); }
   }
@@ -1081,8 +1285,9 @@
         else if (e.k === 'crate') txt = e.searched ? 'Empty crate' : '[E] Open wooden crate (Tier ' + (e.tier || 1) + ')';
         else if (e.k === 'bed') txt = e.clean ? '[E] Sleep in the clean bed' : '[E] Sleep in the shabby bed';
         else if (e.k === 'couch') txt = e.clean ? '[E] Sit on the clean couch' : 'Dirty couch (does not restore Comfort)';
+        else if (e.k === 'car') txt = e.alive ? 'Abandoned Car · Break Points ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + ' · Left Click: Break open the trunk' : '';
         else if (e.k === 'tree') txt = 'Tree  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'axe' ? '' : '  (needs an axe)');
-        else if (e.k === 'rock') txt = (e.ore ? 'Iron Ore' : e.gold ? 'Gold Ore' : e.coal ? 'Coal' : 'Stone') + '  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'pick' ? '' : '  (needs a pickaxe)');
+        else if (e.k === 'rock') txt = (e.ore ? 'Iron Ore' : e.gold ? 'Gold Ore' : e.copper ? 'Copper Ore' : e.coal ? 'Coal' : 'Stone') + '  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'pick' ? '' : '  (needs a pickaxe)');
       }
     }
     if (!txt && mode === 'play' && curItem().tool === 'rod' && !fish) { var wq = aimWater(15); if (wq) txt = wq.type === 'river' ? 'River (fishing coming soon)' : 'Lake · Left Click: Cast line'; }
@@ -1104,6 +1309,11 @@
     else if (mp.role !== 'solo') { stepPeers(dt); networkTick(ms); }
 
     W.updateSky(clk.hour, P.x, P.z);
+    if (bloodOn && !ugOn) { scene.background.lerp(BM_COL, 0.5); scene.fog.color.lerp(BM_COL, 0.5); }
+    if (ugOn) { scene.fog.near = 2; scene.fog.far = 44; }
+    if (bmEl) bmEl.style.opacity = bloodOn ? 1 : 0;
+    chunkT -= dt; if (chunkT <= 0) { chunkT = 0.1; W.updateChunks(P.x, P.z, -Math.sin(P.yaw), -Math.cos(P.yaw), gfx.rd, gfx.cull); }
+    updateWater(dt);
     var eye = P.y + (rest ? (rest.k === 'sleep' ? 0.55 : 1.0) : 1.62);
     camera.position.set(P.x, eye, P.z); camera.rotation.set(P.pitch, P.yaw, 0, 'YXZ');
     if (torch) { camera.getWorldDirection(DIR); torch.position.set(P.x + DIR.x * 0.6, eye, P.z + DIR.z * 0.6); torch.intensity = torchOn ? 1.55 : 0; }
@@ -1127,11 +1337,13 @@
     canvas.addEventListener('webglcontextrestored', function () { say('Graphics restored!'); });
 
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight), 0.1, 265);
+    camera = new THREE.PerspectiveCamera(75, Math.max(1, window.innerWidth) / Math.max(1, window.innerHeight), 0.1, 300);
     var maxAniso = renderer.capabilities && renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4;
     W = WZ.createWorld(THREE, scene, maxAniso);
     torch = new THREE.PointLight(0xffeec2, 0, 26, 1.3);
-    scene.add(torch);
+    scene.add(torch); baseSeed = W.seed;
+    bmEl = document.createElement('div'); bmEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.5s;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 38%,rgba(150,10,10,.55) 100%)'; $('#hud').appendChild(bmEl);
+    applyGfx();
 
     window.addEventListener('resize', function () { var w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); });
     mini = $('#mini'); mctx = mini ? mini.getContext('2d') : null;
@@ -1147,7 +1359,7 @@
       screen('<div class="card"><h1><b>Webzombite</b></h1><p>Could not start the 3D view.</p><pre style="white-space:pre-wrap;font-size:12px;opacity:.85">' + esc(e && e.message ? e.message : e) + '</pre><div class="row"><a class="btn sm" href="' + esc(C.coreUrl || '../index.html') + '">Back to XKing Core</a></div></div>');
     }
   }
-  window.WZ.debug = function () { return { scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
+  window.WZ.debug = function () { return { showPause: showPause, gfx: gfx, applyGfx: applyGfx, dorm: dorm, DU: DU, DF: DF, dAdd: dAdd, dormTick: dormTick, hydrate: hydrate, placeZombie: placeZombie, spawnZombie: spawnZombie, enterUG: enterUG, exitUG: exitUG, awardKill: awardKill, coins: function () { return coins; }, bf: bf, tier: function () { return worldTier(clockInfo(T).day); }, bloodFlag: bloodFlag, applyCarHit: applyCarHit, killZombie: killZombie, stepZombie: stepZombie, scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
   window.WZ.started = true;
   boot();
 })();
