@@ -98,3 +98,16 @@ button { font: inherit; cursor: pointer; }
 .hb .slot { cursor: pointer; pointer-events: auto; }
 @media (max-width: 800px) { .inv-wrap { grid-template-columns: 1fr; } .box { max-height: none; } }
 /* AKHIR style.css */
+/* Mobile / tablet controls (only on touch-only devices; .touch is set by JS) */
+#tc { display: none; position: fixed; inset: 0; z-index: 11; pointer-events: none; user-select: none; -webkit-user-select: none; touch-action: none; }
+#tc.invm #tcJoy, #tc.invm #tcLook, #tc.invm .tcb:not([data-a="bag"]) { display: none; }
+#tcJoy { position: absolute; left: 22px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35); pointer-events: auto; touch-action: none; }
+#tcKnob { position: absolute; left: 41px; top: 41px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#tcLook { position: absolute; right: 0; top: 90px; width: 48%; bottom: 250px; pointer-events: auto; touch-action: none; }
+.tcb { position: absolute; width: 62px; height: 62px; border-radius: 50%; background: rgba(20,20,20,.5); border: 2px solid rgba(255,255,255,.5); color: #fff; font: 700 .78rem sans-serif; display: flex; align-items: center; justify-content: center; pointer-events: auto; touch-action: none; }
+.tcb.big { width: 74px; height: 74px; background: rgba(200,50,40,.55); }
+.tcb.sm { width: 52px; height: 36px; border-radius: 10px; font-size: .7rem; }
+.tcb.on, .tcb.lit { background: rgba(255,255,255,.4); color: #000; }
+body.touch #altHint { display: none !important; }
+body.touch #hotbar { pointer-events: auto; bottom: 8px; }
+body.touch #hotbar .slot { pointer-events: auto; }

@@ -26,7 +26,8 @@ window.WZ = window.WZ || {};
   item('broken_fabric_cloth', '🧵', 'Broken Fabric Cloth', 'Dirty torn cloth, useful for making beds, couches and armor padding.');
   item('broken_floppy_drive', '💾', 'Broken Floppy Disk Drive', 'If only I could play Pac-Man from this drive... anything here is still better than nothing.', { note: 'Needs a Computer Bench to repair (coming soon).' });
   item('iron_nugget', '🔩', 'Iron Ore', 'Raw iron ore. It becomes useful once smelted.', { note: '8 ore smelt into 1 Iron Bar in a Furnace (40 heat power). Mined underground only.' });
-  item('broken_copper_wire', '🪢', 'Copper Ore', 'Raw copper ore (also found as broken copper wire).', { note: '25 ore smelt into 1 Copper Bar in a Furnace (30 heat power).' });
+  item('copper_ore', '🟠', 'Copper Ore', 'Raw copper ore mined from rocks. Smelt it into bars, or mill it into wire.', { note: '25 ore smelt into 1 Copper Bar in a Furnace (30 heat power).' });
+  item('copper_wire', '〰️', 'Copper Wire', 'Thin copper wire. Made from Copper Ore at the Manual Milling.', { note: '1 Copper Ore makes 4 Copper Wire at a Manual Milling.' });
   item('broken_cardboards', '📦', 'Broken Cardboards', 'Flat, damp cardboard.');
   item('broken_wood_planks', '🪵', 'Broken Wood Planks', 'A split wooden plank. Still sturdy enough to hit things with.');
   item('iron_ingot', '🧱', 'Iron Bar', 'A bar of pure iron. Used for iron tools, sinks, anvils and iron armor.');
@@ -61,14 +62,38 @@ window.WZ = window.WZ || {};
 
   /* ---------- Food, drinks & medical ---------- */
   item('leftover_food', '🍲', 'Leftover Food', 'Eww... this leftover food is still edible... at least enough to survive the apocalypse...', { type: 'food', eat: { t: 2, h: 4, th: -2, poison: 0.30 } });
-  item('contaminated_veg', '🥬', 'Contaminated Vegetables', 'Mmm... is this still safe to eat?', { type: 'food', eat: { t: 4, h: 6, th: 1, poison: 0.50 } });
-  item('dirty_veg', '🥦', 'Dirty Vegetables', 'So dirty! Wash them in a Sink to get Fresh Vegetables!', { type: 'food', eat: { t: 4, h: 7, th: 2, stomach: 0.20 } });
-  item('contaminated_fruits', '🍎', 'Contaminated Fruits', 'Mmm... is this fruit still fit to eat?', { type: 'food', eat: { t: 4, h: 6, th: 1, poison: 0.50 } });
-  item('dirty_fruits', '🍐', 'Dirty Fruits', 'So dirty! Wash them in a Sink to get Fresh Fruits!', { type: 'food', eat: { t: 4, h: 7, th: 2, stomach: 0.20 } });
-  item('fresh_veg', '🥗', 'Fresh Vegetables', 'Vegetables washed clean in a Sink. Healthy, safe and refreshing!', { type: 'food', eat: { t: 3, h: 12, th: 5, comfort: 5 } });
-  item('fresh_fruits', '🍇', 'Fresh Fruits', 'Fresh fruits washed clean in a Sink. Sweet, healthy and good for your comfort!', { type: 'food', eat: { t: 3, h: 12, th: 6, comfort: 6 } });
+  /* [FRUIT/VEG TAGS] Dirty = wash at a Sink -> Clean. Contaminated = risky to eat (cannot be washed). Clean = safe. */
+  var FRUITS = [['apple', 'Apple', '🍎'], ['mango', 'Mango', '🥭'], ['orange', 'Orange', '🍊'], ['lemon', 'Lemon', '🍋'], ['watermelon', 'Watermelon', '🍉'], ['pumpkin', 'Pumpkin', '🎃']];
+  var VEGS = [['cabbage', 'Cabbage', '🥬'], ['cucumber', 'Cucumber', '🥒'], ['sweet_potato', 'Sweet Potato', '🍠'], ['corn', 'Corn', '🌽'], ['potato', 'Potato', '🥔']];
+  WZ.GROUPS = { dirty_fruit: [], cont_fruit: [], clean_fruit: [], dirty_veg: [], cont_veg: [], clean_veg: [] };
+  [[FRUITS, 'fruit'], [VEGS, 'veg']].forEach(function (g) {
+    g[0].forEach(function (f) {
+      var big = f[0] === 'watermelon' || f[0] === 'pumpkin';
+      item('dirty_' + f[0], f[2], 'Dirty ' + f[1], 'So dirty! Wash it in a Sink to get a clean ' + f[1] + '.', { type: 'food', eat: { t: 4, h: big ? 9 : 7, th: 2, stomach: 0.20 }, cat: 'dirty_' + g[1] });
+      item('contaminated_' + f[0], f[2], 'Contaminated ' + f[1], 'Mmm... is this still safe to eat?', { type: 'food', eat: { t: 4, h: 6, th: 1, poison: 0.50 }, cat: 'contaminated_' + g[1] });
+      item(f[0], f[2], f[1], 'A clean, safe ' + f[1] + '. Healthy and refreshing!', { type: 'food', eat: { t: 3, h: big ? 15 : 12, th: f[0] === 'watermelon' ? 12 : 5, comfort: 5 }, cat: 'clean_' + g[1] });
+      WZ.GROUPS['dirty_' + g[1]].push('dirty_' + f[0]); WZ.GROUPS['cont_' + g[1]].push('contaminated_' + f[0]); WZ.GROUPS['clean_' + g[1]].push(f[0]);
+    });
+  });
+  WZ.VILLAGE_ONLY = { dirty_watermelon: 1, dirty_pumpkin: 1, contaminated_watermelon: 1, contaminated_pumpkin: 1, watermelon: 1, pumpkin: 1 };
+  /* berries (from bushes) */
+  item('contaminated_blueberry', '🫐', 'Contaminated Blueberry', 'Looks edible... mostly.', { type: 'food', eat: { t: 2, h: 3, th: 1, poison: 0.40 } });
+  item('contaminated_redberry', '🍓', 'Contaminated Redberry', 'Looks edible... mostly.', { type: 'food', eat: { t: 2, h: 3, th: 1, poison: 0.40 } });
+  item('contaminated_sweetberry', '🍒', 'Contaminated Sweet Berry', 'Looks edible... mostly.', { type: 'food', eat: { t: 2, h: 3, th: 1, poison: 0.40 } });
+  item('blueberry', '🫐', 'Blueberry', 'Fresh and safe.', { type: 'food', eat: { t: 2, h: 6, th: 3, comfort: 2 } });
+  item('redberry', '🍓', 'Redberry', 'Fresh and safe.', { type: 'food', eat: { t: 2, h: 6, th: 3, comfort: 2 } });
+  item('sweetberry', '🍒', 'Sweet Berry', 'Fresh and safe.', { type: 'food', eat: { t: 2, h: 6, th: 3, comfort: 2 } });
+  item('golden_berry', '🌟', 'Golden Berry', 'Five times stronger than a normal berry! Grants Goldy Skin (+4 DEF), Goldy Resistance (-10% damage taken), Goldy Regeneration (+1 HP/s) and Goldy Strike (+10% damage) for 2 minutes.', { type: 'food', eat: { t: 2, h: 30, th: 15, comfort: 10, golden: true } });
+  item('mysterious_box', '🎁', 'Mysterious Box', 'What is inside? Open it with [Left Click]. Gives 5 items from an Iron Crate of your world tier.', { type: 'food', eat: { t: 1.5, box: true } });
+  item('clover_leaf', '🍀', 'Clover Leaf', 'A rare four-leaf clover. Used for Lucky Rings.');
   item('plastic_bottled_water', '💧', 'Plastic Bottled Water', 'Not fully sterilized, but enough to cure your thirst!', { type: 'drink', eat: { t: 5, h: 0, th: 20, poison: 0.02 } });
-  item('medical_bag', '🩹', 'Medical Bag', 'Emergency first aid kit. Hold left click for 2.5 seconds to restore 30 HP.', { type: 'med', eat: { t: 2.5, heal: 30 } });
+  item('life_fruit', '🍎', 'Life Fruit', 'COMING SOON. Permanently adds +10 Max HP each time it is eaten. Max stack 10. How to obtain: not known yet.', { type: 'food', soon: true });
+  item('aegis_fruit', '🍏', 'Aegis Fruit', 'COMING SOON. Permanently adds +5 Max Hunger each time it is eaten. Max stack 10. How to obtain: not known yet.', { type: 'food', soon: true });
+  item('magic_purify_water', '✨', 'Magic Fresh Super Purify Water', 'COMING SOON. Permanently adds +5 Max Thirst each time it is drunk. Max stack 10. How to obtain: not known yet.', { type: 'drink', soon: true });
+  item('medical_bag', '🩹', 'Band Aid', 'A quick bandage. Hold left click for 1.5 seconds to restore 10 HP.', { type: 'med', eat: { t: 1.5, heal: 10 } });
+  item('carton_sheet', '📄', 'Carton Sheet', 'A flat sheet of cardboard. Made by reprocessing Broken Cardboards at a Manual Milling.');
+  item('carton_box', '📦', 'Carton Box', 'A small sturdy box. 6 Carton Sheets folded together. Used to build a Band Aid Box.');
+  item('band_aid_box', '🧰', 'Band Aid Box', 'Portable medical box with 30 uses. Each use (hold left click) restores 11 HP. Max stack 20.', { type: 'med', eat: { t: 1.5, heal: 11, uses: 30 } });
   item('contaminated_fish', '🐟', 'Contaminated Fish', 'Nooo... theres no go blue again anymore...', { type: 'food', eat: { t: 3, h: 8, th: 2, wpoison: 0.10 } });
   item('fresh_fish', '🐠', 'Fresh Fish', 'safe this one, before it get go black...', { type: 'food', eat: { t: 3, h: 15, th: 8 } });
   item('cooked_fish', '🍣', 'Cooked Fish', 'Eat this, and be smart as a fish not as a zombie', { type: 'food', eat: { t: 4, h: 22, th: 1, energy: 20, comfort: 18 } });
@@ -125,20 +150,131 @@ window.WZ = window.WZ || {};
   /* ---------- Placeable blocks & furniture ---------- */
   item('wood_block', '🟫', 'Wood Log Block', '1 m building block made of logs. A bit fragile, but cheap. Right click to place.', { type: 'block', vox: 1, hp: 30 });
   item('stone_block', '⬜', 'Stone Block', '1 m building block. Much stronger than a wood block.', { type: 'block', vox: 2, hp: 90 });
-  item('furnace', '🔥', 'Smelting Furnace', 'Smelts ore into metal bars and logs into charcoal. Place it, then press E near it.', { type: 'block', vox: 3, hp: 80 });
-  item('bed_block', '🛏️', 'Cozy Bed', 'A clean homemade bed. Sleep with [E] and dismantle it again anytime.', { type: 'block', vox: 4, hp: 50 });
-  item('couch_block', '🛋️', 'Cozy Couch', 'A clean homemade couch to restore Comfort with [E]. Can be dismantled.', { type: 'block', vox: 5, hp: 45 });
-  item('sink_block', '🚰', 'Sink', 'Washes Dirty Vegetables/Fruits into Fresh ones for free! Place it, then press [E].', { type: 'block', vox: 6, hp: 60 });
-  item('campfire', '🏕️', 'Campfire', 'Let\'s camping during this apocalypse!', { type: 'block', vox: 7, hp: 40, note: 'Cooks Fresh Fish into Cooked Fish (25 s each). Stay near it while cooking.' });
+  item('furnace', '🔥', 'Smelting Furnace', 'Smelts ore into metal bars and logs into charcoal. Place it, then press E near it.', { type: 'block', vox: 3, hp: 80, size: [1, 1, 2] });
+  item('bed_block', '🛏️', 'Cozy Bed', 'A clean homemade bed. Sleep with [E] and dismantle it again anytime.', { type: 'block', vox: 4, hp: 50, size: [2, 1, 1] });
+  item('couch_block', '🛋️', 'Cozy Couch', 'A clean homemade couch to restore Comfort with [E]. Can be dismantled.', { type: 'block', vox: 5, hp: 45, size: [2, 1, 1] });
+  item('sink_block', '🚰', 'Sink', 'Washes Dirty Vegetables/Fruits into Fresh ones for free! Place it, then press [E].', { type: 'block', vox: 6, hp: 60, size: [1, 1, 2] });
+  item('campfire', '🏕️', 'Campfire', 'Let\'s camping during this apocalypse!', { type: 'block', vox: 7, hp: 40, size: [2, 2, 2], note: 'Cooks Fresh Fish into Cooked Fish (25 s each). Stay near it while cooking.' });
   item('anvil_block', '⚒️', 'Iron Anvil', 'A heavy iron anvil for forging swords, chains, sticks, buckets and watches.', { type: 'block', vox: 8, hp: 120 });
-  item('computer_bench', '🖥️', 'Computer Bench', 'A workbench for assembling electronics: batteries, LEDs, radars and GPS.', { type: 'block', vox: 9, hp: 70 });
+  item('computer_bench', '🖥️', 'Computer Bench', 'A workbench for assembling electronics: batteries, LEDs, radars and GPS.', { type: 'block', vox: 9, hp: 70, size: [3, 1, 2] });
+  item('leaf', '🍃', 'Leaf', 'A green leaf. 4 leaves twist into 1 Rope at a Manual Milling.');
+  item('cactus', '🌵', 'Cactus', 'A prickly cactus chunk from the desert. Not a log!');
+  item('pine_log', '🪵', 'Pine Log', 'A log from a snow pine. Works like a Wood Log but 1.1x tougher.');
+  item('palm_log', '🪵', 'Palm Log', 'A log from a beach palm. Works like a Wood Log but 1.1x tougher.');
+  item('sand', '🏖️', 'Sand', 'Desert sand. Smelt 2 sand into Glass; also used for bombs.');
+  item('flint', '🔥', 'Flint', 'A sparking stone. Made by rubbing gravel at a Manual Milling (25% chance).');
+  item('gunpowder', '💥', 'Gunpowder', 'Black powder. Dropped by Bomber Zombies (5%).');
+  item('glass', '🔷', 'Glass', 'Transparent also deadly...', { note: 'Smelt 2 Sand in a Furnace (75 heat power).' });
+  item('copper_stick', '📏', 'Copper Stick', 'A straight copper rod. Made at an Iron Anvil.');
+  item('manual_press', '🗜️', 'Manual Pressing', 'Presses bars into plates by hand-cranking. Iron, Coated-Iron, Copper and Gold only. Size 2x1x2.', { type: 'block', vox: 29, hp: 90, size: [2, 1, 2] });
+  item('casing_crafter', '🚗', 'Manual Casing & Frame Crafter', 'Cranks plates and bars into vehicle casings and frames. Size 3x1x2.', { type: 'block', vox: 30, hp: 100, size: [3, 1, 2] });
+  item('trap_bench', '🪤', 'Trap Bench', 'Builds spikes, barbed wire and other traps. Place it, then press [E] near it.', { type: 'block', vox: 31, hp: 90, size: [2, 1, 2] });
+  item('mason_bench', '🧱', 'Mason Workbench', 'Cuts stone and bricks into building blocks. Size 3x1x2.', { type: 'block', vox: 32, hp: 100, size: [3, 1, 2] });
+  item('wood_cogwheel', '⚙️', 'Wood Cogwheel', 'A wooden gear. Used for hand-cranked machines.');
+  item('golden_plate', '▭', 'Golden Plate', 'Pressed gold.');
+  item('coated_iron_ingot', '🔩', 'Coated-Iron Bar', 'Iron bar with a protective coating. Used for vehicle bodies.');
+  item('coated_iron_plate', '▭', 'Coated-Iron Plate', 'Pressed coated iron.');
+  item('coated_iron_car_casing', '🚘', 'Coated-Iron Car Casing', 'Main body material for vehicles.');
+  item('zinc_ore', '🔘', 'Zinc Ore', 'Bluish-grey raw zinc. Mined underground. Smelt it into Zinc Bars.', { note: '8 ore smelt into 1 Zinc Bar in a Furnace (40 heat power).' });
+  item('zinc_ingot', '🔘', 'Zinc Bar', 'A bar of zinc. Used with Iron Bar to coat iron.');
+  item('clay_ore', '🟤', 'Clay Ore', 'Sticky clay from the sea, lakes and rivers. Smelt it into Red Bricks.', { note: 'Smelts into 1 Red Brick in a Furnace (20 heat power).' });
+  item('red_brick', '🧱', 'Red Brick', 'A fired clay brick. 4 Red Bricks make a Red Bricks Block at the Mason Workbench.');
+  item('unprocessed_iron_coater', '🔩', 'Unprocessed Iron Coater', 'Iron and zinc pressed together. Smelt it to finish the Coated-Iron Bar.');
+  item('granite_ore', '🪨', 'Granite Ore', 'Raw granite rock, found underground only. Smelt it into Smooth Granite.', { note: 'Smelts into 1 Smooth Granite in a Furnace (40 heat power).' });
+  item('smooth_granite', '▫️', 'Smooth Granite', 'Polished Granite. Craft 2 into a Smooth Granite Block.');
+  item('andesite_ore', '🪨', 'Andesite Ore', 'Raw andesite rock, found underground only. Smelt it into Smooth Andesite.', { note: 'Smelts into 1 Smooth Andesite in a Furnace (40 heat power).' });
+  item('smooth_andesite', '▫️', 'Smooth Andesite', 'Polished Andesite. Craft 2 into a Smooth Andesite Block.');
+  item('diorite_ore', '🪨', 'Diorite Ore', 'Raw diorite rock, found underground only. Smelt it into Smooth Diorite.', { note: 'Smelts into 1 Smooth Diorite in a Furnace (40 heat power).' });
+  item('smooth_diorite', '▫️', 'Smooth Diorite', 'Polished Diorite. Craft 2 into a Smooth Diorite Block.');
+  item('calcite_ore', '🪨', 'Calcite Ore', 'Raw calcite rock, found underground only. Smelt it into Smooth Calcite.', { note: 'Smelts into 1 Smooth Calcite in a Furnace (40 heat power).' });
+  item('smooth_calcite', '▫️', 'Smooth Calcite', 'Polished Calcite. Craft 2 into a Smooth Calcite Block.');
+  item('smooth_granite_block', '⬜', 'Smooth Granite Block', '1 m building block of polished Granite. HP 75.', { type: 'block', vox: 33, hp: 75 });
+  item('smooth_andesite_block', '⬜', 'Smooth Andesite Block', '1 m building block of polished Andesite. HP 75.', { type: 'block', vox: 34, hp: 75 });
+  item('smooth_diorite_block', '⬜', 'Smooth Diorite Block', '1 m building block of polished Diorite. HP 75.', { type: 'block', vox: 35, hp: 75 });
+  item('smooth_calcite_block', '⬜', 'Smooth Calcite Block', '1 m building block of polished Calcite. HP 75.', { type: 'block', vox: 36, hp: 75 });
+  item('stone_bricks_block', '🧱', 'Stone Bricks Block', 'Stone bricks. HP 100.', { type: 'block', vox: 37, hp: 100 });
+  item('red_bricks_block', '🧱', 'Red Bricks Block', 'Classic red bricks. HP 100.', { type: 'block', vox: 38, hp: 100 });
+  item('granite_bricks_block', '🧱', 'Granite Bricks Block', 'Granite bricks. HP 90.', { type: 'block', vox: 39, hp: 90 });
+  item('andesite_bricks_block', '🧱', 'Andesite Bricks Block', 'Andesite bricks. HP 90.', { type: 'block', vox: 40, hp: 90 });
+  item('diorite_bricks_block', '🧱', 'Diorite Bricks Block', 'Diorite bricks. HP 90.', { type: 'block', vox: 41, hp: 90 });
+  item('calcite_bricks_block', '🧱', 'Calcite Bricks Block', 'Calcite bricks. HP 90.', { type: 'block', vox: 42, hp: 90 });
+  item('titanium_ore', '🔷', 'Titanium Ore', 'Very hard bluish-silver ore found only in the Deeper Underground. Needs a Blast Smelter.', { note: '8 ore smelt into 1 Titanium Bar in a Blast Smelter only.' });
+  item('titanium_ingot', '🔷', 'Titanium Bar', 'A bar of titanium. Light, extremely strong. Titanium items are made at an Iron Anvil.');
+  item('titanium_stick', '📏', 'Titanium Stick', 'A straight titanium rod. Made at an Iron Anvil.');
+  item('titanium_axe', '🪓', 'Titanium Axe', 'Titanium cuts through trees like butter.', { type: 'tool', tool: 'axe', bd: 12, dmg: 20 });
+  item('titanium_pickaxe', '⛏️', 'Titanium Pickaxe', 'Mines even the hardest ore at high speed.', { type: 'tool', tool: 'pick', bd: 12, dmg: 16 });
+  item('titanium_sword', '⚔️', 'Titanium Sword', 'Light and brutal.', { type: 'tool', tool: 'sword', bd: 1, dmg: 20 });
+  item('titanium_helmet', '🪖', 'Titanium Helmet', 'Titanium head protection. Buff: +8 Max HP and +9% Melee Damage.', { type: 'armor', slot: 'head', tier: 'titanium', def: 3 });
+  item('titanium_chest', '🛡️', 'Titanium Chestplate', 'Titanium chest protection. Buff: +8 Max HP and +9% Melee Damage.', { type: 'armor', slot: 'chest', tier: 'titanium', def: 5 });
+  item('titanium_legs', '👖', 'Titanium Leggings', 'Titanium leg protection. Buff: +8 Max HP and +9% Melee Damage.', { type: 'armor', slot: 'legs', tier: 'titanium', def: 3 });
+  item('titanium_boots', '🥾', 'Titanium Boots', 'Titanium boots. Buff: +8 Max HP and +9% Melee Damage.', { type: 'armor', slot: 'boots', tier: 'titanium', def: 3 });
+  item('titanium_bucket', '🪣', 'Titanium Bucket', 'A bucket that carries liquid, or wear it as a helmet. Halves Water Poison chance.', { type: 'armor', slot: 'head', tier: 'bucket', def: 5, note: 'Head slot. Halves the chance of getting Water Poison.' });
+  item('brass_ingot', '🟨', 'Brass Bar', 'Copper and zinc alloy.');
+  item('brass_plate', '▭', 'Brass Plate', 'Pressed brass.');
+  item('blast_smelter', '🔥', 'Blast Smelter', 'Smelts twice as fast as a Smelter and handles advanced ore like Titanium. Place it, then press [E] near it.', { type: 'block', vox: 43, hp: 120, size: [1, 1, 2] });
+  item('stock_car_battery', '🔋', 'Stock Car Battery 12V 50AH', 'Vehicle battery, 12 V / 50 Ah. Charge it at a Computer Bench. Fits most cars.', { soon: true });
+  item('plastic_cap', '⚪', 'Plastic Cap', 'Coming soon.', { soon: true });
+  item('plastic_sheet', '⬜', 'Plastic Sheet', 'Coming soon.', { soon: true });
+  item('palm_wood_stick', '🥢', 'Palm Wood Stick', 'A straight stick from a palm log.');
+  item('wooden_spike', '🌵', 'Wooden Spike', 'A trap. HP 40, very fragile; it vanishes without a trace when destroyed. Deals 8 damage to every zombie that hits or crosses it.', { type: 'block', vox: 44, hp: 40, note: 'DMG 8' });
+  item('sharp_palm_root', '🌴', 'Sharp Palm Fibrous Root', 'Who said wood are brokest weapon and trap??? Then what is this???', { type: 'block', vox: 45, hp: 60, note: 'HP 60. DMG 16. 40% chance the trap takes no damage from a hit.' });
+  item('iron_barbed_wire', '➰', 'Iron Circular Barbed Wire', 'Trap. HP 200, DEF 2. DMG 24 and makes zombies bleed for 5 s.', { type: 'block', vox: 46, hp: 200, note: 'DMG 24 + Bleeding 5 s' });
+  item('ivy_grass', '🌿', 'Ivy Grass', 'If zombie ussually flow on one ways, use this traps, guaranted not to died but kinda fragile and still helpful!', { type: 'block', vox: 47, hp: 25, note: 'HP 25 (-1 per zombie pass). DMG 4, 10% chance of Bleeding 3 s. Zombie AI cannot detect it.' });
+  item('titanium_barbed_wire', '➰', 'Titanium Barbed Wire', 'Titanium is strong... immune to anythings, even ZOMBIESSSSS!!!!!!!!!', { type: 'block', vox: 48, hp: 400, note: 'HP 400, DEF 4. DMG 48 + Over Bleeding (2x faster) 5 s' });
+  item('cactus_helmet', '🌵', 'Cactus Helmet', 'Thorn: deals 1 damage to a zombie each time it hits you.', { type: 'armor', slot: 'head', tier: 'cactus', def: 1, note: 'Thorn 1' });
+  item('cactus_chest', '🌵', 'Cactus Chestplate', 'Thorn: deals 3 damage to a zombie each time it hits you.', { type: 'armor', slot: 'chest', tier: 'cactus', def: 2, note: 'Thorn 3' });
+  item('cactus_legs', '🌵', 'Cactus Leggings', 'Thorn: deals 2 damage to a zombie each time it hits you.', { type: 'armor', slot: 'legs', tier: 'cactus', def: 1, note: 'Thorn 2' });
+  item('cactus_boots', '🌵', 'Cactus Boots', 'Thorn: deals 1 damage to a zombie each time it hits you.', { type: 'armor', slot: 'boots', tier: 'cactus', def: 1, note: 'Thorn 1' });
+  item('permafrost_ore', '🧊', 'Permafrost Ore', 'Glittering blue-white ore with a gradient shine. Found in the Mountain biome. Needs a Blast Smelter.', { note: '8 ore smelt into 1 Permafrost Bar in a Blast Smelter (heat 100).' });
+  item('permafrost_ingot', '🧊', 'Permafrost Bar', 'A frozen alloy bar. Permafrost gear splits its defense 50% physical, 30% Frost, 20% Fire.');
+  item('permafrost_stick', '📏', 'Permafrost Stick', 'A straight permafrost rod. Made at an Iron Anvil.');
+  item('permafrost_axe', '🪓', 'Permafrost Axe', 'Frozen edge. Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'tool', tool: 'axe', bd: 11, dmg: 18 });
+  item('permafrost_pickaxe', '⛏️', 'Permafrost Pickaxe', 'Frozen pick. Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'tool', tool: 'pick', bd: 11, dmg: 14 });
+  item('permafrost_sword', '⚔️', 'Permafrost Sword', 'A glittering frozen blade.', { type: 'tool', tool: 'sword', bd: 1, dmg: 18 });
+  item('permafrost_helmet', '🪖', 'Permafrost Helmet', 'Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'armor', slot: 'head', tier: 'permafrost', def: 2, note: 'Set: Frost resist 30%, Fire resist 20%' });
+  item('permafrost_chest', '🛡️', 'Permafrost Chestplate', 'Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'armor', slot: 'chest', tier: 'permafrost', def: 3, note: 'Set: Frost resist 30%, Fire resist 20%' });
+  item('permafrost_legs', '👖', 'Permafrost Leggings', 'Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'armor', slot: 'legs', tier: 'permafrost', def: 2, note: 'Set: Frost resist 30%, Fire resist 20%' });
+  item('permafrost_boots', '🥾', 'Permafrost Boots', 'Defense split: 50% physical, 30% Frost, 20% Fire.', { type: 'armor', slot: 'boots', tier: 'permafrost', def: 1, note: 'Set: Frost resist 30%, Fire resist 20%' });
+  item('cobweb', '🕸️', 'Cobweb', 'Sticky spider web. Dropped by Zpiders.');
+  item('tri_iron_fan', '🌀', 'Tri-Iron Fan', 'A three-blade iron fan.');
+  item('iron_pipe', '🔧', 'Iron Pipe', 'A hollow iron pipe. Made at a Liquiders Workbench.');
+  item('nature_cooler', '❄️', 'Portable Nature Cooler', 'A small cooling unit. Accessory.', { type: 'acc', note: 'Accessory. Lowers your body temperature by 5-10 degrees.' });
+  item('berserkers_boots', '👟', 'Berserkers Boots', 'Only dropped by Berserk Zombies (5%).', { type: 'acc', note: 'Accessory. +10% move speed, -2% melee attack delay.' });
+  item('toughs_string', '🧵', 'Toughs String', 'Stretches your reach, slows your swing.', { type: 'acc', note: 'Accessory. Melee range +50%, melee attack delay +100%.' });
+  item('sewing_table', '🧵', 'Sewing Table', 'Sews strings and cloth. Size 3x2x2. Place it, then press [E] near it.', { type: 'block', vox: 50, hp: 90, size: [3, 2, 2] });
+  item('liquiders_workbench', '🧪', 'Liquiders Workbench', 'Builds pipes and liquid machines. Place it, then press [E] near it.', { type: 'block', vox: 49, hp: 100, size: [3, 1, 2] });
+  item('hard_statue', '🗿', 'Zombie Statue', 'Interact to summon the Hard Zombie.');
+  item('iron_plate', '▭', 'Iron Plate', 'Pressed iron. Made at Manual Pressing (or Pressing Machine, coming soon).');
+  item('copper_plate', '▭', 'Copper Plate', 'Pressed copper. Made at Manual Pressing (or Pressing Machine, coming soon).');
+  item('cactus_club', '🏏', 'Cactus Club', 'Sooo...?? FIGHT YOUR ZOMBIE WITH THIS!!! LET THE ZOMBIES FEEL OUT THE ULTRA BLEEDINGGGGG!!!!!', { type: 'tool', tool: 'weapon', bd: 1, dmg: 6, cd: 1.0, bleed: { dur: 5, tick: 0.25, dmg: 1 }, note: 'DMG 6 · Delay 1 s · Bleeding: 1 damage every 0.25 s for 5 s (ignores DEF). Tier 1.' });
+  item('cactus_hammer', '🔨', 'Cactus Hammer', 'Wishing to be a superhero in desert?? Then... This is the solution for you!!', { type: 'tool', tool: 'weapon', bd: 2, dmg: 18, cd: 1.5, splash: 1.6, note: 'DMG 18 · Delay 1.5 s · Splash 1.6 m (diameter).' });
+  item('cactus_block', '🟩', 'Cactus Block', 'If you wish to see how it merge with blocks and traps then look at this!!', { type: 'block', vox: 27, hp: 24, thorn: 4, note: 'Zombies that break it take 4 damage each time.' });
+  item('simple_bomb', '💣', 'Simple Bomb', 'Heyy!! Overcrowded by zombie? Simply throw this to your zombie face! then it blows!!!', { type: 'tool', tool: 'bomb', bd: 0, dmg: 24, cd: 0.2, splash: 4, note: 'DMG 24 · Splash 4 m · Throw delay 0.2 s. One use.' });
+  item('dynamite', '🧨', 'Dynamite', 'Powerful practice dynamite, ussually used for mining, but... in this day apocalypse, this also used to explode and blow up the zombie... ehhmmm, better to not throw yourself base...', { type: 'tool', tool: 'bomb', bd: 0, dmg: 38, cd: 0.4, splash: 8, note: 'DMG 38 · Splash 8 m · Throw delay 0.4 s. Dropped by Miner Zombies (15%). No recipe yet.' });
+  item('tnt_block', '🧱', 'TNT Block', 'hhmmm, for mining only... uhh wait... for kill mini-boss.....', { type: 'block', vox: 28, hp: 20, tnt: { dmg: 120, splash: 16, fuse: 3 }, note: 'Place it, then hit it to light a 3 s fuse. DMG 120 · Splash 16 m.' });
+  item('glass_bottle', '🍶', 'Glass Bottle', 'Reuseable glass free BPA though...');
+  item('glass_dart', '🎯', 'Glass Dart', 'Powerful damage also wasting glass...', { type: 'tool', tool: 'dart', bd: 0, dmg: 12, cd: 0.4, range: 30, bleed: { dur: 5, tick: 0.25, dmg: 1 }, note: 'DMG 12 · Range 30 · Causes Bleeding. One use.' });
+  item('glass_spike_ball', '🔮', 'Glass Spike Ball', 'Cactus + Glass = Dead', { type: 'tool', tool: 'bomb', bd: 0, dmg: 26, cd: 0.5, splash: 6, bleed: { dur: 5, tick: 0.125, dmg: 1 }, note: 'DMG 26 · Splash 6 m · Combo Bleeding: 1 damage every 0.125 s. One use.' });
+  item('glass_block', '🪟', 'Glass Block', 'Watch out on the outside, to know how many zombies outside your base over there!', { type: 'block', vox: 26, hp: 20 });
+  item('flashlight', '🔦', 'Flashlight', "I don't scare exploring night again with this one!", { type: 'acc', slot: 'acc', flashlight: true, note: 'Accessory: lets you switch the flashlight on and off with [F].' });
+  item('lucky_ring', '💍', 'Lucky Rings', 'Have a lucky days with zombies!', { type: 'acc', slot: 'acc', luck: 0.15, note: 'Accessory: +15% Luck (better loot rolls).' });
+  item('manual_milling', '⚙️', 'Manual Milling', 'Grinds ore into wire, twists leaves into rope and rubs gravel into flint. Size 3x2x2.', { type: 'block', vox: 16, hp: 90, size: [3, 2, 2] });
+  item('bomb_bench', '🧰', 'Bomb Workbench', 'Craft bombs here. Size 2x1x2.', { type: 'block', vox: 17, hp: 90, size: [2, 1, 2] });
+  item('glass_kiln', '🏺', 'Glass Kiln', 'Craft glass items here. Size 2x2x3.', { type: 'block', vox: 18, hp: 100, size: [2, 2, 3] });
+  item('craft_bench', '🛠️', 'Crafting Workbench', 'A general workbench for blocks and chests. Size 3x1x2.', { type: 'block', vox: 19, hp: 90, size: [3, 1, 2] });
+  item('work_bench', '🔨', 'Working Workbench', 'A workbench for jewelry. Size 2x1x2.', { type: 'block', vox: 20, hp: 90, size: [2, 1, 2] });
+  item('wooden_chest', '📦', 'Wooden Chest', 'Stores 5 slots of items. Size 2x1x1.', { type: 'block', vox: 21, hp: 80, size: [2, 1, 1], chest: 5 });
+  item('ironcased_chest', '🗄️', 'Iron-Cased Chest', 'Stores 10 slots of items. Size 2x1x1.', { type: 'block', vox: 22, hp: 150, size: [2, 1, 1], chest: 10 });
+  item('iron_chest', '🗄️', 'Iron Chest', 'Stores 20 slots of items. DEF 2. Size 2x1x1.', { type: 'block', vox: 23, hp: 285, size: [2, 1, 1], chest: 20, bdef: 2 });
+  item('coppercased_chest', '🗃️', 'Copper-Cased Chest', 'Stores 8 slots of items. Size 2x1x1.', { type: 'block', vox: 24, hp: 120, size: [2, 1, 1], chest: 8 });
+  item('copper_chest', '🗃️', 'Copper Chest', 'Stores 15 slots of items. DEF 1. Size 2x1x1.', { type: 'block', vox: 25, hp: 185, size: [2, 1, 1], chest: 15, bdef: 1 });
   item('wood_plank', '🟧', 'Wood Plank', 'A clean cut plank. Made from Wood Logs at a Sawmill.');
   item('failed_craft_wood', '🥀', 'Failed Craft Wood', 'A badly cut piece of wood. Useless... or is it?');
   item('charcoal', '⬛', 'Charcoal', 'Burnt wood. A strong, steady fuel.', { note: 'Fuel: burns 10 s, 10 heat power.' });
   item('cannon_ball', '⚫', 'Cannon Ball', 'Ammo for cannons. 1 Stone makes 4 cannon balls.', {});
   item('wood_plank_block', '🟨', 'Wood Plank Block', '1 m building block. 20% tougher than a Wood Log Block.', { type: 'block', vox: 10, hp: 36 });
   item('wood_plank_basket', '🧺', 'Wood Plank Basket', 'A wooden plank shaped into a backpack. Keep it in your bag: +6 inventory slots.', { pack: 6, note: 'Backpack: +6 bag slots while you carry it.' });
-  item('sawmill', '🪚', 'Sawmill', 'Cuts Wood Logs into Wood Planks and builds all handmade furniture. Place it, then press [E] near it.', { type: 'block', vox: 11, hp: 90 });
+  item('sawmill', '🪚', 'Sawmill', 'Cuts Wood Logs into Wood Planks and builds all handmade furniture. Place it, then press [E] near it.', { type: 'block', vox: 11, hp: 90, size: [3, 1, 2] });
   item('turret_bench', '🔧', 'Turret Workbench', 'A bench for building cannons. Each piece is a puzzle. Place it, then press [E] near it.', { type: 'block', vox: 12, hp: 80 });
   item('handmade_cannon', '💣', 'Handmade Cannon', 'A crude auto-cannon. DMG 16 · Range 6 m · Delay 2 s · HP 150 · holds 20 cannon balls · Tier 1. Place it, then load it with [E].', { type: 'block', vox: 13, hp: 150, turret: { dmg: 16, rng: 6, dly: 2, cap: 20 } });
   item('cannon_turret', '🛡️', 'Cannon', 'An auto-cannon. DMG 20 · Range 10 m · Delay 1.5 s · HP 275 · holds 40 cannon balls · Tier 1. Load it with [E].', { type: 'block', vox: 14, hp: 275, turret: { dmg: 20, rng: 10, dly: 1.5, cap: 40 } });
@@ -166,10 +302,10 @@ window.WZ = window.WZ || {};
     { id: 'furnace', st: 'hand', out: ['furnace', 1], cost: { stone: 20, wood: 6 } },
     { id: 'campfire', st: 'hand', out: ['campfire', 1], cost: { gravel: 10, wood: 30, coal: 3 } },
     { id: 'anvil_block', st: 'hand', out: ['anvil_block', 1], cost: { iron_ingot: 18 } },
-    { id: 'computer_bench', st: 'hand', out: ['computer_bench', 1], cost: { iron_ingot: 10, metal_casing: 6, wood: 10, broken_copper_wire: 30 } },
+    { id: 'computer_bench', st: 'hand', out: ['computer_bench', 1], cost: { iron_ingot: 10, metal_casing: 6, wood: 10, copper_wire: 30 } },
     { id: 'sawmill', st: 'hand', out: ['sawmill', 1], cost: { wood: 12, iron_ingot: 4, iron_chain: 2 } },
     { id: 'turret_bench', st: 'hand', out: ['turret_bench', 1], cost: { wood: 12, copper_ingot: 4, iron_ingot: 6 } },
-    { id: 'handmade_cannon', st: 'hand', out: ['handmade_cannon', 1], cost: { wood: 16, stone: 8, broken_copper_wire: 4 } },
+    { id: 'handmade_cannon', st: 'hand', out: ['handmade_cannon', 1], cost: { wood: 16, stone: 8, copper_ore: 4 } },
     { id: 'iron_axe', st: 'hand', out: ['iron_axe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
     { id: 'iron_pickaxe', st: 'hand', out: ['iron_pickaxe', 1], cost: { iron_ingot: 3, wood_sticks: 2 } },
     { id: 'wood_helmet', st: 'hand', out: ['wood_helmet', 1], cost: { wood: 4, wood_sticks: 2 } },
@@ -192,6 +328,103 @@ window.WZ = window.WZ || {};
     { id: 'golden_chest', st: 'hand', out: ['golden_chest', 1], cost: { golden_ingot: 7 } },
     { id: 'golden_legs', st: 'hand', out: ['golden_legs', 1], cost: { golden_ingot: 5 } },
     { id: 'golden_boots', st: 'hand', out: ['golden_boots', 1], cost: { golden_ingot: 4 } },
+    /* Manual Milling */
+    { id: 'mill_wire', st: 'milling', out: ['copper_wire', 4], cost: { copper_ore: 1 }, label: 'Mill Copper Ore into Copper Wire' },
+    { id: 'mill_rope', st: 'milling', out: ['rope', 1], cost: { leaf: 4 }, label: 'Twist Leaves into Rope' },
+    { id: 'mill_carton', st: 'milling', out: ['carton_sheet', 2], extra: 0.5, cost: { broken_cardboards: 1 }, label: 'Reprocess Broken Cardboard into 2-3 Carton Sheets' },
+    { id: 'carton_box', st: 'hand', out: ['carton_box', 1], cost: { carton_sheet: 6 } },
+    { id: 'band_aid_box', st: 'hand', out: ['band_aid_box', 1], cost: { carton_box: 1, medical_bag: 30 } },
+    { id: 'mill_flint', st: 'milling', out: ['flint', 1], cost: { gravel: 1 }, chance: 0.25, label: 'Rub Gravel into Flint (25% chance)' },
+    { id: 'cactus_club', st: 'hand', out: ['cactus_club', 1], cost: { cactus: 8, wood_sticks: 2, rope: 2 } },
+    { id: 'cactus_block', st: 'hand', out: ['cactus_block', 1], cost: { cactus: 2 } },
+    { id: 'cactus_hammer', st: 'anvil', out: ['cactus_hammer', 1], cost: { iron_ingot: 8, iron_stick: 4, cactus: 20, copper_ingot: 2 } },
+    { id: 'copper_stick', st: 'anvil', out: ['copper_stick', 1], cost: { copper_ingot: 1 } },
+    { id: 'make_glass', st: 'furnace', out: ['glass', 1], cost: { sand: 2 }, heat: 75, label: 'Smelt Sand into Glass' },
+    { id: 'simple_bomb', st: 'bomb', out: ['simple_bomb', 2], cost: { gunpowder: 3, sand: 2, rope: 1, flint: 1 } },
+    { id: 'tnt_block', st: 'bomb', out: ['tnt_block', 1], cost: { dynamite: 4, rope: 3, flint: 1 } },
+    { id: 'glass_bottle', st: 'kiln', out: ['glass_bottle', 1], cost: { glass: 1 } },
+    { id: 'glass_dart', st: 'kiln', out: ['glass_dart', 10], cost: { glass: 1 } },
+    { id: 'glass_spike_ball', st: 'kiln', out: ['glass_spike_ball', 4], cost: { glass: 1, cactus: 1, wood_sticks: 4 } },
+    { id: 'glass_block', st: 'craft', out: ['glass_block', 1], cost: { glass: 2 } },
+    { id: 'smelt_granite', st: 'furnace', out: ['smooth_granite', 1], cost: { granite_ore: 1 }, heat: 40, label: 'Smelt Granite Ore into Smooth Granite' },
+    { id: 'blk_granite', st: 'hand', out: ['smooth_granite_block', 1], cost: { smooth_granite: 2 } },
+    { id: 'brk_granite', st: 'mason', out: ['granite_bricks_block', 1], cost: { smooth_granite_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'smelt_andesite', st: 'furnace', out: ['smooth_andesite', 1], cost: { andesite_ore: 1 }, heat: 40, label: 'Smelt Andesite Ore into Smooth Andesite' },
+    { id: 'blk_andesite', st: 'hand', out: ['smooth_andesite_block', 1], cost: { smooth_andesite: 2 } },
+    { id: 'brk_andesite', st: 'mason', out: ['andesite_bricks_block', 1], cost: { smooth_andesite_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'smelt_diorite', st: 'furnace', out: ['smooth_diorite', 1], cost: { diorite_ore: 1 }, heat: 40, label: 'Smelt Diorite Ore into Smooth Diorite' },
+    { id: 'blk_diorite', st: 'hand', out: ['smooth_diorite_block', 1], cost: { smooth_diorite: 2 } },
+    { id: 'brk_diorite', st: 'mason', out: ['diorite_bricks_block', 1], cost: { smooth_diorite_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'smelt_calcite', st: 'furnace', out: ['smooth_calcite', 1], cost: { calcite_ore: 1 }, heat: 40, label: 'Smelt Calcite Ore into Smooth Calcite' },
+    { id: 'blk_calcite', st: 'hand', out: ['smooth_calcite_block', 1], cost: { smooth_calcite: 2 } },
+    { id: 'brk_calcite', st: 'mason', out: ['calcite_bricks_block', 1], cost: { smooth_calcite_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'brk_stone', st: 'mason', out: ['stone_bricks_block', 1], cost: { stone_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'brk_red', st: 'mason', out: ['red_bricks_block', 1], cost: { red_brick: 4 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'mason_bench', st: 'sawmill', out: ['mason_bench', 1], cost: { iron_ingot: 4, wood_plank: 24, wood_sticks: 12, copper_ingot: 2 }, puz: { k: 'saw', d: 3 } },
+    { id: 'melt_titanium', st: 'blast', out: ['titanium_ingot', 1], cost: { titanium_ore: 8 }, heat: 100, label: 'Smelt Titanium Bar (Blast Smelter)' },
+    { id: 'melt_brass', st: 'furnace', out: ['brass_ingot', 1], cost: { copper_ingot: 1, zinc_ingot: 1 }, heat: 50, label: 'Smelt Brass Bar' },
+    { id: 'press_brass', st: 'press', out: ['brass_plate', 1], cost: { brass_ingot: 1 }, puz: { k: 'crank', n: 5 } },
+    { id: 'blast_smelter', st: 'craft', out: ['blast_smelter', 1], cost: { iron_plate: 8, brass_plate: 3, iron_stick: 4, furnace: 1 } },
+    { id: 'titanium_stick', st: 'anvil', out: ['titanium_stick', 1], cost: { titanium_ingot: 1 } },
+    { id: 'titanium_axe', st: 'anvil', out: ['titanium_axe', 1], cost: { titanium_ingot: 3, wood_sticks: 2 } },
+    { id: 'titanium_pickaxe', st: 'anvil', out: ['titanium_pickaxe', 1], cost: { titanium_ingot: 3, wood_sticks: 2 } },
+    { id: 'titanium_sword', st: 'anvil', out: ['titanium_sword', 1], cost: { titanium_ingot: 5, wood_sticks: 6 } },
+    { id: 'titanium_helmet', st: 'anvil', out: ['titanium_helmet', 1], cost: { titanium_ingot: 4 } },
+    { id: 'titanium_chest', st: 'anvil', out: ['titanium_chest', 1], cost: { titanium_ingot: 7 } },
+    { id: 'titanium_legs', st: 'anvil', out: ['titanium_legs', 1], cost: { titanium_ingot: 5 } },
+    { id: 'titanium_boots', st: 'anvil', out: ['titanium_boots', 1], cost: { titanium_ingot: 4 } },
+    { id: 'titanium_bucket', st: 'anvil', out: ['titanium_bucket', 1], cost: { titanium_ingot: 2, iron_chain: 1 } },
+    { id: 'stock_car_battery', st: 'computer', out: ['stock_car_battery', 1], cost: { copper_wire: 120, plastic_cap: 6, plastic_sheet: 10 }, puz: { k: 'wire' } },
+    { id: 'wooden_spike', st: 'trapb', out: ['wooden_spike', 1], cost: { wood_sticks: 10 } },
+    { id: 'sharp_palm_root', st: 'trapb', out: ['sharp_palm_root', 1], cost: { palm_wood_stick: 20 } },
+    { id: 'iron_barbed_wire', st: 'trapb', out: ['iron_barbed_wire', 1], cost: { iron_stick: 20 } },
+    { id: 'ivy_grass', st: 'trapb', out: ['ivy_grass', 1], cost: { leaf: 10 } },
+    { id: 'titanium_barbed_wire', st: 'trapb', out: ['titanium_barbed_wire', 1], cost: { titanium_stick: 20 } },
+    { id: 'palm_sticks', st: 'sawmill', out: ['palm_wood_stick', 4], cost: { palm_log: 1 } },
+    { id: 'cactus_helmet', st: 'hand', out: ['cactus_helmet', 1], cost: { cactus: 12, rope: 2 } },
+    { id: 'cactus_chest', st: 'hand', out: ['cactus_chest', 1], cost: { cactus: 24, rope: 3 } },
+    { id: 'cactus_legs', st: 'hand', out: ['cactus_legs', 1], cost: { cactus: 18, rope: 3 } },
+    { id: 'cactus_boots', st: 'hand', out: ['cactus_boots', 1], cost: { cactus: 12, rope: 2 } },
+    { id: 'sewing_table', st: 'sawmill', out: ['sewing_table', 1], cost: { wood_plank: 18, copper_ingot: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'liquiders_workbench', st: 'sawmill', out: ['liquiders_workbench', 1], cost: { wood_plank: 16, iron_ingot: 6, copper_ingot: 4, iron_chain: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'toughs_string', st: 'sewing', out: ['toughs_string', 1], cost: { cobweb: 35 }, puz: { k: 'crank', n: 6 } },
+    { id: 'tri_iron_fan', st: 'computer', out: ['tri_iron_fan', 1], cost: { iron_plate: 3 }, puz: { k: 'wire' } },
+    { id: 'iron_pipe', st: 'liquiders', out: ['iron_pipe', 1], cost: { iron_ingot: 2 }, puz: { k: 'crank', n: 4 } },
+    { id: 'nature_cooler', st: 'computer', out: ['nature_cooler', 1], cost: { permafrost_ingot: 8, tri_iron_fan: 1, iron_pipe: 6 }, puz: { k: 'wire' } },
+    { id: 'melt_permafrost', st: 'blast', out: ['permafrost_ingot', 1], cost: { permafrost_ore: 8 }, heat: 100, label: 'Smelt Permafrost Bar (Blast Smelter)' },
+    { id: 'permafrost_stick', st: 'anvil', out: ['permafrost_stick', 1], cost: { permafrost_ingot: 1 } },
+    { id: 'permafrost_axe', st: 'anvil', out: ['permafrost_axe', 1], cost: { permafrost_ingot: 3, wood_sticks: 2 } },
+    { id: 'permafrost_pickaxe', st: 'anvil', out: ['permafrost_pickaxe', 1], cost: { permafrost_ingot: 3, wood_sticks: 2 } },
+    { id: 'permafrost_sword', st: 'anvil', out: ['permafrost_sword', 1], cost: { permafrost_ingot: 5, wood_sticks: 6 } },
+    { id: 'permafrost_helmet', st: 'anvil', out: ['permafrost_helmet', 1], cost: { permafrost_ingot: 4 } },
+    { id: 'permafrost_chest', st: 'anvil', out: ['permafrost_chest', 1], cost: { permafrost_ingot: 7 } },
+    { id: 'permafrost_legs', st: 'anvil', out: ['permafrost_legs', 1], cost: { permafrost_ingot: 5 } },
+    { id: 'permafrost_boots', st: 'anvil', out: ['permafrost_boots', 1], cost: { permafrost_ingot: 4 } },
+    { id: 'manual_press', st: 'sawmill', out: ['manual_press', 1], cost: { wood_plank: 12, iron_ingot: 6, copper_ingot: 2, iron_chain: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'casing_crafter', st: 'sawmill', out: ['casing_crafter', 1], cost: { copper_ingot: 2, iron_ingot: 8, wood_plank: 20, wood_cogwheel: 2 }, puz: { k: 'saw', d: 3 } },
+    { id: 'trap_bench', st: 'sawmill', out: ['trap_bench', 1], cost: { wood_plank: 12, copper_ingot: 4, iron_ingot: 2, wood_sticks: 4 }, puz: { k: 'saw', d: 2 } },
+    { id: 'wood_cogwheel', st: 'craft', out: ['wood_cogwheel', 1], cost: { wood_plank: 2, wood_sticks: 4 } },
+    { id: 'unproc_coater', st: 'craft', out: ['unprocessed_iron_coater', 1], cost: { iron_ingot: 1, zinc_ingot: 1 } },
+    { id: 'coat_iron', st: 'furnace', out: ['coated_iron_ingot', 1], cost: { unprocessed_iron_coater: 1 }, heat: 60, label: 'Smelt Unprocessed Iron Coater into Coated-Iron Bar' },
+    { id: 'melt_zinc', st: 'furnace', out: ['zinc_ingot', 1], cost: { zinc_ore: 8 }, heat: 40, label: 'Smelt Zinc Bar' },
+    { id: 'melt_clay', st: 'furnace', out: ['red_brick', 1], cost: { clay_ore: 1 }, heat: 20, label: 'Smelt Clay Ore into Red Brick' },
+    { id: 'press_iron', st: 'press', out: ['iron_plate', 1], cost: { iron_ingot: 1 }, puz: { k: 'crank', n: 5 } },
+    { id: 'press_copper', st: 'press', out: ['copper_plate', 1], cost: { copper_ingot: 1 }, puz: { k: 'crank', n: 5 } },
+    { id: 'press_gold', st: 'press', out: ['golden_plate', 1], cost: { golden_ingot: 1 }, puz: { k: 'crank', n: 5 } },
+    { id: 'press_coated', st: 'press', out: ['coated_iron_plate', 1], cost: { coated_iron_ingot: 1 }, puz: { k: 'crank', n: 5 } },
+    { id: 'coated_casing', st: 'casing', out: ['coated_iron_car_casing', 1], cost: { coated_iron_plate: 24, coated_iron_ingot: 8 }, puz: { k: 'crank', n: 8 } },
+    { id: 'manual_milling', st: 'sawmill', out: ['manual_milling', 1], cost: { wood: 16, wood_plank: 6, copper_ingot: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'bomb_bench', st: 'sawmill', out: ['bomb_bench', 1], cost: { gunpowder: 4, rope: 2, copper_ingot: 6, wood_plank: 12 }, puz: { k: 'saw', d: 2 } },
+    { id: 'craft_bench', st: 'sawmill', out: ['craft_bench', 1], cost: { wood_plank: 12, iron_ingot: 4, copper_ingot: 2 }, puz: { k: 'saw', d: 2 } },
+    { id: 'work_bench', st: 'sawmill', out: ['work_bench', 1], cost: { wood_plank: 20, stone: 4, copper_ingot: 8, iron_ingot: 4 }, puz: { k: 'saw', d: 3 } },
+    { id: 'glass_kiln', st: 'hand', out: ['glass_kiln', 1], cost: { iron_ingot: 16, copper_ingot: 4, coal: 4 } },
+    { id: 'wooden_chest', st: 'sawmill', out: ['wooden_chest', 1], cost: { wood_plank: 18, copper_ingot: 1 }, puz: { k: 'saw', d: 2 } },
+    { id: 'ironcased_chest', st: 'sawmill', out: ['ironcased_chest', 1], cost: { iron_stick: 6, wood_plank: 24, iron_ingot: 1 }, puz: { k: 'saw', d: 3 } },
+    { id: 'coppercased_chest', st: 'sawmill', out: ['coppercased_chest', 1], cost: { copper_stick: 6, wood_plank: 24, copper_ingot: 1 }, puz: { k: 'saw', d: 3 } },
+    { id: 'iron_chest', st: 'craft', out: ['iron_chest', 1], cost: { iron_plate: 6 } },
+    { id: 'copper_chest', st: 'craft', out: ['copper_chest', 1], cost: { copper_plate: 6 } },
+    { id: 'flashlight', st: 'computer', out: ['flashlight', 1], cost: { medium_battery: 1, glass: 2, metal_casing: 1 }, puz: { k: 'mask', shape: 'plus' } },
+    { id: 'lucky_ring', st: 'work', out: ['lucky_ring', 1], cost: { golden_stick: 1, clover_leaf: 1 } },
     /* Sawmill (line-cutting minigame per piece; a failed cut gives Failed Craft Wood) */
     { id: 'wood_plank', st: 'sawmill', out: ['wood_plank', 2], cost: { wood: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Wood Log into Wood Planks' },
     { id: 'wood_plank_block', st: 'sawmill', out: ['wood_plank_block', 1], cost: { wood_plank: 4 }, puz: { k: 'saw', d: 1 } },
@@ -200,7 +433,7 @@ window.WZ = window.WZ || {};
     { id: 'couch_block', st: 'sawmill', out: ['couch_block', 1], cost: { wood: 5, broken_fabric_cloth: 2, broken_cardboards: 2 }, puz: { k: 'saw', d: 2 } },
     { id: 'sink_block', st: 'sawmill', out: ['sink_block', 1], cost: { iron_ingot: 10, wood: 5 }, puz: { k: 'saw', d: 3 } },
     /* Anvil */
-    { id: 'iron_sword', st: 'anvil', out: ['iron_sword', 1], cost: { iron_ingot: 6, broken_copper_wire: 2, iron_nugget: 4, wood_sticks: 8 } },
+    { id: 'iron_sword', st: 'anvil', out: ['iron_sword', 1], cost: { iron_ingot: 6, copper_wire: 2, iron_nugget: 4, wood_sticks: 8 } },
     { id: 'copper_sword', st: 'anvil', out: ['copper_sword', 1], cost: { copper_ingot: 5, wood_sticks: 6 } },
     { id: 'golden_sword', st: 'anvil', out: ['golden_sword', 1], cost: { golden_ingot: 5, wood_sticks: 6 } },
     { id: 'iron_chain', st: 'anvil', out: ['iron_chain', 1], cost: { iron_ingot: 2 } },
@@ -214,39 +447,38 @@ window.WZ = window.WZ || {};
     { id: 'cannon_turret', st: 'turret', out: ['cannon_turret', 1], cost: { wood: 8, stone: 20, copper_ingot: 8, iron_ingot: 2 }, puz: { k: 'img', n: 3 }, tier: 1 },
     { id: 'manual_cannon', st: 'turret', out: ['manual_cannon', 1], cost: { wood: 24, stone: 10, copper_ingot: 6, iron_ingot: 4 }, puz: { k: 'img', n: 4 }, tier: 2 },
     /* Computer Bench */
-    { id: 'medium_battery', st: 'computer', out: ['medium_battery', 1], cost: { iron_nugget: 2, broken_copper_wire: 75, plastic_paper_package: 1 }, puz: { k: 'wire' } },
-    { id: 'ips_led', st: 'computer', out: ['ips_led', 1], cost: { mini_led_lamp: 50, broken_copper_wire: 120, rgb_lamp: 3, black_screen_cover: 5 }, puz: { k: 'mask', shape: 'plus' } },
+    { id: 'medium_battery', st: 'computer', out: ['medium_battery', 1], cost: { iron_nugget: 2, copper_wire: 75, plastic_paper_package: 1 }, puz: { k: 'wire' } },
+    { id: 'ips_led', st: 'computer', out: ['ips_led', 1], cost: { mini_led_lamp: 50, copper_wire: 120, rgb_lamp: 3, black_screen_cover: 5 }, puz: { k: 'mask', shape: 'plus' } },
     { id: 'radar', st: 'computer', out: ['radar', 1], cost: { signal_chip: 1, medium_battery: 1, metal_casing: 10, ips_led: 2 }, puz: { k: 'mask', shape: 'ring' } },
     { id: 'gps', st: 'computer', out: ['gps', 1], cost: { ips_led: 4, black_screen_cover: 2, metal_casing: 16, medium_battery: 2, signal_chip: 1, gpu_chip: 1 }, puz: { k: 'mask', shape: 'diamond' } },
     /* Furnace (needs fuel: heat power) */
-    { id: 'melt_iron', st: 'furnace', out: ['iron_ingot', 1], cost: { iron_nugget: 8 }, heat: 40, label: 'Smelt Iron Bar' },
-    { id: 'melt_copper', st: 'furnace', out: ['copper_ingot', 1], cost: { broken_copper_wire: 25 }, heat: 30, label: 'Smelt Copper Bar' },
+    { id: 'melt_iron', st: 'furnace', out: ['iron_ingot', 1, 3], cost: { iron_nugget: 8 }, heat: 40, label: 'Smelt Iron Bar' },
+    { id: 'melt_copper', st: 'furnace', out: ['copper_ingot', 1, 3], cost: { copper_ore: 25 }, heat: 30, label: 'Smelt Copper Bar' },
     { id: 'melt_gold', st: 'furnace', out: ['golden_ingot', 1], cost: { golden_nugget: 12 }, heat: 50, label: 'Smelt Golden Bar' },
     { id: 'make_charcoal', st: 'furnace', out: ['charcoal', 1], cost: { wood: 1 }, heat: 25, label: 'Burn Wood Log into Charcoal' },
     /* Sink */
-    { id: 'wash_veg', st: 'sink', out: ['fresh_veg', 1], cost: { dirty_veg: 1 }, label: 'Wash Dirty Vegetables → Fresh' },
-    { id: 'wash_fruits', st: 'sink', out: ['fresh_fruits', 1], cost: { dirty_fruits: 1 }, label: 'Wash Dirty Fruits → Fresh' },
+    /*WASH*/
     /* Campfire (cooking, needs fuel) */
     { id: 'cook_fish', st: 'campfire', out: ['cooked_fish', 1], cost: { fresh_fish: 1 }, heat: 20, label: 'Cook Fresh Fish → Cooked Fish' }
   ];
 
   /* Temporary schematics (coming soon) */
-  WZ.SCHEMATICS = ['Engine Bench', 'Vehicle Body Bench', 'Wheel Bench', 'Arms Robot', 'Sunlight Electric Generator', 'Wind Electric Generator', 'Coal Electric Generator', 'Pumpjack', 'Vehicle Assemblery Machine', 'Big Battery (100,000 mAh)', 'Giant Battery (500,000 mAh)', 'Huge Battery (2,500,000 mAh)', 'Mega Industrial Battery (15,000,000 mAh)'];
+  WZ.SCHEMATICS = ['Life Fruit (+10 Max HP, permanent)', 'Aegis Fruit (+5 Max Hunger, permanent)', 'Magic Fresh Super Purify Water (+5 Max Thirst, permanent)', 'AMC i4 Car Engine', 'AMC 3-Speed Manual Gearbox', 'Stock Lubrication-Oil Tank', 'Stock i4 Fuel Tank', 'Leather Seat', 'AMC i4-Car Gauge', 'Stock Wheel', 'Stock Water Coolant', 'Press Machine', 'Engine Bench', 'Vehicle Body Bench', 'Wheel Bench', 'Arms Robot', 'Sunlight Electric Generator', 'Wind Electric Generator', 'Coal Electric Generator', 'Pumpjack', 'Vehicle Assemblery Machine', 'Big Battery (100,000 mAh)', 'Giant Battery (500,000 mAh)', 'Huge Battery (2,500,000 mAh)', 'Mega Industrial Battery (15,000,000 mAh)'];
 
   /* ---------- Loot tables (total percent = 100) ---------- */
   var LOOT = {
     trash1: { name: 'Trash (Tier 1)', rolls: 1, enabled: true, t: [['broken_plastic_bottle', 20], ['dirty_plastic_bottle', 20], ['dirty_box_food', 15], ['broken_tin_can', 10], ['leftover_food', 15], ['gravel', 10], ['soil', 5], ['feather', 5]] },
-    trash2: { name: 'Trash (Tier 2)', rolls: 1, enabled: true, t: [['dirty_aluminium_foil', 15], ['dirty_paper', 16], ['broken_leather_cloth', 5], ['broken_fabric_cloth', 10], ['gravel', 5], ['broken_floppy_drive', 1], ['iron_nugget', 7], ['broken_copper_wire', 7], ['broken_cardboards', 10], ['broken_wood_planks', 10], ['medical_bag', 4], ['feather', 10]] },
+    trash2: { name: 'Trash (Tier 2)', rolls: 1, enabled: true, t: [['dirty_aluminium_foil', 15], ['dirty_paper', 16], ['broken_leather_cloth', 5], ['broken_fabric_cloth', 10], ['gravel', 5], ['broken_floppy_drive', 1], ['iron_nugget', 7], ['broken_cardboards', 10], ['broken_wood_planks', 10], ['medical_bag', 4], ['feather', 10]] },
     trash3: { name: 'Trash (Tier 3)', rolls: 1, enabled: false, t: [['broken_dvd_player', 2], ['broken_cd', 3], ['broken_dvd', 5], ['broken_old_tv', null]] },
-    table4: { name: 'Above Table (Tier 4)', rolls: 2, enabled: true, t: [['mini_led_lamp', 22], ['rgb_lamp', 8], ['black_screen_cover', 12], ['metal_casing', 18], ['plastic_paper_package', 15], ['broken_copper_wire', 15], ['gpu_chip', 5], ['iron_nugget', 5]] },
-    crate1: { name: 'Wooden Crate (Tier 1)', rolls: 3, enabled: true, t: [['contaminated_veg', 20], ['dirty_veg', 20], ['contaminated_fruits', 15], ['dirty_fruits', 15], ['plastic_bottled_water', 20], ['wood_sticks', 10]] },
+    table4: { name: 'Above Table (Tier 4)', rolls: 2, enabled: true, t: [['mini_led_lamp', 22, 3], ['rgb_lamp', 8, 4], ['black_screen_cover', 12, 4], ['metal_casing', 18, 2], ['plastic_paper_package', 15], ['gpu_chip', 5, 4], ['iron_nugget', 5]] },
+    crate1: { name: 'Wooden Crate (Tier 1)', rolls: 3, enabled: true, t: [['@cont_veg', 20], ['@dirty_veg', 20], ['@cont_fruit', 15], ['@dirty_fruit', 15], ['plastic_bottled_water', 20], ['wood_sticks', 10]] },
     /* [LOOT TAG] truck trunk = "Iron Crate (Tier N)" (N = world tier, max 5): always 3 random picks from a modest (not high-end) list. Tier 3+ worlds use truck3 (adds iron/copper bars). */
-    truck:  { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 18], ['fresh_fruits', 10], ['fresh_veg', 10], ['iron_nugget', 18], ['broken_copper_wire', 14], ['coal', 10], ['wood_sticks', 8]] },
-    truck3: { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 14], ['fresh_fruits', 5], ['iron_nugget', 18], ['broken_copper_wire', 14], ['iron_ingot', 8], ['copper_ingot', 4], ['metal_casing', 10], ['coal', 10], ['wood_sticks', 5]] },
-    crate3: { name: 'Reinforced Wooden Crate (Tier 3)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['plastic_bottled_water', 15], ['fresh_veg', 10], ['fresh_fruits', 10], ['iron_nugget', 20], ['broken_copper_wire', 15], ['metal_casing', 10], ['mini_led_lamp', 5]] },
-    crate4: { name: 'Iron Crate (Tier 4)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['iron_nugget', 20], ['broken_copper_wire', 20], ['metal_casing', 15], ['mini_led_lamp', 10], ['plastic_paper_package', 10], ['black_screen_cover', 5], ['rgb_lamp', 5]] },
-    crate5: { name: 'Iron Crate (Tier 5)', rolls: 3, enabled: true, t: [['medical_bag', 10], ['iron_ingot', 15], ['iron_nugget', 15], ['broken_copper_wire', 15], ['metal_casing', 15], ['rgb_lamp', 10], ['black_screen_cover', 8], ['gpu_chip', 6], ['mini_led_lamp', 6]] },
-    crate2: { name: 'Wooden Crate (Tier 2)', rolls: 3, enabled: true, t: [['medical_bag', 20], ['plastic_bottled_water', 20], ['fresh_veg', 15], ['fresh_fruits', 15], ['iron_nugget', 15], ['broken_fabric_cloth', 15]] }
+    truck:  { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 18], ['@clean_fruit', 10], ['@clean_veg', 10], ['iron_nugget', 18], ['coal', 10], ['wood_sticks', 8]] },
+    truck3: { name: 'Iron Crate', rolls: 3, enabled: true, t: [['medical_bag', 12], ['plastic_bottled_water', 14], ['@clean_fruit', 5], ['iron_nugget', 18], ['iron_ingot', 8, 3], ['copper_ingot', 4, 3], ['metal_casing', 10, 2], ['coal', 10], ['wood_sticks', 5]] },
+    crate3: { name: 'Reinforced Wooden Crate (Tier 3)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['plastic_bottled_water', 15], ['@clean_veg', 10], ['@clean_fruit', 10], ['iron_nugget', 20], ['metal_casing', 10, 2], ['mini_led_lamp', 5, 3]] },
+    crate4: { name: 'Iron Crate (Tier 4)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['iron_nugget', 20], ['metal_casing', 15, 2], ['mini_led_lamp', 10, 3], ['plastic_paper_package', 10], ['black_screen_cover', 5, 4], ['rgb_lamp', 5, 4]] },
+    crate5: { name: 'Iron Crate (Tier 5)', rolls: 3, enabled: true, t: [['medical_bag', 10], ['iron_ingot', 15, 3], ['iron_nugget', 15], ['metal_casing', 15, 2], ['rgb_lamp', 10, 4], ['black_screen_cover', 8, 4], ['gpu_chip', 6, 4], ['mini_led_lamp', 6, 3]] },
+    crate2: { name: 'Wooden Crate (Tier 2)', rolls: 3, enabled: true, t: [['medical_bag', 20], ['plastic_bottled_water', 20], ['@clean_veg', 15], ['@clean_fruit', 15], ['iron_nugget', 15], ['broken_fabric_cloth', 15]] }
   };
 
   /* ---------- Fishing: fishing point (FP) per catch. Lake table = 100% ---------- */
@@ -273,15 +505,29 @@ window.WZ = window.WZ || {};
     /* [MOB TAG] id=runner | rarity=common | tier=T1 | biome=any | coin=2 kills -> 1 coin */
     runner:  { name: 'Runner',   hp: 50,  spd: 1.6, dmg: 5,  def: 0, tier: 1, rarity: 'common', scale: 0.92, color: 0x8a6a52, cd: 0.8, w: 22, coin: [2, 1] },
     /* [MOB TAG] id=big | rarity=common | tier=T1 | biome=any | coin=1 kill -> 1 coin */
-    big:     { name: 'Big',      hp: 150, spd: 0.8, dmg: 8,  def: 0, tier: 1, rarity: 'common', scale: 1.3,  color: 0x56654f, cd: 1.1, w: 12, coin: [1, 1] },
+    big:     { name: 'Big',      hp: 150, spd: 0.8, dmg: 8,  def: 0, tier: 1, rarity: 'common', scale: 1.3,  color: 0x677459, cd: 1.1, w: 12, coin: [1, 1] },
     /* [MOB TAG] id=bomber | rarity=common | tier=T1 | biome=any | coin=1 kill -> 2 coins (from the earlier spec) */
-    bomber:  { name: 'Bomber',   hp: 60,  spd: 1.2, dmg: 60, def: 0, tier: 1, rarity: 'common', scale: 1.05, color: 0x9a5a2a, cd: 0,   w: 10, splash: 4, coin: [1, 2] },
+    bomber:  { name: 'Bomber',   hp: 60,  spd: 1.2, dmg: 60, def: 0, tier: 1, rarity: 'common', scale: 1.05, color: 0x6f7c5c, cd: 0,   w: 10, splash: 4, coin: [1, 2] },
     /* [MOB TAG] id=brute | rarity=common | tier=T2 | biome=any | coin=1 kill -> 2 coins */
-    brute:   { name: 'Brute',    hp: 275, spd: 0.5, dmg: 12, def: 0, tier: 2, rarity: 'common', scale: 1.55, color: 0x4a3f55, cd: 1.3, w: 6, coin: [1, 2] },
+    brute:   { name: 'Brute',    hp: 275, spd: 0.5, dmg: 12, def: 0, tier: 2, rarity: 'common', scale: 1.55, color: 0x6a7258, cd: 1.3, w: 6, coin: [1, 2] },
     /* [MOB TAG] id=soldier | rarity=common | tier=T2 | biome=any | coin=1 kill -> 3 coins */
     soldier: { name: 'Soldier',  hp: 100, spd: 1.0, dmg: 9,  def: 2, tier: 2, rarity: 'common', scale: 1.05, color: 0x3d5a3a, cd: 1.0, w: 8, coin: [1, 3] },
     /* [MOB TAG] id=spider | rarity=common | tier=T1 | biome=any | coin=none | drops String 33.33% */
-    spider:  { name: 'Spider',   hp: 40,  spd: 1.5, dmg: 5,  def: 1, tier: 1, rarity: 'common', scale: 0.7,  color: 0x3b3340, cd: 0.8, w: 8 },
+    spider:  { name: 'Spider',   hp: 40,  spd: 1.5, dmg: 5,  def: 1, tier: 1, rarity: 'common', scale: 0.7,  color: 0x4f7d3a, cd: 0.8, w: 8 },
+    /* [MOB TAG] id=jacket | Jacket Zombie | T1 | biome=mountain | = Walker + DEF 1 */
+    jacket:  { name: 'Jacket Zombie', hp: 80, spd: 1.0, dmg: 5, def: 1, tier: 1, rarity: 'common', biome: 'mountain', scale: 1.0, color: 0x6d7a5a, cd: 1.0, w: 10, coin: [1, 1] },
+    /* [MOB TAG] id=pfwalker | Overgrown Permafrost Walker | T5 | biome=mountain | HP 100 DMG 10 (Frost: ignores armor DEF) DLY 1 RNG 1 SPD 1.2 DEF 5 | 1 kill = 5 coins | 10% permafrost ore */
+    pfwalker:{ name: 'Overgrown Permafrost Walker', hp: 100, spd: 1.2, dmg: 10, def: 5, tier: 5, rarity: 'uncommon', biome: 'mountain', scale: 1.05, color: 0x7fa6c4, cd: 1.0, w: 8, coin: [1, 5], elem: 'frost' },
+    /* [MOB TAG] id=berserk | Berserk Zombie | T3 | biome=desert | HP 100 DEF 3 DMG 12 DLY 3 SPD 3 until its first successful hit, then 1.5 | skill Rush Hour | 3 coins | 5% Berserkers Boots */
+    berserk: { name: 'Berserk Zombie', hp: 100, spd: 1.5, dmg: 12, def: 3, tier: 3, rarity: 'uncommon', biome: 'desert', scale: 1.05, color: 0xb0583e, cd: 3.0, w: 8, coin: [1, 3], rush: true },
+    /* [MOB TAG] id=mutanoider | Mutanoiders Zombos | BOSS T2->T3 | HP 3600 DMG 18 DLY 0.4 DEF 0 (10 while its tentacles and wings guard, then it cannot attack) SPD 0.6 (0.1 guarding) | 60 coins */
+    mutanoider:{ name: 'Mutanoiders Zombos', hp: 3600, spd: 0.6, dmg: 18, def: 0, tier: 3, rarity: 'boss', scale: 2.6, color: 0x3c4a2f, cd: 0.4, w: 0, nospawn: true, boss: true, splash: 3, coin: [1, 60], wingguard: true },
+    /* [MOB TAG] id=hardzombie | Hard Zombie | summoned at the statue next to the surface mineshaft (100 coins, 2 h real-time cooldown) | HP 350 DMG 36 SPLASH 8 (diameter) DLY 4 | drops 120 coins */
+    hardzombie:{ name: 'Hard Zombie', hp: 350, spd: 1.0, dmg: 36, def: 0, tier: 1, rarity: 'boss', scale: 1.35, color: 0x5a6350, cd: 4.0, w: 0, nospawn: true, splash: 4, coin: [1, 120] },
+    /* [MOB TAG] id=mutant | Mutant Zombie | rarity=uncommon | tier=T3 | biome=any | HP 120, RNG 2x walker, DMG 2x walker, SPD 1.6 (0.8 while guarding with tentacles), DEF 0 (4 while guarding), attacks 4 blocks at once, attack delay 2x slower */
+    mutant:  { name: 'Mutant Zombie', hp: 120, spd: 1.6, dmg: 10, def: 0, tier: 3, rarity: 'uncommon', scale: 1.05, color: 0x3a4a34, cd: 2.0, w: 7, coin: [1, 4], rng: 2, mutant: true, aoe: 4, splash: 2 },
+    /* [MOB TAG] id=tough | Tough Zombie | rarity=uncommon | tier=T2 | HP 100, RNG 1x, DMG 1.2x walker, SPD 1.1, DEF 1 | skill: growl "gggrrrrr..." radius 10 (diameter 10 -> r 5... see game.js) gives +10% damage for 5 s, cooldown 10 s, a new growl replaces the running buff */
+    tough:   { name: 'Tough Zombie', hp: 100, spd: 1.1, dmg: 6, def: 1, tier: 2, rarity: 'uncommon', scale: 1.05, color: 0x4f5846, cd: 1.0, w: 8, coin: [1, 3], growl: true },
     /* [MOB TAG] id=antlion | AntlionZ | rarity=common | tier=T3 | biome=DESERT ONLY | coin=1 kill -> 4 coins | skill: moves 2x faster when HP < 20% */
     antlion: { name: 'AntlionZ', hp: 75,  spd: 1.2, dmg: 7,  def: 3, tier: 3, rarity: 'common', biome: 'desert', scale: 1.0, color: 0xe07a1a, cd: 0.9, w: 10, coin: [1, 4], rage: true },
     /* [MOB TAG] id=zcorpion | Zcorpionz | rarity=RARE | tier=T4 | biome=DESERT ONLY | coin=1 kill -> 6 coins | RNG 1.2 (reach x1.2) | skill: shoots "Acidic Poison", each hit makes the poison 3x deadlier (stacks up to 3) */
@@ -304,9 +550,20 @@ window.WZ = window.WZ || {};
   /* Blood Moon chance (percent) per day by world tier T1..T10 (capped at T10) */
   WZ.BLOOD = [0, 1, 2, 3, 4, 6, 8, 10, 12.5, 15];
   /* Spawn weight of a rarity group relative to the whole common spawn */
-  WZ.RARITY = { common: 1, rare: 1 / 4, epic: 1 / 10, legendary: 1 / 25, mythical: 1 / 100 };
+  WZ.RARITY = { common: 1, uncommon: 1 / 2, rare: 1 / 4, epic: 1 / 10, legendary: 1 / 25, mythical: 1 / 100 };
 
+  /* Weapon types: Sword (default), Spear (reach 3x, DMG 0.8x, delay 1.1x, sticks x5, bar -1), Greatsword (DMG 2x, reach 0.8x, delay 2x, bars & sticks x1.2) */
+  Object.keys(I).filter(function (k) { return /_sword$/.test(k) && I[k].tool === 'sword'; }).forEach(function (k) {
+    var sw = I[k], base = k.replace('_sword', ''), nm = sw.name.replace(' Sword', ''), rec0 = null; for (var i = 0; i < R.length; i++) if (R[i].id === k) { rec0 = R[i]; break; }
+    if (!rec0) return; var isBar = function (c) { return /(ingot|^wood$|^stone$)/.test(c); }, isStick = function (c) { return /stick/.test(c); };
+    var cs = {}, cg = {}; Object.keys(rec0.cost).forEach(function (c) { var n = rec0.cost[c]; cs[c] = isStick(c) ? n * 5 : isBar(c) ? Math.max(1, n - 1) : n; cg[c] = (isStick(c) || isBar(c)) ? Math.ceil(n * 1.2) : n; });
+    item(base + '_spear', '🔱', nm + ' Spear', 'Long reach (3x), 0.8x damage, 1.1x slower than a sword. Good against long-range zombies or when you are scared to get close.', { type: 'tool', tool: 'sword', bd: 1, dmg: Math.round(sw.dmg * 0.8), reach: 3, dly: 1.1, wtype: 'spear', note: 'Spear: reach 3x, DMG 0.8x, delay 1.1x' });
+    item(base + '_greatsword', '🗡️', nm + ' Greatsword', 'Double damage, 0.8x reach, twice as slow. Made for tanky zombies and rhino-thick defense.', { type: 'tool', tool: 'sword', bd: 1, dmg: sw.dmg * 2, reach: 0.8, dly: 2, wtype: 'great', note: 'Greatsword: DMG 2x, reach 0.8x, delay 2x' });
+    var st0 = rec0.st; R.push({ id: base + '_spear', st: st0, out: [base + '_spear', 1], cost: cs }); R.push({ id: base + '_greatsword', st: st0, out: [base + '_greatsword', 1], cost: cg });
+  });
   WZ.ITEMS = I;
+  FRUITS.concat(VEGS).forEach(function (f) { R.push({ id: 'wash_' + f[0], st: 'sink', out: [f[0], 1], cost: (function () { var o = {}; o['dirty_' + f[0]] = 1; return o; })(), label: 'Wash Dirty ' + f[1] + ' → ' + f[1] }); });
+  /* Press Machine is coming soon */
   WZ.RECIPES = R;
   /* Recipe reveal rule: 'all' = shown only when the player has at least 1 of EVERY ingredient (and is at the station). Set to 'any' to show it when at least one ingredient is owned. */
   WZ.REVEAL = 'all';
@@ -314,20 +571,52 @@ window.WZ = window.WZ || {};
   WZ.FUEL = { coal: { t: 15, p: 10 }, wood: { t: 5, p: 4 }, charcoal: { t: 10, p: 10 } };
   /* Bag rules: 24 slots; stacks of 50; tools, armor and accessories do not stack. */
   WZ.BAG_SLOTS = 24;
-  WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
+  WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (id === 'band_aid_box') return 20; if (id === 'life_fruit' || id === 'aegis_fruit' || id === 'magic_purify_water') return 10; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
   /* Turret blocks: a destroyed turret (by zombies) drops 20% of its crafting materials */
   WZ.TURRET_VOX = { 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon' };
   WZ.LOOT = LOOT;
   WZ.ZOMBIES = Z;
-  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored'];
-  WZ.rollLoot = function (key, rnd) {
-    var t = LOOT[key].t, r = rnd() * 100, acc = 0;
-    for (var i = 0; i < t.length; i++) {
-      if (t[i][1] == null) continue;
-      acc += t[i][1];
-      if (r < acc) return t[i][0];
-    }
-    return t[0][0];
+  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored', 'mutant', 'tough', 'jacket', 'pfwalker', 'berserk', 'mutanoider', 'hardzombie'];
+  /* Loot entries may carry a minimum world tier as the 3rd value. Group tokens ('@dirty_fruit', ...) pick a random member; ctx.village=false hides watermelon/pumpkin. Luck (0..1) rerolls toward rarer items. */
+  WZ.getTier = function () { return 5; };
+  WZ.luck = function () { return 0; };
+  function pickGroup(tok, rnd, ctx) {
+    var g = WZ.GROUPS[tok.slice(1)] || [], ok = g.filter(function (id) { return !(WZ.VILLAGE_ONLY[id] && ctx && ctx.village === false); });
+    return ok[Math.floor(rnd() * ok.length)] || g[0];
+  }
+  WZ.rollLoot = function (key, rnd, ctx) {
+    var wt = WZ.getTier(), t = LOOT[key].t.filter(function (e) { return e[1] != null && (!e[2] || e[2] <= wt); }), tot = 0, i, pickEntry;
+    t.forEach(function (e) { tot += e[1]; });
+    function once() { var r = rnd() * tot, acc = 0; for (var k = 0; k < t.length; k++) { acc += t[k][1]; if (r < acc) return t[k]; } return t[t.length - 1]; }
+    pickEntry = once();
+    if (WZ.luck() > 0 && rnd() < WZ.luck()) { var e2 = once(); if (e2[1] < pickEntry[1]) pickEntry = e2; }
+    var id = pickEntry[0]; return id.charAt(0) === '@' ? pickGroup(id, rnd, ctx) : id;
+  };
+  /* Bush loot (percent). plain: luck-free defaults. */
+  LOOT.bush_plain = { name: 'Bush', rolls: 1, enabled: true, t: [['wood_sticks', 40], ['leaf', 10], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 1], ['clover_leaf', 1]] };
+  LOOT.bush_jungle = { name: 'Jungle Bush', rolls: 1, enabled: true, t: [['wood_sticks', 30], ['leaf', 15], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 2], ['clover_leaf', 1]] };
+  WZ.rollBush = function (key, rnd) {
+    var r = WZ.rollLoot(key, rnd); if (r === '#contaminated_berry') return ['contaminated_blueberry', 'contaminated_redberry', 'contaminated_sweetberry'][Math.floor(rnd() * 3)];
+    if (r === '#clean_berry') return ['blueberry', 'redberry', 'sweetberry'][Math.floor(rnd() * 3)]; return r;
   };
 })(window.WZ);
+/* ---------- VEHICLE SCHEMAS (specs & recipes only: driving system + benches are NOT built yet, items are not craftable) ---------- */
+WZ.VEHICLE = {
+  note: 'Schemas for the future vehicle update. Recipes live here (not in WZ.RECIPES) until the benches exist.',
+  engineAge: function (hours) { return hours < 500 ? { start: 'safe', power: 1, speed: 1, fail: 0 } : hours < 1250 ? { start: 'slow', power: 1, speed: 1, fail: 0 } : hours < 3000 ? { start: 'slow', power: 0.85, speed: 1, fail: 0 } : hours < 5000 ? { start: 'sometimes_fails', power: 0.7, speed: 0.625, fail: 0.25 } : { start: 'almost_never', power: 0.5, speed: 0.2, fail: 0.8 }; },
+  ageRate: function (o) { return 1 + (o.overheat ? 1.5 : 0) + (o.overRpm ? 1 : 0) + (o.lowOil ? 2 : 0); },
+  hourPerRealMinute: 1,
+  parts: {
+    amc_i4_engine: { name: 'AMC i4 Car Engine', bench: 'Engine Bench', pistons: 4, maxRpm: 7100, safeRpm: 3800, overheat: 4750, topSpeed: 25, wheel: 1, fuelPer02s: [0.1, 0.25, 0.5], cost: { iron_piston: 4, iron_casing: 40, red_dye: 8, iron_chain: 8, small_iron_cogwheel: 1, large_iron_cogwheel: 1, copper_wire: 20, amc_spark_plug: 4, iron_metal_piston_tube: 4, iron_plate: 18 } },
+    amc_3sp_gearbox: { name: 'AMC 3-Speed Manual Gearbox', bench: 'Gearbox Bench', ratios: { R: -2.2, N: 0, 1: 2.5, 2: 1.3, 3: 0.7 }, cost: { iron_chain: 18, small_iron_cogwheel: 4, large_iron_cogwheel: 5, iron_metal_tube: 16, iron_bar: 8, screws: 12 } },
+    stock_oil_tank: { name: 'Stock Lubrication-Oil Tank', bench: 'Seat & Cargo Bench', liters: 4, i4Use: '1 L per 5000 game hours', cost: { anti_corrosive_plastic_sheet: 12, cap: 1, rope: 4 } },
+    stock_i4_fuel_tank: { name: 'Stock i4 Fuel Tank', bench: 'Seat & Cargo Bench', liters: 15, cost: { plastic_sheet: 30, rope: 12, iron_plate: 6 } },
+    leather_seat: { name: 'Leather Seat', bench: 'Seat & Cargo Bench', note: 'keeps comfort stable', cost: { leather: 8, string: 12, cotton_sponge: 20, iron_plate: 2 } },
+    stock_wheel: { name: 'Stock Wheel', bench: 'Wheel Workbench', diameter: 0.9, customRims: 'Custom Bench', cost: { iron_plate: 2, iron_stick: 8, iron_tube: 1, rubber: 18 } },
+    stock_water_coolant: { name: 'Stock Water Coolant', bench: 'Engine Bench', cost: { iron_tube: 24, pump_machine: 1, fan_motor: 1, fan_blade: 4, screws: 8 } },
+    amc_i4_gauge: { name: 'AMC i4-Car Gauge', gauges: ['Tachometer', 'Speedometer (KM/H <-> MPH in Settings)', 'ODO', 'Fuel gauge', 'Heat gauge', 'Analog clock (Gold Watch)'] }
+  },
+  vehicles: { scout_ii: { name: 'Scout II', type: 'SUV' } },
+  keybinds: 'A/D gradual steering | S foot brake only | W accelerator only | U dashboard panel (Starter Engine: press = insert key, hold = crank, release when running, click = off; Car Lights: 2x flashlight brightness, zombies +5% faster while on)'
+};
 /* end data.js */

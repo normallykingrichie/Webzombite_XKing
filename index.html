@@ -46,7 +46,7 @@ button { font: inherit; cursor: pointer; }
 #cross::after { top: 10px; left: 4px; height: 2px; width: 14px; }
 #cross.on-zombie::before, #cross.on-zombie::after { background: #ff4b4b; }
 #info { position: absolute; left: 14px; top: 12px; font-size: .84rem; line-height: 1.5; background: rgba(0,0,0,.42); padding: 8px 12px; border-radius: 12px; }
-#mini { position: absolute; right: 14px; top: 12px; width: 170px; height: 170px; border-radius: 14px; border: 2px solid rgba(255,255,255,.25); background: #1a1814; opacity: .92; }
+#mini { position: absolute; right: 14px; top: 34px; width: 170px; height: 170px; border-radius: 14px; border: 2px solid rgba(255,255,255,.25); background: #1a1814; opacity: .92; }
 #altHint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: rgba(0,0,0,.62); padding: 5px 12px; border-radius: 999px; font-size: .78rem; display: none; align-items: center; gap: 8px; pointer-events: auto; }
 #altHint.on { display: flex; }
 #altHint button { min-height: 26px; padding: 0 10px; font-size: .74rem; }
@@ -55,9 +55,9 @@ button { font: inherit; cursor: pointer; }
 #eat { position: absolute; left: 50%; top: 66%; transform: translateX(-50%); width: 220px; height: 22px; border-radius: 999px; background: rgba(0,0,0,.55); overflow: hidden; display: none; }
 #eat i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ok); }
 #eat span { position: relative; display: block; text-align: center; font-size: .78rem; line-height: 22px; }
-#fps { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); font-size: .72rem; background: rgba(0,0,0,.4); padding: 2px 8px; border-radius: 8px; }
+#fps { position: absolute; right: 14px; top: 8px; z-index: 12; left: auto; transform: none; font-size: .72rem; background: rgba(0,0,0,.4); padding: 2px 8px; border-radius: 8px; }
 #dbg { display: none; position: absolute; left: 14px; top: 130px; margin: 0; font: 600 .72rem ui-monospace, Consolas, monospace; background: rgba(0,0,0,.6); padding: 8px 10px; border-radius: 10px; white-space: pre; }
-#held { position: absolute; right: 9%; bottom: 14%; font-size: 5rem; transform-origin: 80% 90%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); transition: transform .08s; }
+#held { display: none !important; position: absolute; right: 9%; bottom: 14%; font-size: 5rem; transform-origin: 80% 90%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); transition: transform .08s; }
 #held.swing { transform: rotate(-38deg) translate(-18px, -12px); }
 #stats { position: absolute; left: 14px; bottom: 14px; width: 250px; display: flex; flex-direction: column; gap: 5px; }
 .bar { position: relative; height: 18px; border-radius: 9px; background: rgba(0,0,0,.55); overflow: hidden; }
@@ -103,6 +103,19 @@ button { font: inherit; cursor: pointer; }
 .hb { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
 .hb .slot { cursor: pointer; pointer-events: auto; }
 @media (max-width: 800px) { .inv-wrap { grid-template-columns: 1fr; } .box { max-height: none; } }
+/* Mobile / tablet controls (only on touch-only devices; .touch is set by JS) */
+#tc { display: none; position: fixed; inset: 0; z-index: 11; pointer-events: none; user-select: none; -webkit-user-select: none; touch-action: none; }
+#tc.invm #tcJoy, #tc.invm #tcLook, #tc.invm .tcb:not([data-a="bag"]) { display: none; }
+#tcJoy { position: absolute; left: 22px; bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35); pointer-events: auto; touch-action: none; }
+#tcKnob { position: absolute; left: 41px; top: 41px; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#tcLook { position: absolute; right: 0; top: 90px; width: 48%; bottom: 250px; pointer-events: auto; touch-action: none; }
+.tcb { position: absolute; width: 62px; height: 62px; border-radius: 50%; background: rgba(20,20,20,.5); border: 2px solid rgba(255,255,255,.5); color: #fff; font: 700 .78rem sans-serif; display: flex; align-items: center; justify-content: center; pointer-events: auto; touch-action: none; }
+.tcb.big { width: 74px; height: 74px; background: rgba(200,50,40,.55); }
+.tcb.sm { width: 52px; height: 36px; border-radius: 10px; font-size: .7rem; }
+.tcb.on, .tcb.lit { background: rgba(255,255,255,.4); color: #000; }
+body.touch #altHint { display: none !important; }
+body.touch #hotbar { pointer-events: auto; bottom: 8px; }
+body.touch #hotbar .slot { pointer-events: auto; }
 </style>
 </head>
 <body>
@@ -168,7 +181,7 @@ button { font: inherit; cursor: pointer; }
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=10';
+      s.src = files[i] + '?v=19';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }

@@ -16,7 +16,7 @@
     var R = mulberry(20261116), ANISO = Math.min(4, maxAniso || 4);
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
-    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
+    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], sews: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
     var HALF = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = HALF;
 
     var CELL = 8, sgrid = new Map();
@@ -43,7 +43,7 @@
       if (vox.size) {
         var ix0 = Math.floor(x0), ix1 = Math.ceil(x1) - 1, iy0 = Math.max(0, Math.floor(y0)), iy1 = Math.ceil(y1) - 1, iz0 = Math.floor(z0), iz1 = Math.ceil(z1) - 1, ix, iy, iz, key;
         for (ix = ix0; ix <= ix1; ix++) for (iz = iz0; iz <= iz1; iz++) for (iy = iy0; iy <= iy1; iy++) {
-          key = vk(ix, iy, iz); if (vox.has(key)) { found = true; if (iy + 1 > info.top) info.top = iy + 1; if (iy < info.bottom) info.bottom = iy; info.vox = key; }
+          key = vk(ix, iy, iz); var rv0 = vox.get(key); if (rv0 && !(rv0.t >= 44 && rv0.t <= 48)) { found = true; if (iy + 1 > info.top) info.top = iy + 1; if (iy < info.bottom) info.bottom = iy; info.vox = key; }
         }
       }
       return found ? info : null;
@@ -75,7 +75,7 @@
       m.instanceMatrix.needsUpdate = true; return i;
     }
     W.put = put;
-    var box1 = new THREE.BoxGeometry(1, 1, 1), boxB = new THREE.BoxGeometry(1, 1, 1); boxB.translate(0, 0.5, 0);
+    var box1 = new THREE.BoxGeometry(1, 1, 1), boxB = new THREE.BoxGeometry(1, 1, 1); boxB.translate(0, 0.5, 0); var boxLow = new THREE.BoxGeometry(1, 0.22, 1); boxLow.translate(0, -0.39, 0);
     function lam(c, o) { var p = { color: c }; for (var k in (o || {})) p[k] = o[k]; return new THREE.MeshLambertMaterial(p); }
 
     /* ---------------- Textures ---------------- */
@@ -196,14 +196,24 @@
         g.fillStyle = accent; g.fillRect(0, 100, w, 28); g.fillStyle = '#000'; g.beginPath(); g.arc(64, 60, 14, 0, 6.3); g.fill();
       });
     }
+    function glyphTex(base, glyph, txt) {
+      return canvasTex(128, 128, function (g, w, h) {
+        g.fillStyle = base; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6);
+        g.font = '64px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, w / 2, h / 2 - (txt ? 8 : 0));
+        if (txt) { g.font = 'bold 22px sans-serif'; g.fillStyle = '#fff'; g.fillText(txt, w / 2, h - 18); }
+      });
+    }
+    var glassTex = canvasTex(64, 64, function (g, w, h) { g.fillStyle = 'rgba(150,200,255,0.25)'; g.fillRect(0, 0, w, h); g.strokeStyle = '#2f7ff0'; g.lineWidth = 6; g.strokeRect(3, 3, w - 6, h - 6); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(10, 10, 8, 20); });
+    var cactBlockTex = canvasTex(64, 64, function (g, w, h) { var r = mulberry(77); g.fillStyle = '#4f9a46'; g.fillRect(0, 0, w, h); g.fillStyle = '#2f6a2c'; for (var x = 4; x < w; x += 12) g.fillRect(x, 0, 3, h); g.fillStyle = '#f2f2c0'; for (var i = 0; i < 40; i++) g.fillRect(r() * w, r() * h, 2, 2); });
     var houseWallTex = canvasTex(128, 128, function (g, w, h) {
       var r = mulberry(9); g.fillStyle = '#f2eee6'; g.fillRect(0, 0, w, h);
       for (var y = 0; y < h; y += 16) { g.fillStyle = 'rgba(0,0,0,.1)'; g.fillRect(0, y, w, 2); g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(0, y + 2, w, 2); }
       for (var i = 0; i < 360; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.12)'; g.fillRect(r() * w, r() * h, 2 + r() * 5, 2 + r() * 3); }
     });
     var winTex = canvasTex(64, 64, function (g, w, h) {
-      g.fillStyle = '#f2ede2'; g.fillRect(0, 0, w, h); g.fillStyle = '#4a6b82'; g.fillRect(7, 7, w - 14, h - 14);
-      g.fillStyle = 'rgba(210,240,255,.32)'; g.fillRect(10, 10, 18, h - 22);
+      g.fillStyle = '#e5dfd2'; g.fillRect(0, 0, w, h); g.clearRect(7, 7, w - 14, h - 14);
+      g.fillStyle = 'rgba(150,200,235,0.30)'; g.fillRect(7, 7, w - 14, h - 14);
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(10, 10); g.lineTo(26, 10); g.lineTo(10, 34); g.closePath(); g.fill();
       g.fillStyle = '#e5dfd2'; g.fillRect(w / 2 - 2, 5, 4, h - 10); g.fillRect(5, h / 2 - 2, w - 10, 4);
     });
     var barkTex = canvasTex(64, 64, function (g, w, h) {
@@ -226,7 +236,7 @@
 
     /* ground planes per biome: city (centre + south), desert (east), jungle (west), snow (north) */
     function biomeOf(x, z) { if (z < -500) return 'snow'; if (x > 500) return 'desert'; if (x < -500) return 'jungle'; return 'city'; }
-    W.biomeOf = biomeOf;
+    W.biomeOf = biomeOf; W.onRoad = function (x, z, m) { return onRoad(x, z, m); };
     (function () {
       var E = HALF + 100, defs = [
         ['city', -500, 500, -500, E, groundTexMake('#5c6142', 'rgba(65,55,38,.45)', 'rgba(110,125,70,.7)', 5, 1)],
@@ -237,6 +247,29 @@
         var w = d[2] - d[1], h = d[4] - d[3], m = d[5]; m.repeat.set(w / 8.5, h / 8.5);
         var pm = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: m })); pm.rotation.x = -Math.PI / 2; pm.position.set((d[1] + d[2]) / 2, 0, (d[3] + d[4]) / 2); scene.add(pm);
       });
+    })();
+    (function () {
+      /* gradient strips: 5 m fading out of biome A + 5 m fading into biome B; sandy beach along the map edge */
+      var E = HALF + 100, COL = { city: '#5c6142', desert: '#d6b676', jungle: '#2f5a2a', snow: '#e6eef3', beach: '#e3d29a' };
+      function strip(c1, c2, x0, x1, z0, z1, alongX, alpha) {
+        var cv = document.createElement('canvas'); cv.width = alongX ? 64 : 4; cv.height = alongX ? 4 : 64; var g = cv.getContext('2d'), gr = alongX ? g.createLinearGradient(0, 0, 64, 0) : g.createLinearGradient(0, 0, 0, 64);
+        gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
+        var tx = new THREE.CanvasTexture(cv); tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
+        var m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshLambertMaterial({ map: tx, transparent: !!alpha, depthWrite: !alpha })); m.rotation.x = -Math.PI / 2; m.position.set((x0 + x1) / 2, alpha ? 0.013 : 0.012, (z0 + z1) / 2); scene.add(m);
+      }
+      /* vertical strips (gradient runs along x) */
+      strip(COL.city, COL.desert, 495, 505, -500, E, true); strip(COL.jungle, COL.city, -505, -495, -500, E, true);
+      /* snow border (gradient runs along z: south = other biome, north = snow). rotation.z swaps direction, so give colours north->south */
+      strip(COL.snow, COL.jungle, -E, -500, -505, -495, false); strip(COL.snow, COL.city, -500, 500, -505, -495, false); strip(COL.snow, COL.desert, 500, E, -505, -495, false);
+      /* beach: solid sand band + 10 m fade inwards */
+      var B = HALF - 60, F = 10;
+      [[-E, E, HALF - 60, E], [-E, E, -E, -HALF + 60], [HALF - 60, E, -E, E], [-E, -HALF + 60, -E, E]].forEach(function (q, qi) {
+        var sm = new THREE.Mesh(new THREE.PlaneGeometry(q[1] - q[0], q[3] - q[2]), new THREE.MeshLambertMaterial({ color: 0xe3d29a })); sm.rotation.x = -Math.PI / 2; sm.position.set((q[0] + q[1]) / 2, 0.014, (q[2] + q[3]) / 2); scene.add(sm);
+      });
+      var T0 = 'rgba(227,210,154,0)', T1 = 'rgba(227,210,154,1)', HB = HALF - 60;
+      strip(T0, T1, -E, E, HB - F, HB, false, true); /* south edge: fade from inside (north) to sand (south) */
+      strip(T1, T0, -E, E, -HB, -HB + F, false, true); /* north edge */
+      strip(T0, T1, HB - F, HB, -E, E, true, true); strip(T1, T0, -HB, -HB + F, -E, E, true, true);
     })();
     (function () {
       var pos = [], norm = [], uv = [], idx = [];
@@ -274,7 +307,7 @@
       var k = b === 'city' ? 1 : 0.8; return d < 160 * k ? 'down' : d < 340 * k ? 'mid' : 'out';
     }
 
-    var walls = inst(box1, lam(0xffffff, { map: houseWallTex }), 56000, false, true), winM = inst(box1, lam(0xffffff, { map: winTex }), 20000, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
+    var walls = inst(box1, lam(0xffffff, { map: houseWallTex }), 130000, false, true), winM = inst(box1, (W.winMat = new THREE.MeshLambertMaterial({ map: winTex, transparent: true, depthWrite: false })), 20000, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
     var CH = 20; W.CH = CH; W.chunks = new Map();
     W.chunkOf = function (x, y, z) { return [Math.floor(x / CH), Math.floor(y / CH), Math.floor(z / CH)]; };
     function chunkAt(cx, cz) { var k = ck(cx, cz), c = W.chunks.get(k); if (!c) { c = { cx: cx, cz: cz, g: new THREE.Group(), vis: true }; c.g.userData.c = c; scene.add(c.g); W.chunks.set(k, c); } return c; }
@@ -286,7 +319,7 @@
       var b = bk.pos.length / 3; bk.pos.push(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2], p3[0], p3[1], p3[2]);
       for (var i = 0; i < 4; i++) bk.norm.push(nx, ny, nz); bk.uv.push(0, 0, ur, 0, ur, vr, 0, vr); bk.idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
     }
-    function tallBuilding(x0, x1, z0, z1, h) {
+    function tallSolid(x0, x1, z0, z1, h) {
       var w = x1 - x0, d = z1 - z0, bk = getFB(curBiome === 'desert' ? 6 + ((R() * 3) | 0) : curBiome === 'snow' ? 9 + ((R() * 3) | 0) : curBiome === 'jungle' ? 12 + ((R() * 3) | 0) : ((R() * 6) | 0), (x0 + x1) / 2, (z0 + z1) / 2), uw = w / 8, ud = d / 8, vh = h / 8;
       pushSide(bk, [x0, 0, z1], [x1, 0, z1], [x1, h, z1], [x0, h, z1], 0, 0, 1, uw, vh);
       pushSide(bk, [x1, 0, z0], [x0, 0, z0], [x0, h, z0], [x1, h, z0], 0, 0, -1, uw, vh);
@@ -299,18 +332,72 @@
       addBox(x0, x1, 0, h, z0, z1, false); occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#555' });
       if (R() < 0.6) put(walls, rr(x0 + 2, x1 - 2), h + 1, rr(z0 + 2, z1 - 2), 3, 2, 3, 0, 0x6b7075);
     }
+    /* [BUILDINGS] Enterable towers: door on the south wall, a floor slab + staircase per level (flights alternate between the two long walls), one furniture per floor, loot spawned per floor in spawnNature. */
+    W.floors = []; W.indoor = [];
+    function tallBuilding(x0, x1, z0, z1, h) {
+      var w = x1 - x0, d = z1 - z0; if (w < 12 || d < 10) { tallSolid(x0, x1, z0, z1, h); return; }
+      var FH = 3.6, t = 0.4, fl = Math.max(3, Math.min(12, Math.round(h / FH))); h = fl * FH;
+      var bk = getFB(curBiome === 'desert' ? 6 + ((R() * 3) | 0) : curBiome === 'snow' ? 9 + ((R() * 3) | 0) : curBiome === 'jungle' ? 12 + ((R() * 3) | 0) : ((R() * 6) | 0), (x0 + x1) / 2, (z0 + z1) / 2), cxm = (x0 + x1) / 2, czm = (z0 + z1) / 2, zn = zoneOf(cxm, czm);
+      function fZ(zp, xa, xb, ya, yb, nz) { if (xb - xa < 0.05 || yb - ya < 0.05) return; var u = (xb - xa) / 8, v = (yb - ya) / 8; if (nz > 0) pushSide(bk, [xa, ya, zp], [xb, ya, zp], [xb, yb, zp], [xa, yb, zp], 0, 0, 1, u, v); else pushSide(bk, [xb, ya, zp], [xa, ya, zp], [xa, yb, zp], [xb, yb, zp], 0, 0, -1, u, v); }
+      function fX(xp, za, zb, ya, yb, nx) { var u = (zb - za) / 8, v = (yb - ya) / 8; if (nx > 0) pushSide(bk, [xp, ya, zb], [xp, ya, za], [xp, yb, za], [xp, yb, zb], 1, 0, 0, u, v); else pushSide(bk, [xp, ya, za], [xp, ya, zb], [xp, yb, zb], [xp, yb, za], -1, 0, 0, u, v); }
+      var g = 1.2, dxc = rr(x0 + 4, x1 - 4), DH = 2.7;
+      fZ(z0, x0, x1, 0, h, -1); fZ(z0 + t, x0, x1, 0, h, 1); fX(x0, z0, z1, 0, h, -1); fX(x0 + t, z0 + t, z1 - t, 0, h, 1); fX(x1, z0, z1, 0, h, 1); fX(x1 - t, z0 + t, z1 - t, 0, h, -1);
+      [[z1, 1], [z1 - t, -1]].forEach(function (q) { fZ(q[0], x0, dxc - g, 0, h, q[1]); fZ(q[0], dxc + g, x1, 0, h, q[1]); fZ(q[0], dxc - g, dxc + g, DH, h, q[1]); });
+      var rc = new THREE.Color(pick(roofCols)), rbk = getRB(cxm, czm), rb = rbk.pos.length / 3;
+      rbk.pos.push(x0, h, z1, x1, h, z1, x1, h, z0, x0, h, z0);
+      for (var i = 0; i < 4; i++) { rbk.norm.push(0, 1, 0); rbk.col.push(rc.r, rc.g, rc.b); }
+      rbk.idx.push(rb, rb + 1, rb + 2, rb, rb + 2, rb + 3);
+      addBox(x0, x1, 0, h, z0, z0 + t, false); addBox(x0, x0 + t, 0, h, z0, z1, false); addBox(x1 - t, x1, 0, h, z0, z1, false);
+      addBox(x0, dxc - g, 0, h, z1 - t, z1, false); addBox(dxc + g, x1, 0, h, z1 - t, z1, false); addBox(dxc - g, dxc + g, DH, h, z1 - t, z1, false);
+      occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#555' });
+      var SC = 0x9a968c, RUN = 0.85, NST = 8, RISE = FH / NST, SW = 2.2, flights = [];
+      for (var k = 0; k < fl - 1; k++) {
+        var up = k % 2 === 0, fx0 = up ? x0 + t : x1 - t - RUN * NST, fz0 = up ? z0 + t : z1 - t - SW;
+        flights.push({ x0: fx0, x1: fx0 + RUN * NST, z0: fz0, z1: fz0 + SW, up: up });
+        for (var si = 0; si < NST; si++) { var sx = up ? fx0 + si * RUN : fx0 + (NST - 1 - si) * RUN; wallSeg(sx, sx + RUN, fz0, fz0 + SW, k * FH, k * FH + RISE * (si + 1), 0x8c857a); }
+      }
+      wallSeg(x0 + t, x1 - t, z0 + t, z1 - t, 0, 0.06, 0x8a857a);
+      for (var k2 = 1; k2 <= fl; k2++) {
+        var y = k2 * FH, fh = flights[k2 - 1];
+        if (k2 === fl || !fh) { wallSeg(x0 + t, x1 - t, z0 + t, z1 - t, y - 0.3, y, SC); continue; }
+        var hx0 = fh.x0 - 0.05, hx1 = fh.x1, hz0 = fh.z0 - 0.05, hz1 = fh.z1 + 0.05;
+        wallSeg(x0 + t, x1 - t, z0 + t, Math.max(z0 + t, hz0), y - 0.3, y, SC); wallSeg(x0 + t, x1 - t, Math.min(z1 - t, hz1), z1 - t, y - 0.3, y, SC);
+        wallSeg(x0 + t, Math.max(x0 + t, hx0), hz0, hz1, y - 0.3, y, SC); wallSeg(Math.min(x1 - t, hx1), x1 - t, hz0, hz1, y - 0.3, y, SC);
+      }
+      for (var k3 = 0; k3 < fl; k3++) {
+        var yb = k3 * FH, av = []; if (flights[k3]) av.push([flights[k3].x0, flights[k3].x1, flights[k3].z0, flights[k3].z1]); if (flights[k3 - 1]) av.push([flights[k3 - 1].x0, flights[k3 - 1].x1, flights[k3 - 1].z0, flights[k3 - 1].z1]);
+        if (k3 === 0) av.push([dxc - 3, dxc + 3, z1 - 3, z1]);
+        W.floors.push({ x0: x0 + t, x1: x1 - t, z0: z0 + t, z1: z1 - t, y: yb, k: k3, fl: fl, zone: zn, av: av });
+        for (var ta = 0; ta < 14; ta++) {
+          var fx = rr(x0 + 2.2, x1 - 2.2), fz = rr(z0 + 1.5, z1 - 1.5), bad = false; av.forEach(function (r) { if (fx > r[0] - 2.2 && fx < r[1] + 2.2 && fz > r[2] - 1.6 && fz < r[3] + 1.6) bad = true; }); if (bad) continue;
+          if (R() < 0.5) addBed(fx, fz, R() < 0.5, yb); else addCouch(fx, fz, R() < 0.5, yb); break;
+        }
+      }
+    }
     function wallSeg(x0, x1, z0, z1, y0, y1, col) { put(walls, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, 0, col); addBox(x0, x1, y0, y1, z0, z1, false); }
 
     var bedM = inst(box1, lam(0xffffff, { map: houseWallTex }), 6000, false, true), couchM = inst(box1, lam(0xffffff, { map: houseWallTex }), 6000, false, true);
-    function addBed(x, z, clean) {
-      put(bedM, x, 0.3, z, 2.0, 0.6, 1.0, 0, clean ? 0xe5dfd0 : 0x6e5b4d); put(bedM, x - 0.9, 0.65, z, 0.18, 0.5, 1.0, 0, clean ? 0xc89562 : 0x4a3d33);
-      addBox(x - 1.0, x + 1.0, 0, 0.6, z - 0.5, z + 0.5, false); addEnt({ k: 'bed', x: x, z: z, y: 0, r: 1.3, h: 0.8, clean: clean, alive: true, dyn: false });
+    function addBed(x, z, clean, yb) {
+      yb = yb || 0; put(bedM, x, yb + 0.3, z, 2.0, 0.6, 1.0, 0, clean ? 0xe5dfd0 : 0x6e5b4d); put(bedM, x - 0.9, yb + 0.65, z, 0.18, 0.5, 1.0, 0, clean ? 0xc89562 : 0x4a3d33);
+      addBox(x - 1.0, x + 1.0, yb, yb + 0.6, z - 0.5, z + 0.5, false); addEnt({ k: 'bed', x: x, z: z, y: yb, r: 1.3, h: 0.8, clean: clean, alive: true, dyn: false });
     }
-    function addCouch(x, z, clean) {
-      put(couchM, x, 0.3, z, 1.9, 0.6, 0.9, 0, clean ? 0x7b996d : 0x5c4f43); put(couchM, x, 0.75, z - 0.38, 1.9, 0.6, 0.2, 0, clean ? 0x5f7d52 : 0x453b31);
-      addBox(x - 0.95, x + 0.95, 0, 0.6, z - 0.45, z + 0.45, false); addEnt({ k: 'couch', x: x, z: z, y: 0, r: 1.15, h: 0.9, clean: clean, alive: true, dyn: false });
+    function addCouch(x, z, clean, yb) {
+      yb = yb || 0; put(couchM, x, yb + 0.3, z, 1.9, 0.6, 0.9, 0, clean ? 0x7b996d : 0x5c4f43); put(couchM, x, yb + 0.75, z - 0.38, 1.9, 0.6, 0.2, 0, clean ? 0x5f7d52 : 0x453b31);
+      addBox(x - 0.95, x + 0.95, yb, yb + 0.6, z - 0.45, z + 0.45, false); addEnt({ k: 'couch', x: x, z: z, y: yb, r: 1.15, h: 0.9, clean: clean, alive: true, dyn: false });
     }
 
+    /* wall with real glass window openings (the pane is a see-through glass instance, the wall has real holes) */
+    function wallWin(alongX, a0, a1, c0, c1, centers, col, H) {
+      var cur = a0, cm = (c0 + c1) / 2, WH = 0.75;
+      function seg(u0, u1, y0, y1, cl) { if (u1 - u0 < 0.01) return; if (alongX) wallSeg(u0, u1, c0, c1, y0, y1, cl); else wallSeg(c0, c1, u0, u1, y0, y1, cl); }
+      centers.forEach(function (c) {
+        seg(cur, c - WH, 0, H, col); seg(c - WH, c + WH, 0, 1.1, col); seg(c - WH, c + WH, 2.2, H, col);
+        if (alongX) { put(winM, c, 1.65, cm, 1.5, 1.1, 0.1, 0, null); addBox(c - WH, c + WH, 1.1, 2.2, cm - 0.05, cm + 0.05, false); }
+        else { put(winM, cm, 1.65, c, 0.1, 1.1, 1.5, 0, null); addBox(cm - 0.05, cm + 0.05, 1.1, 2.2, c - WH, c + WH, false); }
+        cur = c + WH;
+      });
+      seg(cur, a1, 0, H, col);
+    }
     var HOUSE_COLS = [0xe8dcc4, 0xd47a66, 0x88b394, 0x7da4c4, 0xdeb664, 0xd19464, 0xcfd4d9, 0xba8b5e];
     var HOUSE_ROOFS = [0x8a4b3e, 0x526575, 0x6b6358, 0x546b4d, 0x7a5b40];
     function house(px, pz, face, zn) {
@@ -320,18 +407,19 @@
       var dx = (x0 + x1) / 2 + rr(-hw / 4, hw / 4), dz = (z0 + z1) / 2 + rr(-hd / 4, hd / 4), gap = 1.0;
       [[z0, 'n'], [z1, 's']].forEach(function (s) {
         if (face === s[1]) { wallSeg(x0, dx - gap, s[0] - t / 2, s[0] + t / 2, 0, H, col); wallSeg(dx + gap, x1, s[0] - t / 2, s[0] + t / 2, 0, H, col); wallSeg(dx - gap, dx + gap, s[0] - t / 2, s[0] + t / 2, 2.4, H, roofCol); }
-        else { wallSeg(x0, x1, s[0] - t / 2, s[0] + t / 2, 0, H, col); put(winM, (x0 + x1) / 2 - hw * 0.25, 1.65, s[0], 1.5, 1.1, t + 0.06, 0, null); put(winM, (x0 + x1) / 2 + hw * 0.25, 1.65, s[0], 1.5, 1.1, t + 0.06, 0, null); }
+        else wallWin(true, x0, x1, s[0] - t / 2, s[0] + t / 2, [(x0 + x1) / 2 - hw * 0.25, (x0 + x1) / 2 + hw * 0.25], col, H);
       });
       [[x0, 'w'], [x1, 'e']].forEach(function (s) {
         if (face === s[1]) { wallSeg(s[0] - t / 2, s[0] + t / 2, z0 + t / 2, dz - gap, 0, H, col); wallSeg(s[0] - t / 2, s[0] + t / 2, dz + gap, z1 - t / 2, 0, H, col); wallSeg(s[0] - t / 2, s[0] + t / 2, dz - gap, dz + gap, 2.4, H, roofCol); }
-        else { wallSeg(s[0] - t / 2, s[0] + t / 2, z0 + t / 2, z1 - t / 2, 0, H, col); put(winM, s[0], 1.65, (z0 + z1) / 2, t + 0.06, 1.1, 1.5, 0, null); }
+        else wallWin(false, z0 + t / 2, z1 - t / 2, s[0] - t / 2, s[0] + t / 2, [(z0 + z1) / 2], col, H);
       });
       wallSeg(x0 - 0.15, x1 + 0.15, z0 - 0.15, z1 + 0.15, H, H + 0.42, roofCol);
       var cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, back = face === 'n' ? 1 : face === 's' ? -1 : 0, backx = face === 'w' ? 1 : face === 'e' ? -1 : 0;
       var bx = cx + (backx ? backx * (hw / 2 - 1.6) : -hw / 4), bz = cz + (back ? back * (hd / 2 - 1.2) : -hd / 4); addBed(bx, bz, R() < 0.5);
       var kx = cx + (backx ? backx * (hw / 2 - 1.2) : hw / 4), kz = cz + (back ? back * (hd / 2 - 1.2) : hd / 4) + (backx ? 3 : 0);
       if (backx || back) addCouch(kx + (backx ? 0 : 1), kz, R() < 0.5);
-      if (R() < 0.6) { var crx = cx + rr(-hw / 4, hw / 4), crz = cz + rr(-hd / 5, hd / 5); if (Math.hypot(crx - bx, crz - bz) > 1.8) addCrate(crx, crz, false, null, zn === 'mid' && R() < 0.5 ? 2 : 1); }
+      for (var ci = 0; ci < 2; ci++) { if (ci === 1 && R() < 0.6) continue; for (var ta = 0; ta < 10; ta++) { var crx = cx + rr(-hw / 2 + 1.5, hw / 2 - 1.5), crz = cz + rr(-hd / 2 + 1.5, hd / 2 - 1.5); if (Math.hypot(crx - bx, crz - bz) > 2.2 && Math.hypot(crx - kx, crz - kz) > 2 && Math.hypot(crx - dx, crz - (face === 's' ? z1 : face === 'n' ? z0 : dz)) > 2.2 && !W.hit(crx - 0.7, crx + 0.7, 0.1, 1.0, crz - 0.7, crz + 0.7)) { addCrate(crx, crz, false, null, zn === 'mid' && R() < 0.5 ? 2 : 1); break; } } }
+      for (var ia = 0; ia < 1; ia++) { var ix2 = cx + rr(-hw / 2 + 1.8, hw / 2 - 1.8), iz2 = cz + rr(-hd / 2 + 1.8, hd / 2 - 1.8); if (Math.hypot(ix2 - bx, iz2 - bz) > 2.5 && Math.hypot(ix2 - kx, iz2 - kz) > 2.5) W.indoor.push({ x: ix2, z: iz2, y: 0, zone: zn }); }
     }
 
     var egrid = new Map();
@@ -347,16 +435,85 @@
 
     var trunkG = new THREE.CylinderGeometry(0.22, 0.34, 1, 7); trunkG.translate(0, 0.5, 0);
     var crownG = new THREE.ConeGeometry(1, 1, 8); crownG.translate(0, 0.5, 0);
-    var trunkM = inst(trunkG, lam(0xffffff, { map: barkTex }), 5200, true, false), crownM = inst(crownG, lam(0xffffff, { map: leafTex }), 5200, true, true);
+    var cactG = new THREE.CylinderGeometry(0.26, 0.3, 1, 8); cactG.translate(0, 0.5, 0);
+    var TCAP = 8000;
+    var trunkM = inst(trunkG, lam(0xffffff, { map: barkTex }), TCAP, true, false), crownM = inst(crownG, lam(0xffffff, { map: leafTex }), TCAP, true, true);
+    var crown2M = inst(crownG, lam(0xffffff, { map: leafTex }), TCAP, true, true), cactM = inst(cactG, lam(0x4f9a46), 3000, true, false), armM = inst(boxB, lam(0x4f9a46), 6000, true, false);
+    var vineM = inst(boxB, lam(0x2f7a2a), 24000, true, false), frondM = inst(box1, lam(0x4a8a30), 6000, true, false);
+    /* 2D leaf cards around the crown (oval green leaf with a dark midrib). Extra Leaves = a second set at diagonal angles. Dynamic Leaves = sway in the vertex shader. */
+    var LN = 40, LN2 = 20, leafTex2 = canvasTex(64, 64, function (g, w, h) {
+      g.clearRect(0, 0, w, h); g.fillStyle = '#58a845'; g.beginPath(); g.ellipse(32, 32, 14, 28, 0, 0, 6.3); g.fill();
+      g.strokeStyle = '#2b6b2a'; g.lineWidth = 2.5; g.stroke(); g.beginPath(); g.moveTo(32, 5); g.lineTo(32, 59); g.stroke(); g.lineWidth = 1.5;
+      for (var i = 0; i < 4; i++) { var yy = 16 + i * 10; g.beginPath(); g.moveTo(32, yy + 8); g.lineTo(21, yy); g.moveTo(32, yy + 8); g.lineTo(43, yy); g.stroke(); }
+    });
+    W.leafU = { uTime: { value: 0 }, uAmp: { value: 0 } };
+    function leafMat() {
+      var m = new THREE.MeshLambertMaterial({ map: leafTex2, alphaTest: 0.5, side: THREE.DoubleSide });
+      m.onBeforeCompile = function (sh) {
+        sh.uniforms.uTime = W.leafU.uTime; sh.uniforms.uAmp = W.leafU.uAmp;
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uAmp;').replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat ph = uTime * 2.2 + instanceMatrix[3].x * 0.8 + instanceMatrix[3].z * 0.6;\ntransformed.x += sin(ph) * uAmp * (position.y + 0.5);\ntransformed.z += cos(ph * 0.8) * uAmp * (position.y + 0.5);\n#endif');
+      };
+      return m;
+    }
+    var leafM = inst(new THREE.PlaneGeometry(1, 1), leafMat(), TCAP * LN, true, true), leaf2M = inst(new THREE.PlaneGeometry(1, 1), leafMat(), TCAP * LN2, true, true);
+    leafM.userData.n = LN; leaf2M.userData.n = LN2; leaf2M.visible = false; W.leaf2M = leaf2M; W.leafTex = leafTex2;
+    [leafM, leaf2M].forEach(function (m) { m.castShadow = true; m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: leafTex2, alphaTest: 0.5, side: THREE.DoubleSide }); }); /* shadows follow the leaf shape -> holes between leaves */
+    var _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _le = new THREE.Euler(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3(), _lc = new THREE.Color();
+    function leafCards(mesh, i, cx, cz, by, hgt, rad, sz, col, seed, diag) {
+      var r = mulberry(seed * 31 + (diag ? 7 : 3));
+      var LN = mesh.userData.n;
+      for (var j = 0; j < LN; j++) {
+        var a = r() * 6.2832, f = r() * 0.9, rr2 = rad * (1 - f) * (diag ? 0.55 + r() * 0.35 : 0.98);
+        _lp.set(cx + Math.cos(a) * rr2, by + f * hgt, cz + Math.sin(a) * rr2);
+        _le.set(diag ? (r() - 0.5) * 1.6 : 0.35 + r() * 0.5, -a + 1.5708, diag ? (r() - 0.5) * 1.8 : 0, 'YXZ'); _le.set(diag ? (r() - 0.5) * 1.6 : -0.9 - r() * 0.4, -a + 1.5708 + (diag ? 0.9 : 0), diag ? (r() - 0.5) * 1.8 : 0, 'YXZ');
+        _lq.setFromEuler(_le); _ls.set(sz * (0.8 + r() * 0.5), sz * (1.3 + r() * 0.6), 1);
+        _lm.compose(_lp, _lq, _ls); mesh.setMatrixAt(i * LN + j, _lm); _lc.setHex(col); _lc.offsetHSL(0, 0, (r() - 0.5) * 0.12); mesh.setColorAt(i * LN + j, _lc);
+      }
+      mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; mesh.count = Math.max(mesh.count, (i + 1) * LN);
+    }
+    function hideLeaves(i) { _lm.makeScale(0.0001, 0.0001, 0.0001); var j; for (j = 0; j < LN; j++) leafM.setMatrixAt(i * LN + j, _lm); for (j = 0; j < LN2; j++) leaf2M.setMatrixAt(i * LN2 + j, _lm); leafM.instanceMatrix.needsUpdate = true; leaf2M.instanceMatrix.needsUpdate = true; }
+    function treeLeaves(t) {
+      var i = t.ix, s = t.s, th = t.th, k = t.kind, col = k === 'snow' ? 0x9fd09a : k === 'jungle' ? 0xb8f0a8 : 0xffffff;
+      if (k === 'cactus' || k === 'palm') return;
+      var by = k === 'snow' ? th * 0.35 : k === 'jungle' ? th * 0.5 : th * 0.62, hh = k === 'snow' ? 3.6 * s : k === 'jungle' ? 3.8 * s : 3.4 * s, rad = k === 'snow' ? 1.5 * s : k === 'jungle' ? 1.95 * s : 1.3 * s, sz = (k === 'jungle' ? 0.62 : 0.52) * Math.max(0.8, s);
+      leafCards(leafM, i, t.x, t.z, by, hh, rad * 1.1, sz, col, i, false); leafCards(leaf2M, i, t.x, t.z, by, hh, rad * 1.1, sz, col, i, true);
+    }
+    var TMESH = [trunkM, crownM, crown2M, cactM, armM, vineM, frondM];
     function treeMat(t, on) {
-      if (!on) { put(trunkM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix); put(crownM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix); return; }
-      put(trunkM, t.x, 0, t.z, 1.2 * t.s, t.th, 1.2 * t.s, t.ry, null, t.ix); put(crownM, t.x, t.th * 0.62, t.z, 2.6 * t.s, 3.4 * t.s, 2.6 * t.s, t.ry, t.cc, t.ix);
+      var i = t.ix, s = t.s, th = t.th, x = t.x, z = t.z, k, j;
+      if (!on) { hideLeaves(i); put(trunkM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(crownM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(crown2M, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(cactM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i);
+        for (j = 0; j < 2; j++) put(armM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 2 * i + j); for (j = 0; j < 3; j++) put(vineM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 3 * i + j); for (j = 0; j < 5; j++) put(frondM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 5 * i + j); return; }
+      k = t.kind; treeLeaves(t);
+      if (k === 'cactus') {
+        put(cactM, x, 0, z, 1.1 * s, th, 1.1 * s, 0, null, i);
+        put(armM, x + 0.5 * s, th * 0.38, z, 0.2 * s, th * 0.42, 0.2 * s, 0, null, 2 * i); put(armM, x - 0.45 * s, th * 0.5, z, 0.2 * s, th * 0.34, 0.2 * s, 0, null, 2 * i + 1); return;
+      }
+      if (k === 'palm') {
+        put(trunkM, x, 0, z, 0.9 * s, th * 1.25, 0.9 * s, t.ry, null, i);
+        for (j = 0; j < 5; j++) put(frondM, x, th * 1.25, z, 3.0 * s, 0.07, 0.55 * s, t.ry + j * 1.2566, null, 5 * i + j); return;
+      }
+      if (k === 'snow') {
+        put(trunkM, x, 0, z, 1.2 * s, th, 1.2 * s, t.ry, null, i);
+        put(crownM, x, th * 0.35, z, 2.4 * s, 2.6 * s, 2.4 * s, t.ry, t.cc, i); put(crown2M, x, th * 0.35 + 1.7 * s, z, 1.6 * s, 2.3 * s, 1.6 * s, t.ry, t.cc, i); return;
+      }
+      if (k === 'jungle') {
+        put(trunkM, x, 0, z, 1.5 * s, th, 1.5 * s, t.ry, null, i); put(crownM, x, th * 0.5, z, 2.0 * s, 3.6 * s, 2.0 * s, t.ry, t.cc, i);
+        for (j = 0; j < 3; j++) { var an = t.ry + j * 2.1; put(vineM, x + Math.cos(an) * 1.5 * s, th * 0.12, z + Math.sin(an) * 1.5 * s, 0.1, th * 0.45, 0.1, 0, null, 3 * i + j); } return;
+      }
+      put(trunkM, x, 0, z, 1.2 * s, th, 1.2 * s, t.ry, null, i); put(crownM, x, th * 0.62, z, 1.3 * s, 3.0 * s, 1.3 * s, t.ry, t.cc, i);
     }
     W.setTree = function (t, on) { treeMat(t, on); t.box.on = on; t.alive = on; };
-    function addTree(x, z, rng, bm) {
-      var s = Math.pow(rng(), 1.6) * 1.5 + 0.7, th = 3.0 * s;
-      var t = { k: 'tree', idx: W.trees.length, x: x, z: z, y: 0, s: s, th: th, ry: rng() * 6.28, r: 0.55 * s + 0.15, h: th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s), hp: 0, yield: Math.round(3 + 5.2 * s * s), given: 0, respawn: 0, cc: pick(bm === 'snow' ? [0xe8f0f5, 0xd5e2ea, 0xc6d8e0] : bm === 'jungle' ? [0x2f6b30, 0x3a7d35, 0x25602a, 0x4a8a3a] : bm === 'desert' ? [0x8a8a4a, 0x9a9055, 0x7d7d45] : [0x4c6e3d, 0x577c43, 0x426137, 0x677a43, 0x736d43], rng) };
-      t.hp = t.max; t.ix = trunkM.count; trunkM.count++; crownM.count++; t.box = addBox(x - 0.3 * s, x + 0.3 * s, 0, th, z - 0.3 * s, z + 0.3 * s, true);
+    /* [TREE TAG] plain: normal. jungle: lush, hanging vines, more logs, 1.1-1.5x tougher. desert: cactus (0.5-0.8x HP, drops Cactus). snow: dark 2-tier pine (1.2-1.4x HP, Pine Log). beach (map edge): palm (Palm Log). */
+    function addTree(x, z, rng, bm, kindIn) {
+      var kind = kindIn || 'plain', s = Math.pow(rng(), 1.6) * 1.5 + 0.7, th = 3.0 * s, hpm = 1, ym = 1, drop = 'wood', leafM = 0.5;
+      if (kind === 'jungle') { hpm = rr(1.1, 1.5, rng); ym = 1.5; leafM = 0.8; s = s * 1.1; th = 3.0 * s; }
+      else if (kind === 'cactus') { hpm = rr(0.5, 0.8, rng); ym = 0.8; drop = 'cactus'; leafM = 0; s = 0.7 + rng() * 0.6; th = 1.6 + rng() * 1.3; }
+      else if (kind === 'snow') { hpm = rr(1.2, 1.4, rng); ym = 1.1; drop = 'pine_log'; }
+      else if (kind === 'palm') { hpm = 1.1; ym = 1.1; drop = 'palm_log'; th = 3.2 * s; }
+      var cols = kind === 'snow' ? [0x1f4d2e, 0x255a33, 0x1b4429] : kind === 'jungle' ? [0x2f6b30, 0x3a7d35, 0x25602a, 0x1f5a28] : [0x4c6e3d, 0x577c43, 0x426137, 0x677a43, 0x736d43];
+      var t = { k: 'tree', kind: kind, drop: drop, leaf: leafM, idx: W.trees.length, x: x, z: z, y: 0, s: s, th: th, ry: rng() * 6.28, r: (kind === 'cactus' ? 0.4 : 0.55 * s + 0.15), h: kind === 'cactus' ? th : th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s * hpm), hp: 0, yield: Math.round((3 + 5.2 * s * s) * ym), given: 0, respawn: 0, cc: pick(cols, rng) };
+      t.hp = t.max; t.ix = trunkM.count; TMESH.forEach(function (m) { if (m === trunkM || m === crownM || m === crown2M || m === cactM) m.count = Math.max(m.count, t.ix + 1); else if (m === armM) m.count = Math.max(m.count, 2 * t.ix + 2); else if (m === vineM) m.count = Math.max(m.count, 3 * t.ix + 3); else if (m === frondM) m.count = Math.max(m.count, 5 * t.ix + 5); });
+      var hw = kind === 'cactus' ? 0.35 : 0.3 * s; t.box = addBox(x - hw, x + hw, 0, th, z - hw, z + hw, true);
       treeMat(t, true); addEnt(t); W.trees.push(t);
     }
 
@@ -367,23 +524,25 @@
       t.box.on = on; t.alive = on;
     };
     /* [ORE TAG] kinds: stone | coal | copper | iron | gold.  Surface: 90% stone / 9% coal / 1% copper. Underground: 40 stone / 30 coal / 15 copper / 10 iron / 5 gold. */
-    var ORE_COL = { stone: 0x8d9198, coal: 0x33343a, copper: 0xd2733a, iron: 0xb59a8c, gold: 0xe0b83a };
+    var ORE_COL = { sand: 0xe6d28f, stone: 0x8d9198, coal: 0x33343a, copper: 0xd2733a, iron: 0xb59a8c, gold: 0xe0b83a, zinc: 0x9fb6c4, titanium: 0x7aa7d6, granite: 0xb98a6a, andesite: 0xa9adb0, diorite: 0xd0d0cc, calcite: 0xf4f4ee, clay: 0xb86f50 };
     function addRock(x, z, kindIn, rng) {
-      var kind = kindIn || 'stone', plain = kind === 'stone', s = rr(0.8, 2.1, rng);
-      var t = { k: 'rock', idx: W.rocks.length, kind: kind, ore: kind === 'iron', coal: kind === 'coal', gold: kind === 'gold', copper: kind === 'copper', x: x, z: z, y: 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true,
-        max: Math.round((plain ? 60 : kind === 'coal' ? 70 : 100) * s * s), yield: plain ? Math.round(4 + 6 * s * s) : kind === 'coal' ? Math.round(2 + 3 * s * s) : kind === 'copper' ? Math.round(4 + 6 * s * s) : Math.round(2 + 4 * s * s), given: 0, respawn: 0, cc: ORE_COL[kind] };
+      var kind = kindIn || 'stone', plain = kind === 'stone' || kind === 'sand', s = rr(0.8, 2.1, rng);
+      var t = { k: 'rock', idx: W.rocks.length, kind: kind, ore: kind === 'iron', coal: kind === 'coal', gold: kind === 'gold', copper: kind === 'copper', zinc: kind === 'zinc', sand: kind === 'sand', x: x, z: z, y: 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true,
+        max: Math.round((plain ? 60 : kind === 'sand' ? 30 : kind === 'coal' ? 70 : 100) * s * s), yield: plain ? Math.round(4 + 6 * s * s) : kind === 'coal' ? Math.round(2 + 3 * s * s) : kind === 'copper' ? Math.round(4 + 6 * s * s) : Math.round(2 + 4 * s * s), given: 0, respawn: 0, cc: ORE_COL[kind] };
       t.hp = t.max; t.ix = rockM.count++; t.box = addBox(x - 0.8 * s, x + 0.8 * s, 0, 1.2 * s, z - 0.8 * s, z + 0.8 * s, true);
       W.setRock(t, true); addEnt(t); W.rocks.push(t);
     }
     function rollSurfaceOre(rng) { var r = rng(); return r < 0.90 ? 'stone' : r < 0.99 ? 'coal' : 'copper'; }
-    function rollUgOre(rng) { var r = rng() * 100; return r < 40 ? 'stone' : r < 70 ? 'coal' : r < 85 ? 'copper' : r < 95 ? 'iron' : 'gold'; }
+    function rollUgOre(rng) { var r = rng() * 100; return r < 18 ? 'stone' : r < 23 ? 'granite' : r < 28 ? 'andesite' : r < 33 ? 'diorite' : r < 38 ? 'calcite' : r < 66 ? 'coal' : r < 81 ? 'copper' : r < 90 ? 'iron' : r < 95 ? 'zinc' : 'gold'; }
 
-    var pileM = inst(box1, lam(0xffffff, { map: houseWallTex }), 24000, true, true), shineM = inst(box1, lam(0xffffff), 6500, true, true), tableM = inst(box1, lam(0xffffff, { map: plankTex }), 400, true, true), tlegM = inst(box1, lam(0x3a2a1a), 1600, true, true);
+    var pileM = inst(box1, lam(0xffffff, { map: houseWallTex }), 60000, true, true), shineM = inst(box1, lam(0xffffff), 16000, true, true), tableM = inst(box1, lam(0xffffff, { map: plankTex }), 4000, true, true), tlegM = inst(box1, lam(0x3a2a1a), 16000, true, true);
+    W.zoneOf = zoneOf;
     W.setPile = function (p, full) {
-      if (p.tier === 4) { p.parts.forEach(function (q) { put(q.m, p.x + q.dx, (q.item && !full) ? -5 : q.y, p.z + q.dz, q.sx, q.sy, q.sz, q.ry, q.col, q.i); }); p.searched = !full; return; }
-      var k = full ? 1 : 0.3; p.parts.forEach(function (q) { put(q.m, p.x + q.dx, q.y * k, p.z + q.dz, q.sx, q.sy * k, q.sz, q.ry, q.col, q.i); }); p.searched = !full; };
-    function addPile(x, z, tier, rng) {
-      var p = { k: 'pile', idx: W.piles.length, tier: tier, x: x, z: z, y: 0, r: 0.9, h: 0.9, alive: true, dyn: true, searched: false, respawn: 0, parts: [] };
+      var yb = p.yb || 0;
+      if (p.tier === 4) { p.parts.forEach(function (q) { put(q.m, p.x + q.dx, (q.item && !full) ? -5 : q.y + yb, p.z + q.dz, q.sx, q.sy, q.sz, q.ry, q.col, q.i); }); p.searched = !full; return; }
+      var k = full ? 1 : 0.3; p.parts.forEach(function (q) { put(q.m, p.x + q.dx, q.y * k + yb, p.z + q.dz, q.sx, q.sy * k, q.sz, q.ry, q.col, q.i); }); p.searched = !full; };
+    function addPile(x, z, tier, rng, yb) {
+      var p = { k: 'pile', idx: W.piles.length, tier: tier, x: x, z: z, y: yb || 0, yb: yb || 0, r: 0.9, h: 0.9, alive: true, dyn: true, searched: false, respawn: 0, parts: [] };
       if (tier === 4) {
         var ry4 = rng() * 3.14, tq = { m: tableM, dx: 0, dz: 0, sx: 1.7, sy: 0.12, sz: 0.95, ry: ry4, col: 0xffffff, y: 0.86 }; tq.i = tableM.count++; p.parts.push(tq);
         var cs = Math.cos(ry4), sn = Math.sin(ry4);
@@ -391,30 +550,31 @@
         var iq = { m: shineM, dx: 0.1, dz: 0, sx: 0.4, sy: 0.12, sz: 0.28, ry: ry4, col: pick([0x3ad06b, 0x4aa0ff, 0xe8e8f0], rng), y: 0.98, item: true }; iq.i = shineM.count++; p.parts.push(iq);
         p.r = 1.1; p.h = 1.0; W.setPile(p, true); addEnt(p); W.piles.push(p); return;
       }
-      var cols = tier === 1 ? [0x6d695f, 0x7a6d5c, 0x5c5a54, 0x827868] : [0x7a7871, 0x676a6e, 0x8a7d69, 0x5e5d59];
+      var cols = tier === 0 ? [0x3f7d34, 0x4f9140, 0x2f6a2c, 0x5aa04a] : tier === 1 ? [0x6d695f, 0x7a6d5c, 0x5c5a54, 0x827868] : [0x7a7871, 0x676a6e, 0x8a7d69, 0x5e5d59];
       for (var i = 0; i < 5; i++) { var q = { m: pileM, dx: rr(-0.5, 0.5, rng), dz: rr(-0.5, 0.5, rng), sx: rr(0.25, 0.7, rng), sy: rr(0.25, 0.6, rng), sz: rr(0.25, 0.7, rng), ry: rng() * 3, col: pick(cols, rng) }; q.y = q.sy / 2; q.i = pileM.count++; p.parts.push(q); }
       if (tier === 2) for (var j = 0; j < 2; j++) { var q2 = { m: shineM, dx: rr(-0.4, 0.4, rng), dz: rr(-0.4, 0.4, rng), sx: 0.18, sy: 0.12, sz: 0.3, ry: rng() * 3, col: pick([0xdde2e8, 0xe8c468, 0xc4d0d9], rng) }; q2.y = rr(0.4, 0.7, rng); q2.i = shineM.count++; p.parts.push(q2); }
       W.setPile(p, true); addEnt(p); W.piles.push(p);
     }
 
-    var crateM = inst(box1, lam(0xffffff, { map: crateTex }), 900, true, true), lidM = inst(box1, lam(0xffffff), 900, true, true);
+    var crateM = inst(box1, lam(0xffffff, { map: crateTex }), 6000, true, true), lidM = inst(box1, lam(0xffffff), 6000, true, true);
     W.setCrate = function (c, full) {
       var bodyCol = c.tier === 2 ? (full ? 0xffdf9e : 0x99845a) : (full ? 0xffffff : 0x8a7558);
       var lidCol = c.tier === 2 ? 0x3b4859 : 0x4f361c;
-      put(crateM, c.x, full ? 0.45 : 0.3, c.z, 0.9, full ? 0.9 : 0.6, 0.9, c.ry, bodyCol, c.ix);
-      put(lidM, c.x, full ? 0.92 : -5, c.z, 0.98, 0.1, 0.98, c.ry, lidCol, c.ix);
+      var yb = c.yb || 0; put(crateM, c.x, yb + (full ? 0.45 : 0.3), c.z, 0.9, full ? 0.9 : 0.6, 0.9, c.ry, bodyCol, c.ix);
+      put(lidM, c.x, full ? yb + 0.92 : -5, c.z, 0.98, 0.1, 0.98, c.ry, lidCol, c.ix);
       c.searched = !full;
     };
-    function addCrate(x, z, isDyn, rng, tier) {
-      var fn = rng || R, c = { k: 'crate', idx: W.crates.length, tier: tier || 1, x: x, z: z, y: 0, r: 0.75, h: 0.9, alive: true, dyn: !!isDyn, searched: false, respawn: 0, ry: fn() * 3 };
-      c.ix = crateM.count++; lidM.count++; addBox(x - 0.45, x + 0.45, 0, 0.9, z - 0.45, z + 0.45, !!isDyn);
+    function addCrate(x, z, isDyn, rng, tier, yb) {
+      var fn = rng || R, c = { k: 'crate', idx: W.crates.length, tier: tier || 1, x: x, z: z, y: yb || 0, yb: yb || 0, r: 0.75, h: 0.9, alive: true, dyn: !!isDyn, searched: false, respawn: 0, ry: fn() * 3 };
+      c.ix = crateM.count++; lidM.count++; addBox(x - 0.45, x + 0.45, yb || 0, (yb || 0) + 0.9, z - 0.45, z + 0.45, !!isDyn);
       W.setCrate(c, true); addEnt(c); W.crates.push(c);
     }
 
-    function addBlockEnt(x, y, z, t) {
-      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : t >= 13 ? 'turret' : null;
+    function addBlockEnt(x, y, z, t, sz) {
+      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
       if (!kind) return null;
-      var e = { k: kind, x: x + 0.5, z: z + 0.5, y: y, r: 0.85, h: 1, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z };
+      var w = sz ? sz.w : 1, d = sz ? sz.d : 1, h = sz ? sz.h : 1;
+      var e = { k: kind, x: x + w / 2, z: z + d / 2, y: y, r: Math.max(w, d) / 2 + 0.4, h: h, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z, sw: w, sd: d };
       addEnt(e); W.bents.push(e);
       if (t === 3) W.furn.push(e);
       else if (t === 6) W.sinks.push(e);
@@ -423,7 +583,20 @@
       else if (t === 9) W.comps.push(e);
       else if (t === 11) W.saws.push(e);
       else if (t === 12) W.tbench.push(e);
-      else if (t >= 13) { e.vt = t; e.ammo = 0; e.cd = 0; e.r = 0.75; W.turrets.push(e); }
+      else if (t >= 13 && t <= 15) { e.vt = t; e.ammo = 0; e.cd = 0; e.r = 0.75; W.turrets.push(e); }
+      else if (t === 16) W.mills.push(e);
+      else if (t === 17) W.bombs.push(e);
+      else if (t === 18) W.kilns.push(e);
+      else if (t === 19) W.crafts.push(e);
+      else if (t === 20) W.works.push(e);
+      else if (t === 29) W.presses.push(e);
+      else if (t === 43) W.blasts.push(e);
+      else if (t === 49) W.liqs.push(e);
+      else if (t === 50) W.sews.push(e);
+      else if (t === 30) W.casings.push(e);
+      else if (t === 31) W.trapbs.push(e);
+      else if (t === 32) W.masons.push(e);
+      else if (t >= 21 && t <= 25) { e.vt = t; e.box = {}; W.chests.push(e); }
       return e;
     }
 
@@ -484,7 +657,7 @@
     function addWater(x0, x1, z0, z1, type) {
       var sh = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 + 3, z1 - z0 + 3), shoreMat); sh.rotation.x = -Math.PI / 2; sh.position.set((x0 + x1) / 2, 0.035, (z0 + z1) / 2); scene.add(sh);
       var wm = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), waterMat); W.waterMeshes.push(wm); wm.rotation.x = -Math.PI / 2; wm.position.set((x0 + x1) / 2, 0.06, (z0 + z1) / 2); scene.add(wm);
-      addBox(x0, x1, 0, 1.2, z0, z1, false); occupied.push([x0 - 2.5, x1 + 2.5, z0 - 2.5, z1 + 2.5]);
+      if (type !== 'river') addBox(x0, x1, 0, 1.2, z0, z1, false); /* the river is walkable (the current pushes you) */ occupied.push([x0 - 2.5, x1 + 2.5, z0 - 2.5, z1 + 2.5]);
       W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#2f7fa8' }); W.waters.push({ x0: x0, x1: x1, z0: z0, z1: z1, type: type });
     }
     lakeList.forEach(function (l) { addWater(l[0], l[1], l[2], l[3], 'lake'); });
@@ -513,6 +686,7 @@
       put(walls, MCX, 1.6, MCZ + 1.05, 3.6, 3.2, 0.25, 0, 0x120f0c); put(walls, MCX - 2.1, 1.6, MCZ + 2.2, 0.4, 3.2, 0.4, 0, 0x6b4d30); put(walls, MCX + 2.1, 1.6, MCZ + 2.2, 0.4, 3.2, 0.4, 0, 0x6b4d30); put(walls, MCX, 3.3, MCZ + 2.2, 4.6, 0.4, 0.4, 0, 0x6b4d30);
       occupied.push([MCX - 28, MCX + 28, MCZ - 26, MCZ + 24]);
       W.rects.push({ x0: MCX - 24, x1: MCX + 24, z0: MCZ - 22, z1: MCZ + 16, c: '#7d8388' });
+      put(walls, MCX + 9, 1.0, MCZ + 9, 1.1, 2.0, 1.1, 0, 0x7d7f80); put(walls, MCX + 9, 2.3, MCZ + 9, 0.7, 0.7, 0.7, 0, 0x6f7273); put(walls, MCX + 9, 2.65, MCZ + 8.78, 0.5, 0.12, 0.1, 0, 0xcc2222); addBox(MCX + 8.45, MCX + 9.55, 0, 2.7, MCZ + 8.45, MCZ + 9.55, false); W.statue = { x: MCX + 9, z: MCZ + 9 };
       W.mine = { x0: MCX - 26, x1: MCX + 26, z0: MCZ - 24, z1: MCZ + 18, door: { x: MCX, z: MCZ + 2.6 }, entrance: { x: MCX, z: MCZ + 8 } };
 
       /* ---- Underground: a separate cave level far outside the map. Reached only through the mineshaft door. ---- */
@@ -589,12 +763,28 @@
     function spawnNature(seed, keep) {
       W.seed = seed; var Rn = mulberry(seed), tries = 0, n = 0;
       function free(x, z, m) { return !(keep && W.hit(x - m, x + m, 0, 3, z - m, z + m)); }
-      while (n < 5000 && tries++ < 200000) {
-        var tx = rr(-HALF + 4, HALF - 4, Rn), tz = rr(-HALF + 4, HALF - 4, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), bm = biomeOf(tx, tz), z0n = zoneOf(tx, tz);
-        var pr = bm === 'jungle' ? 0.8 : bm === 'snow' ? 0.22 : bm === 'desert' ? 0.02 : (z0n === 'out' ? 0.3 : z0n === 'mid' ? 0.1 : 0.03);
-        if (edge > HALF - 21) pr = 0.95;
+      var cactN = 0;
+      while (n < 7000 && tries++ < 260000) {
+        var tx = rr(-HALF + 4, HALF - 4, Rn), tz = rr(-HALF + 4, HALF - 4, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), bm = biomeOf(tx, tz), z0n = zoneOf(tx, tz), beach = edge > HALF - 60;
+        var pr = beach ? 0.3 : bm === 'jungle' ? 0.6 : bm === 'snow' ? 0.22 : bm === 'desert' ? 0.07 : (z0n === 'out' ? 0.3 : z0n === 'mid' ? 0.1 : 0.03);
         if (Rn() > pr || onRoad(tx, tz, 1.5) || inOcc(tx, tz, 2) || !free(tx, tz, 1)) continue;
-        addTree(tx, tz, Rn, bm); n++;
+        var kd = beach ? 'palm' : bm === 'jungle' ? 'jungle' : bm === 'snow' ? 'snow' : bm === 'desert' ? 'cactus' : 'plain';
+        if (kd === 'cactus') cactN++;
+        addTree(tx, tz, Rn, bm, kd); n++;
+      }
+      /* sand mounds in the desert: same count as cactus */
+      var sn = 0; tries = 0;
+      while (sn < cactN && tries++ < 80000) {
+        var sx = rr(500 + 6, HALF - 70, Rn), sz2 = rr(-500 + 6, HALF - 70, Rn);
+        if (onRoad(sx, sz2, 2) || inOcc(sx, sz2, 2.5) || !free(sx, sz2, 1.5)) continue; addRock(sx, sz2, 'sand', Rn); sn++;
+      }
+      /* bushes: plain (city biome, outside buildings) and jungle */
+      var bu = 0; tries = 0;
+      while (bu < 700 && tries++ < 90000) {
+        var bx = rr(-HALF + 8, HALF - 8, Rn), bz = rr(-HALF + 8, HALF - 8, Rn), bb = biomeOf(bx, bz), bzn = zoneOf(bx, bz);
+        if (bb !== 'city' && bb !== 'jungle') continue; if (bb === 'city' && (bzn === 'down' || Rn() < 0.35)) continue;
+        if (Math.max(Math.abs(bx), Math.abs(bz)) > HALF - 60 || onRoad(bx, bz, 1) || inOcc(bx, bz, 1.5) || !free(bx, bz, 1)) continue;
+        addPile(bx, bz, 0, Rn); W.piles[W.piles.length - 1].bush = bb; bu++;
       }
       var rocks = 0; tries = 0;
       while (rocks < 1500 && tries++ < 60000) {
@@ -602,6 +792,7 @@
         if ((rz0 === 'down' && Rn() < 0.8) || onRoad(rx, rz, 2) || inOcc(rx, rz, 2.5) || !free(rx, rz, 1.5)) continue;
         addRock(rx, rz, rollSurfaceOre(Rn), Rn); rocks++;
       }
+      W.waters.forEach(function (w) { for (var ci = 0, ct = 0; ci < 6 && ct++ < 40;) { var side = (Rn() * 4) | 0, cx = side < 2 ? rr(w.x0, w.x1, Rn) : (side === 2 ? w.x0 - 2.2 : w.x1 + 2.2), cz = side < 2 ? (side === 0 ? w.z0 - 2.2 : w.z1 + 2.2) : rr(w.z0, w.z1, Rn); if (Math.abs(cx) > HALF - 8 || Math.abs(cz) > HALF - 8 || !free(cx, cz, 1.2)) continue; addRock(cx, cz, 'clay', Rn); ci++; } });
       /* underground ore field: 260 spots on the cave floor */
       var ugn = 0, ugt = 0, uo = W.ug.open;
       while (ugn < 260 && ugt++ < 4000) { var oc = uo[(Rn() * uo.length) | 0], ox = oc[0] + rr(-1.4, 1.4, Rn), oz = oc[1] + rr(-1.4, 1.4, Rn); if (W.hit(ox - 1.8, ox + 1.8, 0.1, 1.8, oz - 1.8, oz + 1.8)) continue; addRock(ox, oz, rollUgOre(Rn), Rn); ugn++; }
@@ -613,15 +804,19 @@
         if (inOcc(px, pz, 0.5) || Math.max(Math.abs(px), Math.abs(pz)) > HALF - 4 || !free(px, pz, 1)) continue;
         var zn = zoneOf(px, pz); addPile(px, pz, zn === 'down' ? 2 : zn === 'mid' ? (Rn() < 0.45 ? 2 : 1) : 1, Rn); piles++;
       }
-      var tb = 0; tries = 0;
-      while (tb < 150 && tries++ < 60000) {
-        var tl = pick(ROADS, Rn), toff = (Rn() < 0.5 ? -1 : 1) * rr(RW / 2 + 1.5, RW / 2 + 3.5, Rn), talong = rr(-HALF + 6, HALF - 6, Rn), tside = Rn() < 0.5, tpx = tside ? tl + toff : talong, tpz = tside ? talong : tl + toff;
-        if (inOcc(tpx, tpz, 1.2) || zoneOf(tpx, tpz) !== 'down' || !free(tpx, tpz, 1.5)) continue; addPile(tpx, tpz, 4, Rn); tb++;
-      }
+      /* indoor loot: tables only inside buildings; crates inside buildings and near them; trash anywhere */
+      W.floors.forEach(function (f) {
+        function spot() { for (var a2 = 0; a2 < 16; a2++) { var x = rr(f.x0 + 1, f.x1 - 1, Rn), z = rr(f.z0 + 1, f.z1 - 1, Rn); if (!f.av.some(function (r) { return x > r[0] - 1 && x < r[1] + 1 && z > r[2] - 1 && z < r[3] + 1; })) return [x, z]; } return null; }
+        var ct = f.zone === 'down' ? (f.k >= 4 ? 3 : 2) : (f.zone === 'mid' && Rn() < 0.5 ? 2 : 1), s1 = spot(), s2 = spot(), s3 = spot();
+        if (s1 && Rn() < 0.75) addCrate(s1[0], s1[1], true, Rn, ct, f.y);
+        if (s2 && Rn() < 0.8) addPile(s2[0], s2[1], f.zone === 'down' ? 2 : 1, Rn, f.y);
+        if (s3 && Rn() < 0.22) addPile(s3[0], s3[1], 4, Rn, f.y);
+      });
+      W.indoor.forEach(function (q, qi) { if (Rn() < 0.6) addPile(q.x, q.z, q.zone === 'down' ? 2 : 1, Rn, q.y); else if (Rn() < 0.45) addPile(q.x, q.z, 4, Rn, q.y); });
       var cr = 0; tries = 0;
       while (cr < 600 && tries++ < 40000) {
         var qx = rr(-HALF + 10, HALF - 10, Rn), qz = rr(-HALF + 10, HALF - 10, Rn), czn = zoneOf(qx, qz);
-        if (onRoad(qx, qz, 1) || inOcc(qx, qz, 1) || (czn === 'down' && Rn() < 0.65) || !free(qx, qz, 1)) continue;
+        if (onRoad(qx, qz, 1) || inOcc(qx, qz, 1) || !inOcc(qx, qz, 16) || (czn === 'down' && Rn() < 0.65) || !free(qx, qz, 1)) continue;
         addCrate(qx, qz, true, Rn, czn === 'down' ? 2 : (czn === 'mid' && Rn() < 0.5 ? 2 : 1)); cr++;
       }
       var cn = 0; tries = 0;
@@ -640,6 +835,9 @@
       }
     }
     spawnNature(initSeed != null ? initSeed : rndSeed(), false);
+    function stoneBT(base, seed) { return canvasTex(64, 64, function (g, w, h) { var r = mulberry(seed); g.fillStyle = base; g.fillRect(0, 0, w, h); for (var i = 0; i < 70; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.1)'; g.fillRect(r() * w, r() * h, 2 + r() * 6, 2 + r() * 4); } }); }
+    function brickBT(base, mortar, seed) { return canvasTex(64, 64, function (g, w, h) { var r = mulberry(seed); g.fillStyle = mortar; g.fillRect(0, 0, w, h); for (var y = 0; y < 4; y++) for (var x = -1; x < 3; x++) { var ox = (y % 2) * 16; g.fillStyle = base; g.fillRect(x * 32 + ox + 1, y * 16 + 1, 30, 14); for (var k = 0; k < 6; k++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.1)'; g.fillRect(x * 32 + ox + 2 + r() * 24, y * 16 + 2 + r() * 10, 3, 2); } } }); }
+    var BLKTEX = { 33: stoneBT('#b98a6a', 1), 34: stoneBT('#a2a6a9', 2), 35: stoneBT('#cfcfca', 3), 36: stoneBT('#f1f1ec', 4), 37: brickBT('#8d9198', '#5c5f64', 5), 38: brickBT('#a8452f', '#cfc7bb', 6), 39: brickBT('#b98a6a', '#6a5040', 7), 40: brickBT('#a2a6a9', '#5f6264', 8), 41: brickBT('#cfcfca', '#7d7d7a', 9), 42: brickBT('#f1f1ec', '#a8a8a2', 10) };
 
     var VM = {
       1: inst(box1, lam(0xffffff, { map: plankTex }), 2600, true, false),
@@ -656,57 +854,121 @@
       12: inst(box1, lam(0xffffff, { map: tbenchTex }), 80, true, false),
       13: inst(box1, lam(0xffffff, { map: cannonTex('#6b5a3a', '#4a3a22') }), 120, true, false),
       14: inst(box1, lam(0xffffff, { map: cannonTex('#4b535c', '#2a3036') }), 120, true, false),
-      15: inst(box1, lam(0xffffff, { map: cannonTex('#2f4a3a', '#d28a2a') }), 60, true, false)
+      15: inst(box1, lam(0xffffff, { map: cannonTex('#2f4a3a', '#d28a2a') }), 60, true, false),
+      16: inst(box1, lam(0xffffff, { map: glyphTex('#6e6a60', '⚙️', 'MILLING') }), 300, true, false),
+      17: inst(box1, lam(0xffffff, { map: glyphTex('#7a3b2a', '💣', 'BOMB') }), 200, true, false),
+      18: inst(box1, lam(0xffffff, { map: glyphTex('#8a5a3a', '🏺', 'KILN') }), 300, true, false),
+      19: inst(box1, lam(0xffffff, { map: glyphTex('#7a6040', '🛠️', 'CRAFT') }), 300, true, false),
+      20: inst(box1, lam(0xffffff, { map: glyphTex('#5a4a70', '💍', 'WORK') }), 200, true, false),
+      21: inst(box1, lam(0xffffff, { map: glyphTex('#a87a44', '📦', '') }), 200, true, false),
+      22: inst(box1, lam(0xffffff, { map: glyphTex('#7c8088', '📦', 'IRON') }), 200, true, false),
+      23: inst(box1, lam(0xffffff, { map: glyphTex('#585d66', '🗄️', 'IRON') }), 200, true, false),
+      24: inst(box1, lam(0xffffff, { map: glyphTex('#b0693a', '📦', 'COPPER') }), 200, true, false),
+      25: inst(box1, lam(0xffffff, { map: glyphTex('#c4763a', '🗃️', 'COPPER') }), 200, true, false),
+      26: inst(box1, (W.glassMat = new THREE.MeshLambertMaterial({ map: glassTex, transparent: true, opacity: 0.55, depthWrite: false })), 600, true, false),
+      27: inst(box1, lam(0xffffff, { map: cactBlockTex }), 600, true, false),
+      28: inst(box1, lam(0xffffff, { map: glyphTex('#b02a2a', '🧨', 'TNT') }), 200, true, false),
+      29: inst(box1, lam(0xffffff, { map: glyphTex('#5d6168', '🗜️', 'PRESS') }), 200, true, false),
+      30: inst(box1, lam(0xffffff, { map: glyphTex('#4c5a6a', '🚗', 'CASING') }), 200, true, false),
+      31: inst(box1, lam(0xffffff, { map: glyphTex('#6a4a2a', '🪤', 'TRAP') }), 200, true, false),
+      32: inst(box1, lam(0xffffff, { map: glyphTex('#8a8a82', '🧱', 'MASON') }), 200, true, false),
+      33: inst(box1, lam(0xffffff, { map: BLKTEX[33] }), 1500, true, false),
+      34: inst(box1, lam(0xffffff, { map: BLKTEX[34] }), 1500, true, false),
+      35: inst(box1, lam(0xffffff, { map: BLKTEX[35] }), 1500, true, false),
+      36: inst(box1, lam(0xffffff, { map: BLKTEX[36] }), 1500, true, false),
+      37: inst(box1, lam(0xffffff, { map: BLKTEX[37] }), 1500, true, false),
+      38: inst(box1, lam(0xffffff, { map: BLKTEX[38] }), 1500, true, false),
+      39: inst(box1, lam(0xffffff, { map: BLKTEX[39] }), 1500, true, false),
+      40: inst(box1, lam(0xffffff, { map: BLKTEX[40] }), 1500, true, false),
+      41: inst(box1, lam(0xffffff, { map: BLKTEX[41] }), 1500, true, false),
+      49: inst(box1, lam(0xffffff, { map: glyphTex('#3a5a6a', '🧪', 'LIQUID') }), 200, true, false),
+      50: inst(box1, lam(0xffffff, { map: glyphTex('#7a4a6a', '🧵', 'SEWING') }), 200, true, false),
+      44: inst(boxLow, lam(0xffffff, { map: glyphTex('#8a6a3a', '🌵', '') }), 600, true, false),
+      45: inst(boxLow, lam(0xffffff, { map: glyphTex('#6a8a3a', '🌴', '') }), 600, true, false),
+      46: inst(boxLow, lam(0xffffff, { map: glyphTex('#7a7f86', '➰', '') }), 600, true, false),
+      47: inst(boxLow, lam(0xffffff, { map: glyphTex('#3f8a3a', '🌿', '') }), 600, true, false),
+      48: inst(boxLow, lam(0xffffff, { map: glyphTex('#5a8ac0', '➰', '') }), 600, true, false),
+      43: inst(box1, lam(0xffffff, { map: glyphTex('#4a3a3a', '🔥', 'BLAST') }), 200, true, false),
+      42: inst(box1, lam(0xffffff, { map: BLKTEX[42] }), 1500, true, false)
     };
-    var vkeys = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: [], 13: [], 14: [], 15: [] }, vcount = 0; W.MAX_VOX = 2600;
+    var VTYPES = []; for (var vt0 = 1; vt0 <= 50; vt0++) VTYPES.push(vt0);
+    W.VSIZE = { 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
+    W.HPT = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
+    var vkeys = {}, vcount = 0; VTYPES.forEach(function (t) { vkeys[t] = []; }); W.MAX_VOX = 2600;
     W.voxCount = function () { return vcount; };
     W.getVox = function (x, y, z) { return vox.get(vk(x, y, z)) || null; };
-    W.setVox = function (x, y, z, t, hp) {
+    W.setVox = function (x, y, z, t, hp, part, sz) {
       if (y < 0 || y >= VMAX || Math.abs(x) > HALF + 2 || Math.abs(z) > HALF + 2) return false;
       var k = vk(x, y, z); if (vox.has(k)) return false;
       var arr = vkeys[t]; if (!arr || arr.length >= VM[t].instanceMatrix.count) return false;
-      var idx = arr.length; arr.push([x, y, z]); vox.set(k, { t: t, hp: hp, idx: idx });
+      var idx = arr.length, rec = { t: t, hp: hp, idx: idx }; arr.push([x, y, z]); vox.set(k, rec); if (part != null) rec.anc = part;
       put(VM[t], x + 0.5, y + 0.5, z + 0.5, 1, 1, 1, 0, null, idx); VM[t].count = arr.length; vcount++;
-      if (t >= 3 && t !== 10) addBlockEnt(x, y, z, t);
+      if (t >= 3 && t !== 10 && part == null) rec.ent = addBlockEnt(x, y, z, t, sz);
       return true;
     };
-    W.delVox = function (x, y, z) {
-      var k = vk(x, y, z), v = vox.get(k); if (!v) return null;
-      var arr = vkeys[v.t], last = arr.pop(), m = VM[v.t];
+    /* multi-cell blocks: all cells share the anchor's hp; rot swaps footprint */
+    W.canPlaceBig = function (x, y, z, t, rot) {
+      var sz = W.VSIZE[t] || [1, 1, 1], w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], out = [];
+      for (var dx = 0; dx < w; dx++) for (var dz = 0; dz < d; dz++) for (var dy = 0; dy < h; dy++) {
+        var cx = x + dx, cy = y + dy, cz = z + dz; if (cy >= VMAX || vox.has(vk(cx, cy, cz)) || Math.abs(cx) > HALF + 2 || Math.abs(cz) > HALF + 2) return null;
+        if (!(dx === 0 && dy === 0 && dz === 0) && W.hit(cx + 0.02, cx + 0.98, cy + 0.02, cy + 0.98, cz + 0.02, cz + 0.98)) return null;
+        out.push([cx, cy, cz]);
+      }
+      return out;
+    };
+    W.setBig = function (x, y, z, t, hp, rot) {
+      var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
+      var cells = W.canPlaceBig(x, y, z, t, rot); if (!cells) return false;
+      var w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], ak = vk(x, y, z);
+      if (!W.setVox(x, y, z, t, hp, null, { w: w, d: d, h: h })) return false;
+      var rec = vox.get(ak); rec.cells = [ak]; rec.rot = rot ? 1 : 0;
+      for (var i = 1; i < cells.length; i++) { var c = cells[i]; if (W.setVox(c[0], c[1], c[2], t, hp, ak)) rec.cells.push(vk(c[0], c[1], c[2])); }
+      return true;
+    };
+    W.getVox = function (x, y, z) { var r = vox.get(vk(x, y, z)); if (r && r.anc != null) return vox.get(r.anc) || null; return r || null; };
+    function rmCell(k) {
+      var v = vox.get(k); if (!v) return; var arr = vkeys[v.t], last = arr.pop(), m = VM[v.t];
       if (v.idx !== arr.length) { arr[v.idx] = last; vox.get(vk(last[0], last[1], last[2])).idx = v.idx; put(m, last[0] + 0.5, last[1] + 0.5, last[2] + 0.5, 1, 1, 1, 0, null, v.idx); }
       m.count = arr.length; m.instanceMatrix.needsUpdate = true; vox.delete(k); vcount--;
-      if (v.t >= 3 && v.t !== 10) W.bents.forEach(function (e) { if (e.alive && e.vx === x && e.vy === y && e.vz === z) e.alive = false; });
+    }
+    W.delVox = function (x, y, z) {
+      var k = vk(x, y, z), v = vox.get(k); if (!v) return null;
+      if (v.anc != null) { k = v.anc; v = vox.get(k); if (!v) return null; }
+      var ent = v.ent, cells = v.cells || [k]; cells.slice().forEach(rmCell);
+      if (v.t >= 3 && v.t !== 10 && ent) ent.alive = false;
       return v;
     };
     W.voxList = function () {
-      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500 }, out = [];
+      var out = [];
       vox.forEach(function (v) {
-        var a = vkeys[v.t][v.idx], p = ((a[0] + 1024) * 2048 + (a[2] + 1024)) * 1024 + a[1] * 16 + (v.t - 1);
-        out.push(Math.round(v.hp) < HP[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
+        if (v.anc != null) return;
+        var a = vkeys[v.t][v.idx], p = ((a[0] + 1024) * 2048 + (a[2] + 1024)) * 2048 + a[1] * 32 + (v.t - 1);
+        if (v.cells) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
+        else out.push(Math.round(v.hp) < W.HPT[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
       });
       return out;
     };
     W.voxLoad = function (list, ver) {
-      if (!Array.isArray(list)) return;
-      var HP = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500 }, v2 = (ver || 1) >= 3;
+      if (!Array.isArray(list)) return; var v4 = (ver || 1) >= 4, v2 = (ver || 1) >= 3;
       list.forEach(function (en) {
-        var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, t, y, r, z, x;
+        var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, rot = Array.isArray(en) && en.length > 2 ? en[2] : null, t, y, r, z, x;
         if (!v2) return;
-        t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024;
-        if (t >= 1 && t <= 15) W.setVox(x, y, z, t, hp != null ? hp : HP[t]);
+        if (v4) { t = (n % 32) + 1; y = Math.floor(n / 32) % 64; r = Math.floor(n / 2048); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
+        else { t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
+        if (t >= 1 && t <= 50) { if (rot != null) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
       });
     };
     W.resetWorld = function (newSeed, keepBuild) {
       if (!keepBuild) {
-        vox.clear(); [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
-        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0;
+        vox.clear(); VTYPES.forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
+        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0; W.mills.length = W.bombs.length = W.kilns.length = W.crafts.length = W.works.length = W.liqs.length = W.sews.length = W.blasts.length = W.presses.length = W.casings.length = W.trapbs.length = W.masons.length = W.chests.length = 0;
       }
       sgrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
       egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn && l[i].vx == null) l.splice(i, 1); });
       W.ents = W.ents.filter(function (e) { return !e.dyn || e.vx != null; });
       W.trees.length = 0; W.rocks.length = 0; W.piles.length = 0; W.cars.length = 0; W.crates.length = staticCrateCount;
       for (var ci = 0; ci < staticCrateCount; ci++) { W.crates[ci].respawn = 0; W.setCrate(W.crates[ci], true); }
-      trunkM.count = crownM.count = rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = carBody.count = carTop.count = 0;
+      TMESH.forEach(function (m) { m.count = 0; }); leafM.count = 0; leaf2M.count = 0; rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = carBody.count = carTop.count = 0;
       crateM.count = lidM.count = staticCrateCount;
       spawnNature(newSeed != null ? newSeed : rndSeed(), !!keepBuild);
     };
