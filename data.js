@@ -243,6 +243,19 @@ window.WZ = window.WZ || {};
   item('toughs_string', '🧵', 'Toughs String', 'Stretches your reach, slows your swing.', { type: 'acc', note: 'Accessory. Melee range +50%, melee attack delay +100%.' });
   item('sewing_table', '🧵', 'Sewing Table', 'Sews strings and cloth. Size 3x2x2. Place it, then press [E] near it.', { type: 'block', vox: 50, hp: 90, size: [3, 2, 2] });
   item('liquiders_workbench', '🧪', 'Liquiders Workbench', 'Builds pipes and liquid machines. Place it, then press [E] near it.', { type: 'block', vox: 49, hp: 100, size: [3, 1, 2] });
+  /* [CUT/STATUE TAG] Cutting Board (kept, not consumed) + sliced foods; Statue of God block. */
+  item('cutting_board', '🪵', 'Cutting Board', 'Keep it in your bag to cut food by hand. It is not used up.', {});
+  item('statue_god', '🗿', 'Statue of God', 'Place it, then press [E] to ask for a Blessing: Unlethal, Zombie Weaks or Zombie Weak Foot. Size 1x3x1.', { type: 'block', vox: 51, hp: 150, size: [1, 3, 1] });
+  item('fish_fillet', '🍣', 'Fish Fillet', 'Fresh fish cut into a neat fillet.', { type: 'food', eat: { t: 2, h: 8, th: 4 } });
+  ['apple', 'mango', 'orange', 'lemon', 'watermelon', 'pumpkin', 'cabbage', 'cucumber', 'sweet_potato', 'potato'].forEach(function (f) {
+    var b = I[f]; if (!b || !b.eat) return; var e = {}; for (var kk in b.eat) e[kk] = b.eat[kk]; if (e.t) e.t = Math.max(1, e.t * 0.6); ['h', 'th'].forEach(function (q) { if (e[q]) e[q] = Math.max(1, Math.round(e[q] * 0.55)); });
+    item('sliced_' + f, b.ic, 'Sliced ' + b.name, 'A neat slice. Two slices give a bit more than the whole thing.', { type: 'food', eat: e });
+  });
+  item('diamond', '💎', 'Diamond', 'A brilliant gem. Mined from mountain stone.', { type: 'material' });
+  item('ruby', '🔴', 'Ruby', 'A deep red gem.', { type: 'material' });
+  item('emerald', '🟢', 'Emerald', 'A vivid green gem.', { type: 'material' });
+  item('amethyst', '🟣', 'Amethyst', 'A purple crystal gem.', { type: 'material' });
+  item('sapphire', '🔵', 'Sapphire', 'A blue gem found in shipwrecks and deep stone.', { type: 'material' });
   item('hard_statue', '🗿', 'Zombie Statue', 'Interact to summon the Hard Zombie.');
   item('iron_plate', '▭', 'Iron Plate', 'Pressed iron. Made at Manual Pressing (or Pressing Machine, coming soon).');
   item('copper_plate', '▭', 'Copper Plate', 'Pressed copper. Made at Manual Pressing (or Pressing Machine, coming soon).');
@@ -360,6 +373,19 @@ window.WZ = window.WZ || {};
     { id: 'brk_calcite', st: 'mason', out: ['calcite_bricks_block', 1], cost: { smooth_calcite_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
     { id: 'brk_stone', st: 'mason', out: ['stone_bricks_block', 1], cost: { stone_block: 1 }, puz: { k: 'saw', d: 1, flat: 1 } },
     { id: 'brk_red', st: 'mason', out: ['red_bricks_block', 1], cost: { red_brick: 4 }, puz: { k: 'saw', d: 1, flat: 1 } },
+    { id: 'cutting_board', st: 'sawmill', out: ['cutting_board', 1], cost: { wood_plank: 4 }, puz: { k: 'saw', d: 1 } },
+    { id: 'statue_god', st: 'mason', out: ['statue_god', 1], cost: { stone_bricks_block: 60 }, puz: { k: 'saw', d: 3, flat: 1 } },
+    { id: 'cut_fish', st: 'cutting', out: ['fish_fillet', 2], cost: { fresh_fish: 1 }, label: 'Cut Fresh Fish' },
+    { id: 'cut_apple', st: 'cutting', out: ['sliced_apple', 2], cost: { apple: 1 }, label: 'Slice Apple' },
+    { id: 'cut_mango', st: 'cutting', out: ['sliced_mango', 2], cost: { mango: 1 }, label: 'Slice Mango' },
+    { id: 'cut_orange', st: 'cutting', out: ['sliced_orange', 2], cost: { orange: 1 }, label: 'Slice Orange' },
+    { id: 'cut_lemon', st: 'cutting', out: ['sliced_lemon', 2], cost: { lemon: 1 }, label: 'Slice Lemon' },
+    { id: 'cut_watermelon', st: 'cutting', out: ['sliced_watermelon', 2], cost: { watermelon: 1 }, label: 'Slice Watermelon' },
+    { id: 'cut_pumpkin', st: 'cutting', out: ['sliced_pumpkin', 2], cost: { pumpkin: 1 }, label: 'Slice Pumpkin' },
+    { id: 'cut_cabbage', st: 'cutting', out: ['sliced_cabbage', 2], cost: { cabbage: 1 }, label: 'Slice Cabbage' },
+    { id: 'cut_cucumber', st: 'cutting', out: ['sliced_cucumber', 2], cost: { cucumber: 1 }, label: 'Slice Cucumber' },
+    { id: 'cut_sweet_potato', st: 'cutting', out: ['sliced_sweet_potato', 2], cost: { sweet_potato: 1 }, label: 'Slice Sweet Potato' },
+    { id: 'cut_potato', st: 'cutting', out: ['sliced_potato', 2], cost: { potato: 1 }, label: 'Slice Potato' },
     { id: 'mason_bench', st: 'sawmill', out: ['mason_bench', 1], cost: { iron_ingot: 4, wood_plank: 24, wood_sticks: 12, copper_ingot: 2 }, puz: { k: 'saw', d: 3 } },
     { id: 'melt_titanium', st: 'blast', out: ['titanium_ingot', 1], cost: { titanium_ore: 8 }, heat: 100, label: 'Smelt Titanium Bar (Blast Smelter)' },
     { id: 'melt_brass', st: 'furnace', out: ['brass_ingot', 1], cost: { copper_ingot: 1, zinc_ingot: 1 }, heat: 50, label: 'Smelt Brass Bar' },
@@ -478,6 +504,7 @@ window.WZ = window.WZ || {};
     crate3: { name: 'Reinforced Wooden Crate (Tier 3)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['plastic_bottled_water', 15], ['@clean_veg', 10], ['@clean_fruit', 10], ['iron_nugget', 20], ['metal_casing', 10, 2], ['mini_led_lamp', 5, 3]] },
     crate4: { name: 'Iron Crate (Tier 4)', rolls: 3, enabled: true, t: [['medical_bag', 15], ['iron_nugget', 20], ['metal_casing', 15, 2], ['mini_led_lamp', 10, 3], ['plastic_paper_package', 10], ['black_screen_cover', 5, 4], ['rgb_lamp', 5, 4]] },
     crate5: { name: 'Iron Crate (Tier 5)', rolls: 3, enabled: true, t: [['medical_bag', 10], ['iron_ingot', 15, 3], ['iron_nugget', 15], ['metal_casing', 15, 2], ['rgb_lamp', 10, 4], ['black_screen_cover', 8, 4], ['gpu_chip', 6, 4], ['mini_led_lamp', 6, 3]] },
+    wreck: { name: 'Shipwreck Chest', rolls: 3, enabled: true, t: [['rope', 18], ['wood_plank', 20], ['iron_nugget', 12], ['golden_nugget', 8], ['coal', 10], ['broken_leather_cloth', 8], ['clay_ore', 6], ['sand', 15], ['sapphire', 3]] },
     crate2: { name: 'Wooden Crate (Tier 2)', rolls: 3, enabled: true, t: [['medical_bag', 20], ['plastic_bottled_water', 20], ['@clean_veg', 15], ['@clean_fruit', 15], ['iron_nugget', 15], ['broken_fabric_cloth', 15]] }
   };
 
@@ -520,8 +547,8 @@ window.WZ = window.WZ || {};
     pfwalker:{ name: 'Overgrown Permafrost Walker', hp: 100, spd: 1.2, dmg: 10, def: 5, tier: 5, rarity: 'uncommon', biome: 'mountain', scale: 1.05, color: 0x7fa6c4, cd: 1.0, w: 8, coin: [1, 5], elem: 'frost' },
     /* [MOB TAG] id=berserk | Berserk Zombie | T3 | biome=desert | HP 100 DEF 3 DMG 12 DLY 3 SPD 3 until its first successful hit, then 1.5 | skill Rush Hour | 3 coins | 5% Berserkers Boots */
     berserk: { name: 'Berserk Zombie', hp: 100, spd: 1.5, dmg: 12, def: 3, tier: 3, rarity: 'uncommon', biome: 'desert', scale: 1.05, color: 0xb0583e, cd: 3.0, w: 8, coin: [1, 3], rush: true },
-    /* [MOB TAG] id=mutanoider | Mutanoiders Zombos | BOSS T2->T3 | HP 3600 DMG 18 DLY 0.4 DEF 0 (10 while its tentacles and wings guard, then it cannot attack) SPD 0.6 (0.1 guarding) | 60 coins */
-    mutanoider:{ name: 'Mutanoiders Zombos', hp: 3600, spd: 0.6, dmg: 18, def: 0, tier: 3, rarity: 'boss', scale: 2.6, color: 0x3c4a2f, cd: 0.4, w: 0, nospawn: true, boss: true, splash: 3, coin: [1, 60], wingguard: true },
+    /* [MOB TAG] id=mutanoider | Mutanoiders Zombos | BOSS T3->T4 | HP 3600 DMG 18 DLY 0.4 DEF 0 (10 while its tentacles and wings guard, then it cannot attack) SPD 0.6 (0.1 guarding) | 60 coins */
+    mutanoider:{ name: 'Mutanoiders Zombos', hp: 3600, spd: 0.6, dmg: 18, def: 0, tier: 4, rarity: 'boss', scale: 2.6, color: 0x3c4a2f, cd: 0.4, w: 0, nospawn: true, boss: true, splash: 3, coin: [1, 60], wingguard: true },
     /* [MOB TAG] id=hardzombie | Hard Zombie | summoned at the statue next to the surface mineshaft (100 coins, 2 h real-time cooldown) | HP 350 DMG 36 SPLASH 8 (diameter) DLY 4 | drops 120 coins */
     hardzombie:{ name: 'Hard Zombie', hp: 350, spd: 1.0, dmg: 36, def: 0, tier: 1, rarity: 'boss', scale: 1.35, color: 0x5a6350, cd: 4.0, w: 0, nospawn: true, splash: 4, coin: [1, 120] },
     /* [MOB TAG] id=mutant | Mutant Zombie | rarity=uncommon | tier=T3 | biome=any | HP 120, RNG 2x walker, DMG 2x walker, SPD 1.6 (0.8 while guarding with tentacles), DEF 0 (4 while guarding), attacks 4 blocks at once, attack delay 2x slower */
@@ -537,6 +564,7 @@ window.WZ = window.WZ || {};
     /* [MOB TAG] id=miner | Miner Zombie Walker | rarity=special | spawns only inside the mineshaft | coin=none */
     miner:   { name: 'Miner Zombie Walker', hp: 90, spd: 0.8, dmg: 12, def: 3, tier: 2, rarity: 'common', scale: 1.05, color: 0x7a6a3a, cd: 1.0, w: 0, nospawn: true },
     /* [MOB TAG] id=zfish | Zombie Fish | rarity=special (fishing only) | tier=T-Flexible | coin=1 kill -> 1 coin | attack gives Water Poison */
+    drowned: { name: 'Drowned Zombie', hp: 60, spd: 0.75, dmg: 6, def: 0, tier: 1, rarity: 'common', scale: 1.0, color: 0x3f7f86, cd: 1.1, w: 0, nospawn: true, coin: [1, 2] },
     zfish:   { name: 'Zombie Fish', hp: 30, spd: 0.9, dmg: 4, def: -1, tier: 1, rarity: 'common', scale: 0.55, color: 0x3a8f87, cd: 1.0, w: 0, nospawn: true, wpoison: true, coin: [1, 1] },
     /* [MOB TAG] id=gigantus | Gigantus Zombie | rarity=BOSS (tier 1 -> 2) | spawns ONCE at day 10 | coin=1 kill -> 25 coins | SPLASH 1 | weakness: attacks 3x slower than normal zombies (cd 1.0 x3) */
     gigantus:{ name: 'Gigantus Zombie', hp: 500, spd: 0.4, dmg: 20, def: 0, tier: 2, rarity: 'boss', scale: 2.3, color: 0x4f5a44, cd: 3.0, w: 0, nospawn: true, boss: true, splash: 1, coin: [1, 25] },
@@ -561,6 +589,23 @@ window.WZ = window.WZ || {};
     item(base + '_greatsword', '🗡️', nm + ' Greatsword', 'Double damage, 0.8x reach, twice as slow. Made for tanky zombies and rhino-thick defense.', { type: 'tool', tool: 'sword', bd: 1, dmg: sw.dmg * 2, reach: 0.8, dly: 2, wtype: 'great', note: 'Greatsword: DMG 2x, reach 0.8x, delay 2x' });
     var st0 = rec0.st; R.push({ id: base + '_spear', st: st0, out: [base + '_spear', 1], cost: cs }); R.push({ id: base + '_greatsword', st: st0, out: [base + '_greatsword', 1], cost: cg });
   });
+    /* [FURNITURE TAG] Wood / Palm / Pine furniture sets. vox ids 52-69 (piece*3+wood) and 70-71 (Palm/Pine bed). */
+  item('cotton', '☁️', 'Cotton', 'Soft fibre found in bushes. Used for sofas, couches and beds.');
+  item('palm_plank', '🟨', 'Palm Plank', 'A plank cut from a Palm Log at a Sawmill.');
+  item('pine_plank', '🟫', 'Pine Plank', 'A plank cut from a Pine Log at a Sawmill.');
+  item('pine_stick', '🥢', 'Pine Stick', 'A straight stick from a pine log.');
+  var FW = [['wood', 'Wood', 'wood_sticks', 'wood_plank'], ['palm', 'Palm', 'palm_wood_stick', 'palm_plank'], ['pine', 'Pine', 'pine_stick', 'pine_plank']];
+  var FP = [['chair', 'Chair', 8, 6, 0, [1, 1, 1], 'Sit with [E]. No Comfort, but restores Energy +5 per second.'], ['table', 'Table', 12, 10, 0, [2, 1, 1], 'Put an object on top with [E] (even Fragile ones). A Cutting Board on a table turns it into a cutting station.'], ['sofa', 'Sofa', 8, 12, 10, [2, 1, 1], 'Sit and relax with [E]. Restores Energy +8 every 0.5 s and Comfort.'], ['couch', 'Couch Sofa', 8, 6, 5, [1, 1, 1], 'A single-seat sofa. Restores Energy +8 every 0.5 s and Comfort.'], ['standlamp', 'Standing Bulb Lamp', 6, 3, 0, [1, 1, 1], 'A warm bulb lamp on a stand. Lights up the room at night.'], ['hanglamp', 'Hanging Bulb Lamp', 4, 2, 0, [1, 1, 1], 'A bulb lamp that hangs on a cord. Lights up the room at night.']];
+  FP.forEach(function (pc, pi) { FW.forEach(function (w, wi) {
+    var id = pc[0] + '_' + w[0], cost = {}; cost[w[2]] = pc[2]; cost[w[3]] = pc[3]; if (pc[4]) cost.cotton = pc[4]; if (pc[0] === 'standlamp') cost.copper_ingot = 2; if (pc[0] === 'hanglamp') { cost.rope = 2; cost.copper_ingot = 1; cost.cotton = 2; }
+    item(id, pc[0] === 'chair' ? '🪑' : pc[0] === 'table' ? '🪵' : pc[0] === 'sofa' || pc[0] === 'couch' ? '🛋️' : '💡', w[1] + ' ' + pc[1], pc[6] + ' Size ' + pc[5].join('x') + '.', { type: 'block', vox: 52 + pi * 3 + wi, hp: 50, size: pc[5] });
+    R.push({ id: id, st: 'sawmill', out: [id, 1], cost: cost, puz: { k: 'saw', d: 2 } });
+  }); });
+  [['palm', 'Palm', 'palm_wood_stick', 'palm_plank'], ['pine', 'Pine', 'pine_stick', 'pine_plank']].forEach(function (w, wi) { var c = {}; c[w[2]] = 10; c[w[3]] = 14; c.cotton = 12; item('bed_' + w[0], '🛏️', w[1] + ' Bed', 'A comfy bed. Sleep with [E] and dismantle it again anytime. Size 2x1x1.', { type: 'block', vox: 70 + wi, hp: 55, size: [2, 1, 1] }); R.push({ id: 'bed_' + w[0], st: 'sawmill', out: ['bed_' + w[0], 1], cost: c, puz: { k: 'saw', d: 2 } }); });
+  R.push({ id: 'pine_sticks', st: 'sawmill', out: ['pine_stick', 4], cost: { pine_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Pine Log into Pine Sticks' }, { id: 'palm_planks', st: 'sawmill', out: ['palm_plank', 2], cost: { palm_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Palm Log into Palm Planks' }, { id: 'pine_planks', st: 'sawmill', out: ['pine_plank', 2], cost: { pine_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Pine Log into Pine Planks' });
+  /* [ICON TAG] XKing Studio logos: only items whose logo clearly matches. ':d' = dirty tint, ':c' = contaminated tint. Others keep their emoji. */
+  (function () { var M = {"stone": "4_0", "diamond": "4_3", "emerald": "4_4", "amethyst": "4_17", "soil": "1_15", "golden_nugget": "4_7", "iron_ingot": "4_9", "titanium_ingot": "4_8", "copper_ingot": "4_10", "golden_ingot": "4_6", "coal": "4_1", "charcoal": "4_2", "feather": "4_13", "rope": "4_12", "gunpowder": "4_14", "red_brick": "4_18", "cactus": "1_9", "potato": "1_2", "dirty_potato": "1_2:d", "contaminated_potato": "1_2:c", "watermelon": "1_4", "dirty_watermelon": "1_4:d", "contaminated_watermelon": "1_4:c", "pumpkin": "1_5", "dirty_pumpkin": "1_5:d", "contaminated_pumpkin": "1_5:c", "fresh_fish": "2_9", "contaminated_fish": "2_9:c", "cooked_fish": "2_10", "iron_bucket": "3_9", "arrow": "3_15", "wood_bow": "3_29", "simple_bomb": "3_21", "wooden_chest": "3_2", "signal_chip": "3_27", "gpu_chip": "4_20", "broken_leather_cloth": "4_15:d", "leaf": "6_16", "clay_ore": "4_18:d"};
+    Object.keys(M).forEach(function (id) { var it = I[id]; if (!it) return; var a = M[id].split(':'), f = a[1] === 'd' ? ' style="filter:sepia(.7) brightness(.75)"' : a[1] === 'c' ? ' style="filter:hue-rotate(70deg) saturate(.9) brightness(.7)"' : ''; it.emoji = it.ic; it.ic = '<img class="ico" src="icons/s' + a[0] + '.png" alt=""' + f + '>'; }); })();
   WZ.ITEMS = I;
   FRUITS.concat(VEGS).forEach(function (f) { R.push({ id: 'wash_' + f[0], st: 'sink', out: [f[0], 1], cost: (function () { var o = {}; o['dirty_' + f[0]] = 1; return o; })(), label: 'Wash Dirty ' + f[1] + ' → ' + f[1] }); });
   /* Press Machine is coming soon */
@@ -570,13 +615,13 @@ window.WZ = window.WZ || {};
   /* Fuel: t = burn seconds per item, p = heat power per item */
   WZ.FUEL = { coal: { t: 15, p: 10 }, wood: { t: 5, p: 4 }, charcoal: { t: 10, p: 10 } };
   /* Bag rules: 24 slots; stacks of 50; tools, armor and accessories do not stack. */
-  WZ.BAG_SLOTS = 24;
+  WZ.BAG_SLOTS = 36;
   WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (id === 'band_aid_box') return 20; if (id === 'life_fruit' || id === 'aegis_fruit' || id === 'magic_purify_water') return 10; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
   /* Turret blocks: a destroyed turret (by zombies) drops 20% of its crafting materials */
   WZ.TURRET_VOX = { 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon' };
   WZ.LOOT = LOOT;
   WZ.ZOMBIES = Z;
-  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored', 'mutant', 'tough', 'jacket', 'pfwalker', 'berserk', 'mutanoider', 'hardzombie'];
+  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored', 'mutant', 'tough', 'jacket', 'pfwalker', 'berserk', 'mutanoider', 'hardzombie', 'drowned'];
   /* Loot entries may carry a minimum world tier as the 3rd value. Group tokens ('@dirty_fruit', ...) pick a random member; ctx.village=false hides watermelon/pumpkin. Luck (0..1) rerolls toward rarer items. */
   WZ.getTier = function () { return 5; };
   WZ.luck = function () { return 0; };
@@ -593,8 +638,8 @@ window.WZ = window.WZ || {};
     var id = pickEntry[0]; return id.charAt(0) === '@' ? pickGroup(id, rnd, ctx) : id;
   };
   /* Bush loot (percent). plain: luck-free defaults. */
-  LOOT.bush_plain = { name: 'Bush', rolls: 1, enabled: true, t: [['wood_sticks', 40], ['leaf', 10], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 1], ['clover_leaf', 1]] };
-  LOOT.bush_jungle = { name: 'Jungle Bush', rolls: 1, enabled: true, t: [['wood_sticks', 30], ['leaf', 15], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 2], ['clover_leaf', 1]] };
+  LOOT.bush_plain = { name: 'Bush', rolls: 1, enabled: true, t: [['cotton', 8], ['wood_sticks', 40], ['leaf', 10], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 1], ['clover_leaf', 1]] };
+  LOOT.bush_jungle = { name: 'Jungle Bush', rolls: 1, enabled: true, t: [['cotton', 12], ['wood_sticks', 30], ['leaf', 15], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 2], ['clover_leaf', 1]] };
   WZ.rollBush = function (key, rnd) {
     var r = WZ.rollLoot(key, rnd); if (r === '#contaminated_berry') return ['contaminated_blueberry', 'contaminated_redberry', 'contaminated_sweetberry'][Math.floor(rnd() * 3)];
     if (r === '#clean_berry') return ['blueberry', 'redberry', 'sweetberry'][Math.floor(rnd() * 3)]; return r;

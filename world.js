@@ -1,7 +1,73 @@
 /* world.js - Webzombite */
 (function (WZ) {
   'use strict';
-  WZ.HALF = 1000; WZ.SPAWN_HALF = 1025; /* map 2000 m x 2000 m, mob spawn ring 2050 m x 2050 m */
+  WZ.HALF = 2500; WZ.SPAWN_HALF = 2525; /* map 5000 m x 5000 m, mob spawn ring 5050 m x 5050 m */
+  /* ================= TERRAIN (map 5000 x 5000). Core 2000 x 2000 stays flat (roads, city). The 1500 m ring around it has hills, dunes, mountains, beach and sea. ================= */
+  var TR = WZ.TERRAIN = {}, CORE = 1000, STEP = 20, NG = Math.round(WZ.HALF * 2 / STEP), TH = null;
+  function th2(ix, iz) { var h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263) + 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+  function vnz(x, z) { var ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz; fx = fx * fx * (3 - 2 * fx); fz = fz * fz * (3 - 2 * fz); var a = th2(ix, iz), b = th2(ix + 1, iz), c = th2(ix, iz + 1), d = th2(ix + 1, iz + 1); return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz; }
+  function fbm(x, z, o) { var s = 0, a = 0.5, n = 0; for (var i = 0; i < (o || 3); i++) { s += a * vnz(x, z); n += a; x *= 2.03; z *= 2.03; a *= 0.5; } return s / n; }
+  function sst(a, b, x) { var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  TR.sst = sst; TR.CORE = CORE;
+  function dOf(x, z) { return Math.max(Math.abs(x), Math.abs(z)); }
+  function seaD(x, z) { return 2150 + 130 * (vnz(x / 300 + 11, z / 300 + 7) - 0.5); }
+  function mtField(x, z) { return fbm(x / 650 + 31, z / 650 + 17, 3); }
+  function regionW(x, z) { /* smooth base-biome weights from the core's quadrant rules */
+    var wS = 1 - sst(-540, -460, z), r = 1 - wS, wD = r * sst(460, 540, x), wJ = r * (1 - sst(-540, -460, x)) * (1 - sst(460, 540, x)) * 0 + r * (1 - sst(-540, -460, x)) * (1 - wD / Math.max(r, 1e-6)), wC = Math.max(0, r - wD - wJ);
+    return [wJ, wD, wS, wC];
+  }
+  /* height without pads */
+  function hBare(x, z) {
+    var d = dOf(x, z); if (d < CORE - 40) return 0;
+    var ring = sst(CORE - 20, CORE + 80, d), rw = regionW(x, z);
+    var hill = (fbm(x / 110, z / 110, 3) - 0.5);
+    var hC = hill * 8 + 3, hS = hill * 8 + 3, hJ = (fbm(x / 160, z / 160, 3) - 0.35) * 34, dn = fbm(x / 70 + 5, z / 120 + 9, 3), hD = Math.pow(dn, 1.6) * 30;
+    var hb = rw[0] * hJ + rw[1] * hD + rw[2] * hS + rw[3] * hC; hb = Math.max(0, hb);
+    var mf = mtField(x, z), M = sst(0.54, 0.64, mf) * sst(CORE + 120, CORE + 320, d), K = sst(0.70, 0.78, mf) * M;
+    var mh = 100 + fbm(x / 140, z / 140, 4) * 125, ph = 225 + fbm(x / 90 + 3, z / 90 + 3, 3) * 125;
+    var hM = mh + (ph - mh) * K;
+    var sd = seaD(x, z), fl = sst(sd - 330, sd - 120, d), h = hb * (1 - M) + hM * M; h = h * (1 - fl) + 0.2 * fl; M = M * (1 - fl);
+    if (d > sd - 20) h = 0.2 - (d - (sd - 20)) * 0.32;
+    return Math.max(-30, h) * ring;
+  }
+  /* flat pads for big buildings in the Downtown Mountain areas */
+  TR.pads = []; (function () {
+    var G = 260; for (var gx = -2200; gx <= 2200; gx += G) for (var gz = -2200; gz <= 2200; gz += G) {
+      var jx = gx + (th2(gx, gz) - 0.5) * 120, jz = gz + (th2(gz + 7, gx + 3) - 0.5) * 120, d = dOf(jx, jz); if (d < CORE + 200 || d > 2000) continue;
+      var mf = mtField(jx, jz); if (mf < 0.58 || mf > 0.76) continue; if (th2(gx + 99, gz + 55) > 0.32) continue;
+      TR.pads.push({ x: jx, z: jz, r: 40, h: Math.round(hBare(jx, jz)) });
+    }
+  })();
+  function hFull(x, z) { var h = hBare(x, z); for (var i = 0; i < TR.pads.length; i++) { var p = TR.pads[i], dd = Math.hypot(x - p.x, z - p.z); if (dd < p.r + 36) { var t = sst(p.r, p.r + 36, dd); h = p.h * (1 - t) + h * t; } } return h; }
+  TH = new Float32Array((NG + 1) * (NG + 1)); (function () { for (var j = 0; j <= NG; j++) for (var i = 0; i <= NG; i++) TH[j * (NG + 1) + i] = hFull(-WZ.HALF + i * STEP, -WZ.HALF + j * STEP); })();
+  TR.grid = TH; TR.NG = NG; TR.STEP = STEP;
+  TR.gh = function (x, z) {
+    if (x <= -WZ.HALF || x >= WZ.HALF || z <= -WZ.HALF || z >= WZ.HALF || (Math.abs(x) < CORE - 40 && Math.abs(z) < CORE - 40)) return 0;
+    var gx = (x + WZ.HALF) / STEP, gz = (z + WZ.HALF) / STEP, i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j, W1 = NG + 1;
+    var a = TH[j * W1 + i], b = TH[j * W1 + i + 1], c = TH[(j + 1) * W1 + i], d = TH[(j + 1) * W1 + i + 1];
+    return fx + fz <= 1 ? a + (b - a) * fx + (c - a) * fz : d + (b - d) * (1 - fz) + (c - d) * (1 - fx);
+  };
+  TR.biome = function (x, z) {
+    var d = dOf(x, z);
+    if (d >= CORE) {
+      var sd = seaD(x, z); if (d > sd) return 'sea'; if (d > sd - 110) return 'beach';
+      var mf = mtField(x, z), M = sst(0.54, 0.64, mf) * sst(CORE + 120, CORE + 320, d);
+      if (M > 0.5) return sst(0.70, 0.78, mf) > 0.5 ? 'peak' : 'mountain';
+    }
+    if (z < -500) return 'snow'; if (x > 500) return 'desert'; if (x < -500) return 'jungle'; return 'city';
+  };
+  /* vertex colour for the terrain mesh */
+  TR.color = function (x, z, h) {
+    var d = dOf(x, z), sd = seaD(x, z), rw = regionW(x, z), mf = mtField(x, z), M = sst(0.54, 0.64, mf) * sst(CORE + 120, CORE + 320, d), K = sst(0.70, 0.78, mf);
+    var cJ = [0.18, 0.35, 0.16], cD = [0.84, 0.71, 0.46], cS = [0.9, 0.94, 0.96], cC = [0.36, 0.42, 0.26], base = [0, 0, 0];
+    for (var i = 0; i < 3; i++) base[i] = rw[0] * cJ[i] + rw[1] * cD[i] + rw[2] * cS[i] + rw[3] * cC[i];
+    var st = [0.46, 0.46, 0.45], snw = [0.95, 0.97, 1.0], mc = [0, 0, 0], low = sst(100, 160, h), hi = sst(215, 245, h);
+    var sp = Math.min(1, rw[2] * 1.4) * sst(0.42, 0.62, vnz(x / 55 + 7, z / 55 - 3) * 0.8 + 0.2 + h / 500) * 0.97;
+    for (var k = 0; k < 3; k++) { mc[k] = (0.3 + (st[k] - 0.3) * low) * (1 - hi) + snw[k] * hi; mc[k] = mc[k] * (1 - sp) + snw[k] * sp; }
+    var out = [0, 0, 0], sand = [0.89, 0.82, 0.6], seab = [0.76, 0.68, 0.46], fl = sst(sd - 120, sd - 20, d), sb = sst(sd - 10, sd + 60, d);
+    for (var q = 0; q < 3; q++) { var v = base[q] * (1 - M) + mc[q] * M; v = v * (1 - fl) + sand[q] * fl; v = v * (1 - sb) + seab[q] * sb; out[q] = v * (0.94 + 0.12 * vnz(x / 9, z / 9)); }
+    return out;
+  };
   function mulberry(seed) {
     return function () {
       seed |= 0; seed = seed + 0x6D2B79F5 | 0;
@@ -16,13 +82,14 @@
     var R = mulberry(20261116), ANISO = Math.min(4, maxAniso || 4);
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
-    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], sews: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
-    var HALF = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = HALF;
+    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], sews: [], gods: [], seats: [], tables: [], lamps: [], cuttables: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
+    var HALF = 1000 /* core extent */, MAPH = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = MAPH; W.gh = WZ.TERRAIN.gh;
 
     var CELL = 8, sgrid = new Map();
-    function ck(cx, cz) { return (cx + 200) * 512 + (cz + 200); }
+    var GYO = 0;
+    function ck(cx, cz) { return (cx + 400) * 1024 + (cz + 400); }
     function addBox(x0, x1, y0, y1, z0, z1, isDyn) {
-      var b = { x0: x0, x1: x1, y0: y0, y1: y1, z0: z0, z1: z1, on: true, dyn: !!isDyn };
+      var b = { x0: x0, x1: x1, y0: y0 + GYO, y1: y1 + GYO, z0: z0, z1: z1, on: true, dyn: !!isDyn };
       for (var cx = Math.floor(x0 / CELL); cx <= Math.floor(x1 / CELL); cx++) for (var cz = Math.floor(z0 / CELL); cz <= Math.floor(z1 / CELL); cz++) {
         var k = ck(cx, cz), l = sgrid.get(k); if (!l) { l = []; sgrid.set(k, l); } l.push(b);
       }
@@ -31,7 +98,7 @@
     W.addBox = addBox;
 
     var vox = new Map(), VMAX = 40, info = { top: 0, bottom: 0, vox: null, box: null };
-    function vk(x, y, z) { return ((x + 1100) * 4096 + (z + 1100)) * 64 + y; }
+    function vk(x, y, z) { return ((x + 2600) * 8192 + (z + 2600)) * 64 + y; }
     W.vkey = vk;
     W.hit = function (x0, x1, y0, y1, z0, z1) {
       var found = false; info.top = -1e9; info.bottom = 1e9; info.vox = null; info.box = null;
@@ -69,7 +136,7 @@
     function put(m, x, y, z, sx, sy, sz, ry, col, at) {
       var cap = m.instanceMatrix.count, i = at == null ? m.count : at;
       if (i >= cap) return cap - 1; if (at == null) m.count++;
-      P.set(x, y, z); S.set(sx, sy, sz); Q.setFromAxisAngle(UP, ry || 0); Mx.compose(P, Q, S);
+      P.set(x, y + GYO, z); S.set(sx, sy, sz); Q.setFromAxisAngle(UP, ry || 0); Mx.compose(P, Q, S);
       m.setMatrixAt(i, Mx);
       if (col != null && m.instanceColor) { C.setHex(col); C.toArray(m.instanceColor.array, i * 3); m.instanceColor.needsUpdate = true; }
       m.instanceMatrix.needsUpdate = true; return i;
@@ -113,6 +180,8 @@
       for (var i = 0; i < 1600; i++) { var v = (r() * 42) | 0; g.fillStyle = 'rgba(' + (44 + v) + ',' + (47 + v) + ',' + (52 + v) + ',.75)'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); }
       g.strokeStyle = 'rgba(12,12,14,.8)'; g.lineWidth = 1.2; for (var k = 0; k < 5; k++) { g.beginPath(); var sx = r() * w; g.moveTo(sx, 0); g.lineTo(sx + (r() - 0.5) * 18, h * 0.5); g.lineTo(sx + (r() - 0.5) * 24, h); g.stroke(); }
     });
+    var junTex = canvasTex(64, 64, function (g, w, h) { var r = mulberry(61); g.fillStyle = '#3a3d42'; g.fillRect(0, 0, w, h); for (var i = 0; i < 700; i++) { var v = (r() * 42) | 0; g.fillStyle = 'rgba(' + (44 + v) + ',' + (47 + v) + ',' + (52 + v) + ',.75)'; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1 + r() * 2); } });
+    (function () { var jm = inst(boxB, lam(0xffffff, { map: junTex }), 1000, false, false); ROADS.forEach(function (cx) { ROADS.forEach(function (cz) { if (Math.hypot(cx - RBX, cz - RBZ) < 16) return; put(jm, cx, 0.0205, cz, RW + 0.04, 0.0045, RW + 0.04, 0, null); }); }); })();
     var plankTex = canvasTex(128, 128, function (g, w, h) {
       var r = mulberry(7); g.fillStyle = '#9c6e3b'; g.fillRect(0, 0, w, h);
       for (var p = 0; p < 4; p++) {
@@ -235,10 +304,10 @@
     });
 
     /* ground planes per biome: city (centre + south), desert (east), jungle (west), snow (north) */
-    function biomeOf(x, z) { if (z < -500) return 'snow'; if (x > 500) return 'desert'; if (x < -500) return 'jungle'; return 'city'; }
+    function biomeOf(x, z) { return WZ.TERRAIN.biome(x, z); }
     W.biomeOf = biomeOf; W.onRoad = function (x, z, m) { return onRoad(x, z, m); };
     (function () {
-      var E = HALF + 100, defs = [
+      var E = HALF, defs = [
         ['city', -500, 500, -500, E, groundTexMake('#5c6142', 'rgba(65,55,38,.45)', 'rgba(110,125,70,.7)', 5, 1)],
         ['desert', 500, E, -500, E, groundTexMake('#d6b676', 'rgba(170,130,70,.5)', 'rgba(235,205,140,.7)', 6, 1)],
         ['jungle', -E, -500, -500, E, groundTexMake('#2f5a2a', 'rgba(20,50,20,.5)', 'rgba(70,120,50,.7)', 7, 1)],
@@ -248,9 +317,58 @@
         var pm = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lam(0xffffff, { map: m })); pm.rotation.x = -Math.PI / 2; pm.position.set((d[1] + d[2]) / 2, 0, (d[3] + d[4]) / 2); scene.add(pm);
       });
     })();
+    /* ---- terrain mesh (ring around the flat core) + sea ---- */
+    (function () {
+      var CORE0, TRN = WZ.TERRAIN, NG = TRN.NG, ST = TRN.STEP, H0 = MAPH, pos = [], col = [], idx = [], vid = {}, W1 = NG + 1;
+      function vert(i, j) { var key = j * W1 + i, v = vid[key]; if (v != null) return v; var x = -H0 + i * ST, z = -H0 + j * ST, h = TRN.grid[key], c = TRN.color(x, z, h); v = pos.length / 3; pos.push(x, h, z); col.push(c[0], c[1], c[2]); vid[key] = v; return v; }
+      var cl = (CORE0 = TRN.CORE) / ST;
+      for (var j = 0; j < NG; j++) for (var i = 0; i < NG; i++) {
+        var x0 = -H0 + i * ST, z0 = -H0 + j * ST; if (x0 >= -CORE0 + 0 && x0 + ST <= CORE0 && z0 >= -CORE0 && z0 + ST <= CORE0) continue;
+        var a = vert(i, j), b = vert(i + 1, j), c = vert(i, j + 1), d = vert(i + 1, j + 1); idx.push(a, c, b, b, c, d);
+      }
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+      var tm = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })); tm.frustumCulled = false; scene.add(tm); W.terrainMesh = tm;
+      var sea = new THREE.Mesh(new THREE.PlaneGeometry(H0 * 2 + 400, H0 * 2 + 400), new THREE.MeshLambertMaterial({ color: 0x2f7fc0, transparent: true, opacity: 0.66, depthWrite: false })); sea.rotation.x = -Math.PI / 2; sea.position.set(0, -0.3, 0); sea.renderOrder = 2; scene.add(sea); W.seaMesh = sea;
+    })();
+    /* ---- mountain roads: 2 winding roads per mountain, ribbon meshes following the terrain ---- */
+    (function () {
+      var TRN = WZ.TERRAIN, rm = mulberry(777), H0 = MAPH, cand = [], peaks = [], keys = {}, pos = [], uv = [], idx = [], RWd = 3.2;
+      for (var gx = -H0 + 120; gx < H0 - 120; gx += 50) for (var gz = -H0 + 120; gz < H0 - 120; gz += 50) {
+        var b = TRN.biome(gx, gz); if ((b === 'mountain' || b === 'peak') && Math.max(Math.abs(gx), Math.abs(gz)) > HALF + 60) cand.push([gx, gz, TRN.gh(gx, gz)]);
+      }
+      cand.sort(function (a, b) { return b[2] - a[2]; });
+      cand.forEach(function (c) { if (peaks.length < 12 && peaks.every(function (p) { return Math.hypot(p[0] - c[0], p[1] - c[1]) > 300; })) peaks.push(c); });
+      function mk(x, z) { return Math.floor(x / 5) + ',' + Math.floor(z / 5); }
+      peaks.forEach(function (pk) {
+        for (var r = 0; r < 2; r++) {
+          var x = pk[0], z = pk[1], a = rm() * 6.283 + r * 3.1416, pts = [[x, z]], steps = 0;
+          while (steps++ < 260) {
+            var best = null, bs = 1e9;
+            for (var k = -2; k <= 2; k++) { var aa = a + k * 0.28 + (rm() - 0.5) * 0.1, nx = x + Math.cos(aa) * 5, nz = z + Math.sin(aa) * 5; var sl = Math.abs(TRN.gh(nx, nz) - TRN.gh(x, z)) + Math.abs(k) * 0.25; if (sl < bs) { bs = sl; best = [nx, nz, aa]; } }
+            x = best[0]; z = best[1]; a = best[2]; var bb = TRN.biome(x, z);
+            if (bb === 'sea' || bb === 'beach' || Math.max(Math.abs(x), Math.abs(z)) <= HALF + 40 || Math.max(Math.abs(x), Math.abs(z)) > H0 - 60) break;
+            pts.push([x, z]); if (bb !== 'mountain' && bb !== 'peak' && steps > 40) break;
+          }
+          if (pts.length < 8) continue;
+          var v0 = pos.length / 3, len = 0;
+          for (var i = 0; i < pts.length; i++) {
+            var p = pts[i], q = pts[Math.min(i + 1, pts.length - 1)], o = pts[Math.max(i - 1, 0)], dx = q[0] - o[0], dz = q[1] - o[1], dl = Math.hypot(dx, dz) || 1, nx2 = -dz / dl, nz2 = dx / dl;
+            if (i) len += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]);
+            var lx = p[0] + nx2 * RWd, lz = p[1] + nz2 * RWd, rx = p[0] - nx2 * RWd, rz = p[1] - nz2 * RWd, hc = TRN.gh(p[0], p[1]);
+            pos.push(lx, Math.max(TRN.gh(lx, lz), hc - 0.4) + 0.14, lz, rx, Math.max(TRN.gh(rx, rz), hc - 0.4) + 0.14, rz); uv.push(0, len / 6, 1, len / 6);
+            for (var ox = -1; ox <= 1; ox++) for (var oz = -1; oz <= 1; oz++) keys[mk(p[0] + ox * 4, p[1] + oz * 4)] = 1;
+            if (i) { var s = v0 + i * 2; idx.push(s - 2, s, s - 1, s - 1, s, s + 1); }
+          }
+        }
+      });
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+      var rt = roadTex.clone(); rt.needsUpdate = true; rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
+      var mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: rt, side: THREE.DoubleSide })); mesh.frustumCulled = false; scene.add(mesh); W.mtRoadMesh = mesh;
+      W.mtPeaks = peaks; W.onMtRoad = function (x, z) { return !!keys[mk(x, z)]; };
+    })();
     (function () {
       /* gradient strips: 5 m fading out of biome A + 5 m fading into biome B; sandy beach along the map edge */
-      var E = HALF + 100, COL = { city: '#5c6142', desert: '#d6b676', jungle: '#2f5a2a', snow: '#e6eef3', beach: '#e3d29a' };
+      var E = HALF, COL = { city: '#5c6142', desert: '#d6b676', jungle: '#2f5a2a', snow: '#e6eef3', beach: '#e3d29a' };
       function strip(c1, c2, x0, x1, z0, z1, alongX, alpha) {
         var cv = document.createElement('canvas'); cv.width = alongX ? 64 : 4; cv.height = alongX ? 4 : 64; var g = cv.getContext('2d'), gr = alongX ? g.createLinearGradient(0, 0, 64, 0) : g.createLinearGradient(0, 0, 0, 64);
         gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
@@ -261,22 +379,13 @@
       strip(COL.city, COL.desert, 495, 505, -500, E, true); strip(COL.jungle, COL.city, -505, -495, -500, E, true);
       /* snow border (gradient runs along z: south = other biome, north = snow). rotation.z swaps direction, so give colours north->south */
       strip(COL.snow, COL.jungle, -E, -500, -505, -495, false); strip(COL.snow, COL.city, -500, 500, -505, -495, false); strip(COL.snow, COL.desert, 500, E, -505, -495, false);
-      /* beach: solid sand band + 10 m fade inwards */
-      var B = HALF - 60, F = 10;
-      [[-E, E, HALF - 60, E], [-E, E, -E, -HALF + 60], [HALF - 60, E, -E, E], [-E, -HALF + 60, -E, E]].forEach(function (q, qi) {
-        var sm = new THREE.Mesh(new THREE.PlaneGeometry(q[1] - q[0], q[3] - q[2]), new THREE.MeshLambertMaterial({ color: 0xe3d29a })); sm.rotation.x = -Math.PI / 2; sm.position.set((q[0] + q[1]) / 2, 0.014, (q[2] + q[3]) / 2); scene.add(sm);
-      });
-      var T0 = 'rgba(227,210,154,0)', T1 = 'rgba(227,210,154,1)', HB = HALF - 60;
-      strip(T0, T1, -E, E, HB - F, HB, false, true); /* south edge: fade from inside (north) to sand (south) */
-      strip(T1, T0, -E, E, -HB, -HB + F, false, true); /* north edge */
-      strip(T0, T1, HB - F, HB, -E, E, true, true); strip(T1, T0, -HB, -HB + F, -E, E, true, true);
     })();
     (function () {
       var pos = [], norm = [], uv = [], idx = [];
       function pq(v0, v1, v2, v3, sw) {
         var b = pos.length / 3; pos.push(v0[0], v0[1], v0[2], v1[0], v1[1], v1[2], v2[0], v2[1], v2[2], v3[0], v3[1], v3[2]);
         for (var i = 0; i < 4; i++) norm.push(0, 1, 0);
-        if (sw) uv.push(0, 0, 0, 1, 214, 1, 214, 0); else uv.push(0, 0, 1, 0, 1, 214, 0, 214);
+        if (sw) uv.push(0, 0, 214, 0, 214, 1, 0, 1); else uv.push(0, 0, 1, 0, 1, 214, 0, 214);
         idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
       }
       ROADS.forEach(function (c) {
@@ -289,7 +398,19 @@
       scene.add(new THREE.Mesh(g, lam(0xffffff, { map: roadTex })));
     })();
     var dashes = inst(boxB, lam(0xe8c448), 18500, false, false);
-    ROADS.forEach(function (c) { for (var t = -HALF - 5; t < HALF + 5; t += 7) { put(dashes, c, 0.03, t, 0.18, 0.01, 3.2, 0, null); put(dashes, t, 0.032, c, 3.2, 0.01, 0.18, 0, null); } });
+    var RBX = -32, RBZ = 32; /* spawn roundabout (replaces the crossroad) */
+    function nearRoad(t) { for (var q = 0; q < ROADS.length; q++) if (Math.abs(t - ROADS[q]) < RW / 2 + 1.6) return true; return false; }
+    ROADS.forEach(function (c) { for (var t = -HALF - 5; t < HALF + 5; t += 7) { if (Math.hypot(c - RBX, t - RBZ) > 15 && !nearRoad(t)) put(dashes, c, 0.03, t, 0.18, 0.01, 3.2, 0, null); if (Math.hypot(t - RBX, c - RBZ) > 15 && !nearRoad(t)) put(dashes, t, 0.032, c, 3.2, 0.01, 0.18, 0, null); } });
+    var rbBuild = function () {
+      var rbTex = roadTex.clone(); rbTex.needsUpdate = true; rbTex.wrapS = rbTex.wrapT = THREE.RepeatWrapping; rbTex.repeat.set(1.6, 1.6); var asph = new THREE.Mesh(new THREE.RingGeometry(6.6, 13.2, 64), lam(0xffffff, { map: rbTex })); asph.rotation.x = -Math.PI / 2; asph.position.set(RBX, 0.026, RBZ); scene.add(asph);
+      var edge = new THREE.Mesh(new THREE.RingGeometry(12.7, 12.95, 64), new THREE.MeshBasicMaterial({ color: 0xe8e8e0 })); edge.rotation.x = -Math.PI / 2; edge.position.set(RBX, 0.03, RBZ); scene.add(edge);
+      var curb = new THREE.Mesh(new THREE.RingGeometry(6.6, 7.0, 48), new THREE.MeshBasicMaterial({ color: 0xb8b4aa })); curb.rotation.x = -Math.PI / 2; curb.position.set(RBX, 0.04, RBZ); scene.add(curb);
+      var isl = new THREE.Mesh(new THREE.CircleGeometry(6.6, 40), lam(0x4d7a3a)); isl.rotation.x = -Math.PI / 2; isl.position.set(RBX, 0.05, RBZ); scene.add(isl);
+      for (var a = 0; a < 24; a++) { var an = a / 24 * Math.PI * 2; put(dashes, RBX + Math.cos(an) * 9.9, 0.034, RBZ + Math.sin(an) * 9.9, 1.6, 0.01, 0.16, -an + Math.PI / 2, null); }
+      put(walls, RBX, 0.3, RBZ, 3.2, 0.6, 3.2, 0, 0x8a8a84); put(walls, RBX, 1.3, RBZ, 1.4, 1.6, 1.4, 0, 0x9a9a94); put(walls, RBX, 2.4, RBZ, 2.2, 0.35, 2.2, 0, 0x7a7a74); put(walls, RBX, 3.0, RBZ, 0.5, 0.9, 0.5, 0, 0xc9a24a);
+      addBox(RBX - 1.6, RBX + 1.6, 0, 3.4, RBZ - 1.6, RBZ + 1.6, false);
+      for (var ti = 0; ti < 6; ti++) { var ta = ti / 6 * Math.PI * 2 + 0.3; put(walls, RBX + Math.cos(ta) * 4.8, 0.25, RBZ + Math.sin(ta) * 4.8, 0.9, 0.5, 0.9, 0, 0x3f6a2e); }
+    };
 
     var occGrid = new Map(), OC = 16;
     var occupied = { push: function (o) { for (var cx = Math.floor(o[0] / OC); cx <= Math.floor(o[1] / OC); cx++) for (var cz = Math.floor(o[2] / OC); cz <= Math.floor(o[3] / OC); cz++) { var k = ck(cx, cz), l = occGrid.get(k); if (!l) { l = []; occGrid.set(k, l); } l.push(o); } } };
@@ -308,6 +429,7 @@
     }
 
     var walls = inst(box1, lam(0xffffff, { map: houseWallTex }), 130000, false, true), winM = inst(box1, (W.winMat = new THREE.MeshLambertMaterial({ map: winTex, transparent: true, depthWrite: false })), 20000, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
+    rbBuild();
     var CH = 20; W.CH = CH; W.chunks = new Map();
     W.chunkOf = function (x, y, z) { return [Math.floor(x / CH), Math.floor(y / CH), Math.floor(z / CH)]; };
     function chunkAt(cx, cz) { var k = ck(cx, cz), c = W.chunks.get(k); if (!c) { c = { cx: cx, cz: cz, g: new THREE.Group(), vis: true }; c.g.userData.c = c; scene.add(c.g); W.chunks.set(k, c); } return c; }
@@ -473,63 +595,63 @@
     }
     function hideLeaves(i) { _lm.makeScale(0.0001, 0.0001, 0.0001); var j; for (j = 0; j < LN; j++) leafM.setMatrixAt(i * LN + j, _lm); for (j = 0; j < LN2; j++) leaf2M.setMatrixAt(i * LN2 + j, _lm); leafM.instanceMatrix.needsUpdate = true; leaf2M.instanceMatrix.needsUpdate = true; }
     function treeLeaves(t) {
-      var i = t.ix, s = t.s, th = t.th, k = t.kind, col = k === 'snow' ? 0x9fd09a : k === 'jungle' ? 0xb8f0a8 : 0xffffff;
+      var i = t.ix, s = t.s, th = t.th, gy = t.y || 0, k = t.kind, col = k === 'snow' ? 0x9fd09a : k === 'jungle' ? 0xb8f0a8 : 0xffffff;
       if (k === 'cactus' || k === 'palm') return;
       var by = k === 'snow' ? th * 0.35 : k === 'jungle' ? th * 0.5 : th * 0.62, hh = k === 'snow' ? 3.6 * s : k === 'jungle' ? 3.8 * s : 3.4 * s, rad = k === 'snow' ? 1.5 * s : k === 'jungle' ? 1.95 * s : 1.3 * s, sz = (k === 'jungle' ? 0.62 : 0.52) * Math.max(0.8, s);
-      leafCards(leafM, i, t.x, t.z, by, hh, rad * 1.1, sz, col, i, false); leafCards(leaf2M, i, t.x, t.z, by, hh, rad * 1.1, sz, col, i, true);
+      leafCards(leafM, i, t.x, t.z, gy + by, hh, rad * 1.1, sz, col, i, false); leafCards(leaf2M, i, t.x, t.z, gy + by, hh, rad * 1.1, sz, col, i, true);
     }
     var TMESH = [trunkM, crownM, crown2M, cactM, armM, vineM, frondM];
     function treeMat(t, on) {
-      var i = t.ix, s = t.s, th = t.th, x = t.x, z = t.z, k, j;
+      var i = t.ix, s = t.s, th = t.th, x = t.x, z = t.z, gy = t.y || 0, k, j;
       if (!on) { hideLeaves(i); put(trunkM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(crownM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(crown2M, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i); put(cactM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, i);
         for (j = 0; j < 2; j++) put(armM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 2 * i + j); for (j = 0; j < 3; j++) put(vineM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 3 * i + j); for (j = 0; j < 5; j++) put(frondM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 5 * i + j); return; }
       k = t.kind; treeLeaves(t);
       if (k === 'cactus') {
-        put(cactM, x, 0, z, 1.1 * s, th, 1.1 * s, 0, null, i);
-        put(armM, x + 0.5 * s, th * 0.38, z, 0.2 * s, th * 0.42, 0.2 * s, 0, null, 2 * i); put(armM, x - 0.45 * s, th * 0.5, z, 0.2 * s, th * 0.34, 0.2 * s, 0, null, 2 * i + 1); return;
+        put(cactM, x, gy, z, 1.1 * s, th, 1.1 * s, 0, null, i);
+        put(armM, x + 0.5 * s, gy + th * 0.38, z, 0.2 * s, th * 0.42, 0.2 * s, 0, null, 2 * i); put(armM, x - 0.45 * s, gy + th * 0.5, z, 0.2 * s, th * 0.34, 0.2 * s, 0, null, 2 * i + 1); return;
       }
       if (k === 'palm') {
-        put(trunkM, x, 0, z, 0.9 * s, th * 1.25, 0.9 * s, t.ry, null, i);
-        for (j = 0; j < 5; j++) put(frondM, x, th * 1.25, z, 3.0 * s, 0.07, 0.55 * s, t.ry + j * 1.2566, null, 5 * i + j); return;
+        put(trunkM, x, gy, z, 0.9 * s, th * 1.25, 0.9 * s, t.ry, null, i);
+        for (j = 0; j < 5; j++) put(frondM, x, gy + th * 1.25, z, 3.0 * s, 0.07, 0.55 * s, t.ry + j * 1.2566, null, 5 * i + j); return;
       }
       if (k === 'snow') {
-        put(trunkM, x, 0, z, 1.2 * s, th, 1.2 * s, t.ry, null, i);
-        put(crownM, x, th * 0.35, z, 2.4 * s, 2.6 * s, 2.4 * s, t.ry, t.cc, i); put(crown2M, x, th * 0.35 + 1.7 * s, z, 1.6 * s, 2.3 * s, 1.6 * s, t.ry, t.cc, i); return;
+        put(trunkM, x, gy, z, 1.2 * s, th, 1.2 * s, t.ry, null, i);
+        put(crownM, x, gy + th * 0.35, z, 2.4 * s, 2.6 * s, 2.4 * s, t.ry, t.cc, i); put(crown2M, x, gy + th * 0.35 + 1.7 * s, z, 1.6 * s, 2.3 * s, 1.6 * s, t.ry, t.cc, i); return;
       }
       if (k === 'jungle') {
-        put(trunkM, x, 0, z, 1.5 * s, th, 1.5 * s, t.ry, null, i); put(crownM, x, th * 0.5, z, 2.0 * s, 3.6 * s, 2.0 * s, t.ry, t.cc, i);
-        for (j = 0; j < 3; j++) { var an = t.ry + j * 2.1; put(vineM, x + Math.cos(an) * 1.5 * s, th * 0.12, z + Math.sin(an) * 1.5 * s, 0.1, th * 0.45, 0.1, 0, null, 3 * i + j); } return;
+        put(trunkM, x, gy, z, 1.5 * s, th, 1.5 * s, t.ry, null, i); put(crownM, x, gy + th * 0.5, z, 2.0 * s, 3.6 * s, 2.0 * s, t.ry, t.cc, i);
+        for (j = 0; j < 3; j++) { var an = t.ry + j * 2.1; put(vineM, x + Math.cos(an) * 1.5 * s, gy + th * 0.12, z + Math.sin(an) * 1.5 * s, 0.1, th * 0.45, 0.1, 0, null, 3 * i + j); } return;
       }
-      put(trunkM, x, 0, z, 1.2 * s, th, 1.2 * s, t.ry, null, i); put(crownM, x, th * 0.62, z, 1.3 * s, 3.0 * s, 1.3 * s, t.ry, t.cc, i);
+      put(trunkM, x, gy, z, 1.2 * s, th, 1.2 * s, t.ry, null, i); put(crownM, x, gy + th * 0.62, z, 1.3 * s, 3.0 * s, 1.3 * s, t.ry, t.cc, i);
     }
     W.setTree = function (t, on) { treeMat(t, on); t.box.on = on; t.alive = on; };
     /* [TREE TAG] plain: normal. jungle: lush, hanging vines, more logs, 1.1-1.5x tougher. desert: cactus (0.5-0.8x HP, drops Cactus). snow: dark 2-tier pine (1.2-1.4x HP, Pine Log). beach (map edge): palm (Palm Log). */
-    function addTree(x, z, rng, bm, kindIn) {
+    function addTree(x, z, rng, bm, kindIn, gy0) {
       var kind = kindIn || 'plain', s = Math.pow(rng(), 1.6) * 1.5 + 0.7, th = 3.0 * s, hpm = 1, ym = 1, drop = 'wood', leafM = 0.5;
       if (kind === 'jungle') { hpm = rr(1.1, 1.5, rng); ym = 1.5; leafM = 0.8; s = s * 1.1; th = 3.0 * s; }
       else if (kind === 'cactus') { hpm = rr(0.5, 0.8, rng); ym = 0.8; drop = 'cactus'; leafM = 0; s = 0.7 + rng() * 0.6; th = 1.6 + rng() * 1.3; }
       else if (kind === 'snow') { hpm = rr(1.2, 1.4, rng); ym = 1.1; drop = 'pine_log'; }
       else if (kind === 'palm') { hpm = 1.1; ym = 1.1; drop = 'palm_log'; th = 3.2 * s; }
       var cols = kind === 'snow' ? [0x1f4d2e, 0x255a33, 0x1b4429] : kind === 'jungle' ? [0x2f6b30, 0x3a7d35, 0x25602a, 0x1f5a28] : [0x4c6e3d, 0x577c43, 0x426137, 0x677a43, 0x736d43];
-      var t = { k: 'tree', kind: kind, drop: drop, leaf: leafM, idx: W.trees.length, x: x, z: z, y: 0, s: s, th: th, ry: rng() * 6.28, r: (kind === 'cactus' ? 0.4 : 0.55 * s + 0.15), h: kind === 'cactus' ? th : th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s * hpm), hp: 0, yield: Math.round((3 + 5.2 * s * s) * ym), given: 0, respawn: 0, cc: pick(cols, rng) };
+      var t = { k: 'tree', kind: kind, drop: drop, leaf: leafM, idx: W.trees.length, x: x, z: z, y: gy0 || 0, s: s, th: th, ry: rng() * 6.28, r: (kind === 'cactus' ? 0.4 : 0.55 * s + 0.15), h: kind === 'cactus' ? th : th * 0.62 + 3.4 * s, alive: true, dyn: true, max: Math.round(34 * s * s * hpm), hp: 0, yield: Math.round((3 + 5.2 * s * s) * ym), given: 0, respawn: 0, cc: pick(cols, rng) };
       t.hp = t.max; t.ix = trunkM.count; TMESH.forEach(function (m) { if (m === trunkM || m === crownM || m === crown2M || m === cactM) m.count = Math.max(m.count, t.ix + 1); else if (m === armM) m.count = Math.max(m.count, 2 * t.ix + 2); else if (m === vineM) m.count = Math.max(m.count, 3 * t.ix + 3); else if (m === frondM) m.count = Math.max(m.count, 5 * t.ix + 5); });
-      var hw = kind === 'cactus' ? 0.35 : 0.3 * s; t.box = addBox(x - hw, x + hw, 0, th, z - hw, z + hw, true);
+      var hw = kind === 'cactus' ? 0.35 : 0.3 * s; t.box = addBox(x - hw, x + hw, gy0 || 0, (gy0 || 0) + th, z - hw, z + hw, true);
       treeMat(t, true); addEnt(t); W.trees.push(t);
     }
 
     var rockG = new THREE.DodecahedronGeometry(1, 0), rockM = inst(rockG, lam(0xffffff, { map: rockTex, flatShading: true }), 2300, true, true);
     W.setRock = function (t, on) {
       if (!on) put(rockM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, t.ix);
-      else put(rockM, t.x, 0.55 * t.s, t.z, 1.15 * t.s, 0.8 * t.s, 1.0 * t.s, t.ry, t.cc, t.ix);
+      else put(rockM, t.x, (t.y || 0) + 0.55 * t.s, t.z, 1.15 * t.s, 0.8 * t.s, 1.0 * t.s, t.ry, t.cc, t.ix);
       t.box.on = on; t.alive = on;
     };
     /* [ORE TAG] kinds: stone | coal | copper | iron | gold.  Surface: 90% stone / 9% coal / 1% copper. Underground: 40 stone / 30 coal / 15 copper / 10 iron / 5 gold. */
-    var ORE_COL = { sand: 0xe6d28f, stone: 0x8d9198, coal: 0x33343a, copper: 0xd2733a, iron: 0xb59a8c, gold: 0xe0b83a, zinc: 0x9fb6c4, titanium: 0x7aa7d6, granite: 0xb98a6a, andesite: 0xa9adb0, diorite: 0xd0d0cc, calcite: 0xf4f4ee, clay: 0xb86f50 };
-    function addRock(x, z, kindIn, rng) {
+    var ORE_COL = { sand: 0xe6d28f, stone: 0x8d9198, coal: 0x33343a, copper: 0xd2733a, iron: 0xb59a8c, gold: 0xe0b83a, zinc: 0x9fb6c4, titanium: 0x7aa7d6, permafrost: 0xaee4f4, diamond: 0x66e6ff, ruby: 0xd0213a, emerald: 0x2ecc71, amethyst: 0x9b59d6, sapphire: 0x2d5bd6, granite: 0xb98a6a, andesite: 0xa9adb0, diorite: 0xd0d0cc, calcite: 0xf4f4ee, clay: 0xb86f50 };
+    function addRock(x, z, kindIn, rng, gy0) {
       var kind = kindIn || 'stone', plain = kind === 'stone' || kind === 'sand', s = rr(0.8, 2.1, rng);
-      var t = { k: 'rock', idx: W.rocks.length, kind: kind, ore: kind === 'iron', coal: kind === 'coal', gold: kind === 'gold', copper: kind === 'copper', zinc: kind === 'zinc', sand: kind === 'sand', x: x, z: z, y: 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true,
+      var t = { k: 'rock', idx: W.rocks.length, kind: kind, ore: kind === 'iron', coal: kind === 'coal', gold: kind === 'gold', copper: kind === 'copper', zinc: kind === 'zinc', sand: kind === 'sand', x: x, z: z, y: gy0 || 0, s: s, ry: rng() * 6.28, r: 0.95 * s, h: 1.5 * s, alive: true, dyn: true,
         max: Math.round((plain ? 60 : kind === 'sand' ? 30 : kind === 'coal' ? 70 : 100) * s * s), yield: plain ? Math.round(4 + 6 * s * s) : kind === 'coal' ? Math.round(2 + 3 * s * s) : kind === 'copper' ? Math.round(4 + 6 * s * s) : Math.round(2 + 4 * s * s), given: 0, respawn: 0, cc: ORE_COL[kind] };
-      t.hp = t.max; t.ix = rockM.count++; t.box = addBox(x - 0.8 * s, x + 0.8 * s, 0, 1.2 * s, z - 0.8 * s, z + 0.8 * s, true);
+      t.hp = t.max; t.ix = rockM.count++; t.box = addBox(x - 0.8 * s, x + 0.8 * s, gy0 || 0, (gy0 || 0) + 1.2 * s, z - 0.8 * s, z + 0.8 * s, true);
       W.setRock(t, true); addEnt(t); W.rocks.push(t);
     }
     function rollSurfaceOre(rng) { var r = rng(); return r < 0.90 ? 'stone' : r < 0.99 ? 'coal' : 'copper'; }
@@ -571,7 +693,7 @@
     }
 
     function addBlockEnt(x, y, z, t, sz) {
-      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
+      var kind = t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 51 ? 'godstatue' : t >= 70 ? 'bed' : t >= 67 || (t >= 64 && t <= 66) ? 'lamp' : t >= 61 ? 'sofa' : t >= 58 ? 'sofa' : t >= 55 ? 'table' : t >= 52 ? 'seat' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
       if (!kind) return null;
       var w = sz ? sz.w : 1, d = sz ? sz.d : 1, h = sz ? sz.h : 1;
       var e = { k: kind, x: x + w / 2, z: z + d / 2, y: y, r: Math.max(w, d) / 2 + 0.4, h: h, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z, sw: w, sd: d };
@@ -593,6 +715,8 @@
       else if (t === 43) W.blasts.push(e);
       else if (t === 49) W.liqs.push(e);
       else if (t === 50) W.sews.push(e);
+      else if (t === 51) W.gods.push(e);
+      else if (t >= 52 && t <= 54) { e.seat = 5; W.seats.push(e); } else if (t >= 58 && t <= 63) { e.seat = 16; e.comfy = true; W.seats.push(e); } else if (t >= 55 && t <= 57) { e.on = null; W.tables.push(e); } else if (t >= 64 && t <= 69) { e.lamp = true; W.lamps.push(e); }
       else if (t === 30) W.casings.push(e);
       else if (t === 31) W.trapbs.push(e);
       else if (t === 32) W.masons.push(e);
@@ -601,17 +725,52 @@
     }
 
     /* Loot cars: each car has 10-25 Break Points, loot is in the trunk */
-    var carBody = inst(boxB, lam(0xffffff, { map: houseWallTex }), 1300, true, true), carTop = inst(boxB, lam(0x373b40), 1300, true, false);
+    /* Car model: painted lower body, trapezoid glass cabin, 4 wheels, front/rear textured plates with lights. Truck keeps the simple box. */
+    var cabG = new THREE.CylinderGeometry(0.7071 * 0.7, 0.7071, 1, 4, 1, true); cabG.rotateY(Math.PI / 4); cabG.translate(0, 0.5, 0);
+    var whG = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 12); whG.rotateZ(Math.PI / 2); whG.translate(0, 0.34, 0);
+    var glassTex = canvasTex(128, 64, function (g, w, h) {
+      g.fillStyle = '#34383d'; g.fillRect(0, 0, w, h); var gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#16222e'); gr.addColorStop(0.5, '#3c5a76'); gr.addColorStop(1, '#1a2733');
+      g.fillStyle = gr; g.fillRect(7, 8, w - 14, h - 14); g.fillStyle = 'rgba(255,255,255,0.18)'; g.beginPath(); g.moveTo(14, h - 8); g.lineTo(48, 8); g.lineTo(66, 8); g.lineTo(32, h - 8); g.fill();
+      g.fillStyle = 'rgba(60,50,35,0.28)'; g.fillRect(7, h - 20, w - 14, 12); g.strokeStyle = '#1b1d20'; g.lineWidth = 2; g.strokeRect(7, 8, w - 14, h - 14); g.fillStyle = '#2a2d31'; g.fillRect(w / 2 - 2, 8, 4, h - 14);
+    });
+    function plateTex(front) {
+      var cv = document.createElement('canvas'); cv.width = 256; cv.height = 101; var g = cv.getContext('2d'), em = document.createElement('canvas'); em.width = 256; em.height = 101; var e = em.getContext('2d'); e.fillStyle = '#000'; e.fillRect(0, 0, 256, 101);
+      function rr(c, x, y, w, h, r, f) { c.fillStyle = f; c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.fill(); }
+      rr(g, 0, 74, 256, 27, 6, '#4b4e53'); rr(g, 98, 80, 60, 17, 2, '#e9e6d6'); g.fillStyle = '#222'; g.font = 'bold 11px monospace'; g.textAlign = 'center'; g.fillText(front ? 'ZB 4471' : 'ZB 9082', 128, 93);
+      if (front) {
+        rr(g, 74, 34, 108, 34, 4, '#15161a'); g.strokeStyle = '#9aa0a8'; g.lineWidth = 2; for (var k = 0; k < 4; k++) { g.beginPath(); g.moveTo(80, 42 + k * 7); g.lineTo(176, 42 + k * 7); g.stroke(); }
+        [[10, 60], [186, 60]].forEach(function (o) { rr(g, o[0], 26, 58, 32, 8, '#777c84'); rr(g, o[0] + 4, 30, 50, 24, 6, '#f2f6ff'); rr(e, o[0] + 4, 30, 50, 24, 6, '#ffffff'); rr(g, o[0] + 6, 61, 46, 8, 3, '#d98a1a'); });
+      } else {
+        [[8, 0], [190, 0]].forEach(function (o) { rr(g, o[0], 22, 58, 32, 8, '#5a1010'); rr(g, o[0] + 4, 26, 50, 24, 6, '#d11a1a'); rr(e, o[0] + 4, 26, 50, 24, 6, '#aa1111'); rr(g, o[0] + 6, 57, 46, 7, 3, '#bba030'); });
+        rr(g, 74, 36, 108, 5, 2, '#1d1e22'); rr(g, 74, 50, 108, 3, 1, '#2c2d31');
+      }
+      var t1 = new THREE.CanvasTexture(cv), t2 = new THREE.CanvasTexture(em); [t1, t2].forEach(function (t) { if ('SRGBColorSpace' in THREE) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ANISO; }); return [t1, t2];
+    }
+    var ft = plateTex(true), rt = plateTex(false);
+    var carBody = inst(boxB, lam(0xffffff), 1300, true, true), carTop = inst(boxB, lam(0x373b40), 1300, true, false), carCab = inst(cabG, lam(0xffffff, { map: glassTex, side: THREE.DoubleSide }), 1300, true, false), carRoof = inst(boxB, lam(0xffffff), 1300, true, true);
+    var carWh = inst(whG, lam(0x1b1b1d), 5200, true, false);
+    var carFr = inst(new THREE.PlaneGeometry(1, 1), lam(0xffffff, { map: ft[0], emissive: 0xffffff, emissiveMap: ft[1], emissiveIntensity: 0.85, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }), 1300, true, false);
+    var carRr = inst(new THREE.PlaneGeometry(1, 1), lam(0xffffff, { map: rt[0], emissive: 0xffffff, emissiveMap: rt[1], emissiveIntensity: 0.6, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }), 1300, true, false);
+    var CARM = [carBody, carTop, carCab, carRoof, carFr, carRr];
     W.cars = [];
+    function carHide(c) { var j; [carBody, carTop, carCab, carRoof, carFr, carRr].forEach(function (m) { put(m, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); }); for (j = 0; j < 4; j++) put(carWh, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 4 * c.ix + j); }
     W.setCar = function (c, on) {
-      if (on && c.truck) { put(carBody, c.x, 0.5, c.z, c.lx, 1.4, c.lz, 0, c.col, c.ix); put(carTop, c.x + (c.horiz ? 1.2 : 0), 2.1, c.z + (c.horiz ? 0 : 1.2), c.horiz ? 5.0 : 2.4, 1.8, c.horiz ? 2.4 : 5.0, 0, null, c.ix); }
-      else if (on) { put(carBody, c.x, 0.25, c.z, c.lx, 0.9, c.lz, 0, c.col, c.ix); put(carTop, c.x, 1.15, c.z, c.horiz ? 2.2 : 1.7, 0.6, c.horiz ? 1.7 : 2.2, 0, null, c.ix); }
-      else { put(carBody, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); put(carTop, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); }
+      var y0 = c.y || 0;
+      if (!on) carHide(c);
+      else if (c.truck) { carHide(c); put(carBody, c.x, y0 + 0.5, c.z, c.lx, 1.4, c.lz, 0, c.col, c.ix); put(carTop, c.x + (c.horiz ? 1.2 : 0), y0 + 2.1, c.z + (c.horiz ? 0 : 1.2), c.horiz ? 5.0 : 2.4, 1.8, c.horiz ? 2.4 : 5.0, 0, null, c.ix); }
+      else {
+        var ry = (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry), j, wx, wz;
+        function at(lx, lz) { return [c.x + sn * lz + cs * lx, c.z + cs * lz - sn * lx]; }
+        put(carBody, c.x, y0 + 0.3, c.z, 1.9, 0.72, 4.4, ry, c.col, c.ix);
+        var cb = at(0, -0.2); put(carCab, cb[0], y0 + 1.02, cb[1], 1.7, 0.62, 2.3, ry, null, c.ix); put(carRoof, cb[0], y0 + 1.64, cb[1], 1.18, 0.05, 1.62, ry, c.col, c.ix);
+        var f = at(0, 2.205), r = at(0, -2.205); put(carFr, f[0], y0 + 0.62, f[1], 1.9, 0.75, 1, ry, null, c.ix); put(carRr, r[0], y0 + 0.62, r[1], 1.9, 0.75, 1, ry + Math.PI, null, c.ix);
+        for (j = 0; j < 4; j++) { var w = at(j < 2 ? -0.93 : 0.93, j % 2 ? 1.4 : -1.4); put(carWh, w[0], y0, w[1], 1, 1, 1, ry, null, 4 * c.ix + j); }
+      }
       c.box.on = on; c.alive = on;
     };
     function addCar(x, z, horiz, rng, truck) {
-      var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, r: truck ? 3.4 : 1.9, h: truck ? 3.0 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
-      c.max = c.hp = truck ? 30 + Math.floor(rng() * 21) : 10 + Math.floor(rng() * 16); c.ix = carBody.count++; carTop.count++;
+      var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, dir: rng() < 0.5 ? -1 : 1, r: truck ? 3.4 : 1.9, h: truck ? 3.0 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
+      c.max = c.hp = truck ? 30 + Math.floor(rng() * 21) : 10 + Math.floor(rng() * 16); c.ix = carBody.count; CARM.forEach(function (m) { m.count = Math.max(m.count, c.ix + 1); }); carWh.count = Math.max(carWh.count, 4 * c.ix + 4);
       c.box = addBox(x - c.lx / 2, x + c.lx / 2, 0, c.truck ? 3.0 : 1.75, z - c.lz / 2, z + c.lz / 2, true); W.setCar(c, true); addEnt(c); W.cars.push(c);
     }
     var lakeList = [];
@@ -662,7 +821,8 @@
     }
     lakeList.forEach(function (l) { addWater(l[0], l[1], l[2], l[3], 'lake'); });
     addWater(-975, -965, -300, 300, 'river');
-    W.waterAt = function (x, z) { for (var i = 0; i < W.waters.length; i++) { var w = W.waters[i]; if (x > w.x0 - 0.3 && x < w.x1 + 0.3 && z > w.z0 - 0.3 && z < w.z1 + 0.3) return w.type; } return null; };
+    W.seaAt = function (x, z) { return WZ.TERRAIN.gh(x, z) < -0.3; };
+    W.waterAt = function (x, z) { if (W.seaAt(x, z)) return 'sea'; for (var i = 0; i < W.waters.length; i++) { var w = W.waters[i]; if (x > w.x0 - 0.3 && x < w.x1 + 0.3 && z > w.z0 - 0.3 && z < w.z1 + 0.3) return w.type; } return null; };
     (function () {
       /* ---- Surface mineshaft: an irregular rocky mini-mountain (snow biome, NW). The entrance leads down to the Underground. ---- */
       var MR = mulberry(4242), MCX = -905, MCZ = -905;
@@ -688,6 +848,57 @@
       W.rects.push({ x0: MCX - 24, x1: MCX + 24, z0: MCZ - 22, z1: MCZ + 16, c: '#7d8388' });
       put(walls, MCX + 9, 1.0, MCZ + 9, 1.1, 2.0, 1.1, 0, 0x7d7f80); put(walls, MCX + 9, 2.3, MCZ + 9, 0.7, 0.7, 0.7, 0, 0x6f7273); put(walls, MCX + 9, 2.65, MCZ + 8.78, 0.5, 0.12, 0.1, 0, 0xcc2222); addBox(MCX + 8.45, MCX + 9.55, 0, 2.7, MCZ + 8.45, MCZ + 9.55, false); W.statue = { x: MCX + 9, z: MCZ + 9 };
       W.mine = { x0: MCX - 26, x1: MCX + 26, z0: MCZ - 24, z1: MCZ + 18, door: { x: MCX, z: MCZ + 2.6 }, entrance: { x: MCX, z: MCZ + 8 } };
+      /* Hill Caves (1-5, on hills) and Mountain Cave (exactly 1, on a mountain): surface shortcuts into the underground, no need to find the mineshaft. */
+      (function () {
+        var CR = mulberry(9091), caves = [], g = TR.gh, k, tr, bx, bz, h, best;
+        function ringPt(lo, hi, wantMtn) { var b = null, bs = -1; for (var q = 0; q < 2500; q++) { var x = (CR() * 2 - 1) * (WZ.HALF - 320), z = (CR() * 2 - 1) * (WZ.HALF - 320); if (Math.max(Math.abs(x), Math.abs(z)) < CORE + 60) continue; var hh = g(x, z), bm = TR.biome(x, z); if (bm === 'sea' || bm === 'beach') continue; if (wantMtn && bm !== 'mountain' && bm !== 'peak') continue; var sc = hh >= lo && hh <= hi ? 1000 + CR() * 100 : -Math.abs(hh - (lo + hi) / 2); if (wantMtn) sc = hh + (hh >= lo ? 500 : 0); if (sc > bs) { bs = sc; b = [x, z, hh]; } } return b; }
+        var nHill = 1 + Math.floor(CR() * 5);
+        for (k = 0; k < nHill + 1; k++) { var isM = k === nHill; var pt = isM ? ringPt(100, 400, true) : ringPt(8, 70, false); if (!pt) continue; caves.push({ kind: isM ? 'mountain' : 'hill', x: pt[0], z: pt[1], y: pt[2], maxLayer: isM ? 6 : 3, minLayer: isM ? 2 : 1 }); }
+        caves.forEach(function (c, ci) {
+          var gy = c.y, col = c.kind === 'mountain' ? 0x6a6e78 : 0x77706a;
+          put(walls, c.x - 2.2, gy + 1.8, c.z, 1.3, 3.8, 2.2, 0, col); put(walls, c.x + 2.2, gy + 1.8, c.z, 1.3, 3.8, 2.2, 0, col); put(walls, c.x, gy + 3.9, c.z, 5.8, 1.2, 2.4, 0, col - 0x080808);
+          put(walls, c.x, gy + 1.6, c.z - 0.9, 3.2, 3.2, 0.2, 0, 0x050403); put(walls, c.x, gy + 0.55, c.z - 0.1, 3.4, 0.12, 1.8, 0, 0x2b2622);
+          put(walls, c.x, gy + 5.0, c.z - 0.6, 7.5, 2.2, 3.0, 0, col - 0x101010); put(walls, c.x - 3.9, gy + 1.2, c.z - 0.4, 2.0, 2.4, 2.6, 0.3, col - 0x080808); put(walls, c.x + 3.9, gy + 1.2, c.z - 0.4, 2.0, 2.4, 2.6, -0.3, col - 0x080808);
+          c.door = { x: c.x, z: c.z + 0.6 }; c.entrance = { x: c.x, z: c.z + 4 }; c.id = ci;
+        });
+        W.caves = caves;
+      })();
+      /* Beach Village (few houses on flat shore) and Downtown Mountain (house clusters on the flat mountain pads) */
+      (function () {
+        var BR = mulberry(5150), TRn = TR;
+        function flat(x, z, r) { var h0 = TRn.gh(x, z), mx = 0; for (var a = 0; a < 8; a++) mx = Math.max(mx, Math.abs(TRn.gh(x + Math.cos(a * 0.785) * r, z + Math.sin(a * 0.785) * r) - h0)); return mx; }
+        function place(x, z, gy, bio) {
+          var e0 = W.ents.length, i0 = W.indoor.length, f0 = W.floors.length, j; curBiome = bio; GYO = gy;
+          wallSeg(x - 9, x + 9, z - 8, z + 8, -2.6, 0.04, 0x8a857a); house(x, z, ['n', 's', 'e', 'w'][(BR() * 4) | 0], 'out'); GYO = 0; curBiome = 'city';
+          for (j = e0; j < W.ents.length; j++) W.ents[j].y = (W.ents[j].y || 0) + gy; for (j = i0; j < W.indoor.length; j++) W.indoor[j].y = (W.indoor[j].y || 0) + gy; for (j = f0; j < W.floors.length; j++) W.floors[j].y += gy;
+        }
+        var sites = [], tries = 0;
+        while (sites.length < 12 && tries++ < 60000) {
+          var x = (BR() * 2 - 1) * (WZ.HALF - 120), z = (BR() * 2 - 1) * (WZ.HALF - 120);
+          if (Math.max(Math.abs(x), Math.abs(z)) < CORE + 80 || TRn.biome(x, z) !== 'beach') continue; var g = TRn.gh(x, z); if (g < 0.1 || flat(x, z, 11) > 0.6) continue;
+          if (TRn.gh(x + 10, z + 9) < 0.05 || TRn.gh(x - 10, z + 9) < 0.05 || TRn.gh(x + 10, z - 9) < 0.05 || TRn.gh(x - 10, z - 9) < 0.05) continue;
+          if (sites.some(function (s) { return Math.hypot(s[0] - x, s[1] - z) < 30; })) continue;
+          
+          sites.push([x, z, g]);
+        }
+        sites.forEach(function (s) { place(s[0], s[1], s[2], 'city'); });
+        W.beachVillage = sites.map(function (s) { return { x: s[0], z: s[1] }; });
+        TRn.pads.forEach(function (pd) { [[0, 0], [-24, -18], [24, -18], [-24, 18], [24, 18]].forEach(function (o) { place(pd.x + o[0], pd.z + o[1], pd.h, 'snow'); }); });
+      })();
+      /* Shipwrecks on the sea floor: broken hulls with sunken chests (loot table "wreck", Sapphire 3%) */
+      (function () {
+        var WR = mulberry(8123), n = 0, tries = 0, wr = [];
+        while (n < 18 && tries++ < 40000) {
+          var x = (WR() * 2 - 1) * (WZ.HALF - 150), z = (WR() * 2 - 1) * (WZ.HALF - 150); if (TR.biome(x, z) !== 'sea') continue;
+          var g = TR.gh(x, z); if (g > -3 || g < -10) continue; if (TR.gh(x + 8, z) > -2.5 || TR.gh(x - 8, z) > -2.5 || TR.gh(x, z + 8) > -2.5 || TR.gh(x, z - 8) > -2.5) continue;
+          if (wr.some(function (q) { return Math.hypot(q[0] - x, q[1] - z) < 120; })) continue;
+          var wood = 0x5b3f27, wood2 = 0x6d4c30, a = WR() * 3; wr.push([x, z]); GYO = g - 0.3;
+          wallSeg(x - 2.6, x + 2.6, z - 7, z + 7, 0, 0.5, wood); wallSeg(x - 2.6, x - 2.2, z - 7, z + 1, 0, 2.2, wood2); wallSeg(x + 2.2, x + 2.6, z - 7, z + 4, 0, 1.6, wood2); wallSeg(x - 2.6, x + 2.6, z - 7, z - 6.6, 0, 2.4, wood2);
+          wallSeg(x - 0.2, x + 0.2, z - 1, z + 0.4, 0, 5.5, wood); put(walls, x + 0.4, 5.0, z + 0.5, 0.18, 0.18, 3.2, 0.3, 0x4a3320); put(walls, x - 1.4, 0.9, z + 4.5, 0.4, 1.2, 0.4, 0, wood2);
+          GYO = 0; addCrate(x - 1.2, z - 3, true, WR, 1, g); W.crates[W.crates.length - 1].wreck = true; addCrate(x + 1.2, z + 2.5, true, WR, 1, g); W.crates[W.crates.length - 1].wreck = true; n++;
+        }
+        W.wrecks = wr;
+      })();
 
       /* ---- Underground: a separate cave level far outside the map. Reached only through the mineshaft door. ---- */
       var dirtTex = canvasTex(128, 128, function (g, w, h) {
@@ -698,7 +909,7 @@
       });
       var ugWalls = inst(box1, lam(0xffffff, { map: dirtTex }), 12000, false, true); W.ugWalls = ugWalls;
       function uw(x0, x1, z0, z1, y0, y1, col) { put(ugWalls, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, 0, col); addBox(x0, x1, y0, y1, z0, z1, false); }
-      var N = 61, CS = 6, UH = 5, UX = 1200, UZ = -183, grid = [], i, j;
+      var N = 61, CS = 6, UH = 5, UX = 2700, UZ = -183, grid = [], i, j;
       for (i = 0; i < N; i++) grid.push(new Uint8Array(N));
       function op(a, b) { if (a > 0 && b > 0 && a < N - 1 && b < N - 1) grid[a][b] = 1; }
       var stack = [[1, 1]]; op(1, 1);
@@ -731,8 +942,7 @@
       var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(bk.pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(bk.norm, 3));
       g.setAttribute('color', new THREE.Float32BufferAttribute(bk.col, 3)); g.setIndex(bk.idx); var m = new THREE.Mesh(g, roofMat); m.frustumCulled = false; chunkAt(bk.cx, bk.cz).g.add(m);
     });
-    var postM = inst(boxB, lam(0xc44230), 1400, false, false);
-    for (var pt = -HALF; pt <= HALF; pt += 6) { put(postM, pt, 0, -HALF, 0.25, 1.6, 0.25, 0, null); put(postM, pt, 0, HALF, 0.25, 1.6, 0.25, 0, null); put(postM, -HALF, 0, pt, 0.25, 1.6, 0.25, 0, null); put(postM, HALF, 0, pt, 0.25, 1.6, 0.25, 0, null); }
+
 
     /* Bake static instanced meshes into 20 m chunks so the renderer can skip whole chunks */
     function bake(m) {
@@ -746,7 +956,7 @@
       });
       scene.remove(m); m.visible = false;
     }
-    [walls, winM, dashes, postM, W.ugWalls].forEach(bake);
+    [walls, winM, dashes, W.ugWalls].forEach(bake);
     /* chunk visibility: render distance (in chunks), optional 180-degree back culling */
     var cvT = 0;
     W.updateChunks = function (px, pz, fx, fz, rd, cull) {
@@ -764,8 +974,8 @@
       W.seed = seed; var Rn = mulberry(seed), tries = 0, n = 0;
       function free(x, z, m) { return !(keep && W.hit(x - m, x + m, 0, 3, z - m, z + m)); }
       var cactN = 0;
-      while (n < 7000 && tries++ < 260000) {
-        var tx = rr(-HALF + 4, HALF - 4, Rn), tz = rr(-HALF + 4, HALF - 4, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), bm = biomeOf(tx, tz), z0n = zoneOf(tx, tz), beach = edge > HALF - 60;
+      while (n < 3200 && tries++ < 260000) {
+        var tx = rr(-HALF + 4, HALF - 4, Rn), tz = rr(-HALF + 4, HALF - 4, Rn), edge = Math.max(Math.abs(tx), Math.abs(tz)), bm = biomeOf(tx, tz), z0n = zoneOf(tx, tz), beach = false;
         var pr = beach ? 0.3 : bm === 'jungle' ? 0.6 : bm === 'snow' ? 0.22 : bm === 'desert' ? 0.07 : (z0n === 'out' ? 0.3 : z0n === 'mid' ? 0.1 : 0.03);
         if (Rn() > pr || onRoad(tx, tz, 1.5) || inOcc(tx, tz, 2) || !free(tx, tz, 1)) continue;
         var kd = beach ? 'palm' : bm === 'jungle' ? 'jungle' : bm === 'snow' ? 'snow' : bm === 'desert' ? 'cactus' : 'plain';
@@ -784,8 +994,39 @@
         var bx = rr(-HALF + 8, HALF - 8, Rn), bz = rr(-HALF + 8, HALF - 8, Rn), bb = biomeOf(bx, bz), bzn = zoneOf(bx, bz);
         if (bb !== 'city' && bb !== 'jungle') continue; if (bb === 'city' && (bzn === 'down' || Rn() < 0.35)) continue;
         if (Math.max(Math.abs(bx), Math.abs(bz)) > HALF - 60 || onRoad(bx, bz, 1) || inOcc(bx, bz, 1.5) || !free(bx, bz, 1)) continue;
-        addPile(bx, bz, 0, Rn); W.piles[W.piles.length - 1].bush = bb; bu++;
+        addPile(bx, bz, 0, Rn); W.piles[W.piles.length - 1].bush = bb; W.piles[W.piles.length - 1].tier = 1; bu++;
       }
+      /* ---- ring (outside the 2000x2000 core): biome trees, mountain resources, rocks, bushes, beach clay, all placed on the terrain height ---- */
+      (function () {
+        var TRn = WZ.TERRAIN, M = MAPH - 40, rn = 0, rt = 0, cactR = 0, bm, gy;
+        function ok(x, z, m) { return Math.max(Math.abs(x), Math.abs(z)) > HALF + 30 && !W.onMtRoad(x, z) && !inOcc(x, z, 2.5) && free(x, z, m || 1.2); }
+        while (rn < 2500 && rt++ < 500000) {
+          var x = rr(-M, M, Rn), z = rr(-M, M, Rn); if (Math.max(Math.abs(x), Math.abs(z)) <= HALF + 30) continue;
+          bm = TRn.biome(x, z); if (bm === 'sea' || bm === 'mountain' || bm === 'peak') continue;
+          var pr = bm === 'jungle' ? 0.5 : bm === 'snow' ? 0.28 : bm === 'desert' ? 0.06 : bm === 'beach' ? 0.1 : 0.2; if (Rn() > pr || !ok(x, z, 1)) continue;
+          gy = TRn.gh(x, z); if (gy < 0.2) continue;
+          var kd = bm === 'jungle' ? 'jungle' : bm === 'snow' ? 'snow' : bm === 'desert' ? 'cactus' : bm === 'beach' ? 'palm' : 'plain'; if (kd === 'cactus') cactR++;
+          addTree(x, z, Rn, bm, kd, gy); rn++;
+        }
+        /* mountains / high peaks: Pine 50, Stone 35, Copper 5, Iron 3, Permafrost 2, Diamond/Ruby/Emerald/Amethyst/Sapphire 1 each */
+        var mn = 0; rt = 0;
+        while (mn < 3200 && rt++ < 600000) {
+          var mx = rr(-M, M, Rn), mz = rr(-M, M, Rn); bm = TRn.biome(mx, mz); if ((bm !== 'mountain' && bm !== 'peak') || !ok(mx, mz, 1.2)) continue;
+          gy = TRn.gh(mx, mz); var q = Rn() * 100;
+          if (q < 50) addTree(mx, mz, Rn, 'snow', 'snow', gy);
+          else { var kk = q < 85 ? 'stone' : q < 90 ? 'copper' : q < 93 ? 'iron' : q < 95 ? 'permafrost' : q < 96 ? 'diamond' : q < 97 ? 'ruby' : q < 98 ? 'emerald' : q < 99 ? 'amethyst' : 'sapphire'; addRock(mx, mz, kk, Rn, gy); }
+          mn++;
+        }
+        /* sand mounds (as many as ring cacti), surface rocks, bushes, clay on the shore */
+        var sm = 0; rt = 0;
+        while (sm < cactR && rt++ < 80000) { var sx = rr(-M, M, Rn), sz = rr(-M, M, Rn); if (TRn.biome(sx, sz) !== 'desert' || !ok(sx, sz, 1.5)) continue; addRock(sx, sz, 'sand', Rn, TRn.gh(sx, sz)); sm++; }
+        var rk = 0; rt = 0;
+        while (rk < 900 && rt++ < 80000) { var rx = rr(-M, M, Rn), rz = rr(-M, M, Rn); bm = TRn.biome(rx, rz); if (bm === 'sea' || bm === 'mountain' || bm === 'peak' || !ok(rx, rz, 1.5)) continue; addRock(rx, rz, rollSurfaceOre(Rn), Rn, TRn.gh(rx, rz)); rk++; }
+        var bs = 0; rt = 0;
+        while (bs < 500 && rt++ < 90000) { var bx = rr(-M, M, Rn), bz = rr(-M, M, Rn); bm = TRn.biome(bx, bz); if ((bm !== 'city' && bm !== 'jungle') || !ok(bx, bz, 1)) continue; addPile(bx, bz, 0, Rn, TRn.gh(bx, bz)); var bp = W.piles[W.piles.length - 1]; bp.bush = bm === 'jungle' ? 'jungle' : 'city'; bp.tier = 1; bs++; }
+        var cl = 0; rt = 0;
+        while (cl < 70 && rt++ < 60000) { var cx = rr(-M, M, Rn), cz = rr(-M, M, Rn); if (TRn.biome(cx, cz) !== 'beach' || !ok(cx, cz, 1.5)) continue; var cg = TRn.gh(cx, cz); if (cg < 0 || cg > 1.2) continue; addRock(cx, cz, 'clay', Rn, cg); cl++; }
+      })();
       var rocks = 0; tries = 0;
       while (rocks < 1500 && tries++ < 60000) {
         var rx = rr(-HALF + 6, HALF - 6, Rn), rz = rr(-HALF + 6, HALF - 6, Rn), rz0 = zoneOf(rx, rz);
@@ -883,6 +1124,7 @@
       41: inst(box1, lam(0xffffff, { map: BLKTEX[41] }), 1500, true, false),
       49: inst(box1, lam(0xffffff, { map: glyphTex('#3a5a6a', '🧪', 'LIQUID') }), 200, true, false),
       50: inst(box1, lam(0xffffff, { map: glyphTex('#7a4a6a', '🧵', 'SEWING') }), 200, true, false),
+      51: inst(box1, lam(0xffffff, { map: glyphTex('#8d8f92', '🗿', 'GOD') }), 200, true, false),
       44: inst(boxLow, lam(0xffffff, { map: glyphTex('#8a6a3a', '🌵', '') }), 600, true, false),
       45: inst(boxLow, lam(0xffffff, { map: glyphTex('#6a8a3a', '🌴', '') }), 600, true, false),
       46: inst(boxLow, lam(0xffffff, { map: glyphTex('#7a7f86', '➰', '') }), 600, true, false),
@@ -891,14 +1133,33 @@
       43: inst(box1, lam(0xffffff, { map: glyphTex('#4a3a3a', '🔥', 'BLAST') }), 200, true, false),
       42: inst(box1, lam(0xffffff, { map: BLKTEX[42] }), 1500, true, false)
     };
-    var VTYPES = []; for (var vt0 = 1; vt0 <= 50; vt0++) VTYPES.push(vt0);
-    W.VSIZE = { 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
-    W.HPT = { 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
+    var VTYPES = []; function mergeBoxes(parts) {
+      var pos = [], nor = [], col = [], idx = [], off = 0;
+      parts.forEach(function (p) { var g = new THREE.BoxGeometry(p[0], p[1], p[2]); g.translate(p[3], p[4], p[5]); var c = new THREE.Color(p[6]), pa = g.attributes.position, na = g.attributes.normal, ia = g.index.array, i;
+        for (i = 0; i < pa.count; i++) { pos.push(pa.getX(i), pa.getY(i), pa.getZ(i)); nor.push(na.getX(i), na.getY(i), na.getZ(i)); col.push(c.r, c.g, c.b); } for (i = 0; i < ia.length; i++) idx.push(ia[i] + off); off += pa.count; });
+      var G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); G.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); G.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); G.setIndex(idx); return G;
+    }
+    var FWC = [[0x8a5a30, 0x5e3b1c, 0xa84c3c], [0xd9bf85, 0xa88b52, 0x4f9b7a], [0x9a6b3f, 0x6a4624, 0x4a6fa5]], BULB = 0xfff4b8, PAPER = 0xf4e6b4;
+    function furnParts(kind, w, d, f) {
+      var o = [], sx, sz;
+      if (kind === 'chair') { o.push([0.8, 0.1, 0.8, 0, -0.05, 0, w], [0.8, 0.5, 0.08, 0, 0.25, -0.36, w]); for (sx = -1; sx <= 1; sx += 2) for (sz = -1; sz <= 1; sz += 2) o.push([0.1, 0.45, 0.1, sx * 0.35, -0.275, sz * 0.35, d]); }
+      else if (kind === 'table') { o.push([1, 0.1, 0.9, 0, 0.4, 0, w]); for (sx = -1; sx <= 1; sx += 2) for (sz = -1; sz <= 1; sz += 2) o.push([0.1, 0.9, 0.1, sx * 0.42, -0.05, sz * 0.38, d]); }
+      else if (kind === 'sofa' || kind === 'couch') { o.push([1, 0.35, 0.9, 0, -0.325, 0, d], [0.96, 0.18, 0.8, 0, -0.06, 0.03, f], [1, 0.55, 0.2, 0, 0.1, -0.36, f]); if (kind === 'couch') o.push([0.14, 0.42, 0.9, -0.43, -0.1, 0, f], [0.14, 0.42, 0.9, 0.43, -0.1, 0, f]); }
+      else if (kind === 'standlamp') o.push([0.5, 0.06, 0.5, 0, -0.47, 0, d], [0.06, 0.8, 0.06, 0, -0.04, 0, w], [0.36, 0.24, 0.36, 0, 0.36, 0, PAPER], [0.12, 0.12, 0.12, 0, 0.26, 0, BULB]);
+      else if (kind === 'hanglamp') o.push([0.03, 0.5, 0.03, 0, 0.25, 0, d], [0.5, 0.18, 0.5, 0, -0.04, 0, f], [0.2, 0.2, 0.2, 0, -0.2, 0, BULB]);
+      else if (kind === 'bed') o.push([1, 0.3, 1, 0, -0.35, 0, w], [0.94, 0.18, 0.94, 0, -0.1, 0, 0xeadfce], [0.4, 0.1, 0.25, 0, 0.0, -0.3, 0xffffff], [0.94, 0.05, 0.5, 0, 0.0, 0.2, f]);
+      return o;
+    }
+    var FKIND = ['chair', 'table', 'sofa', 'couch', 'standlamp', 'hanglamp'];
+    for (var vt0 = 1; vt0 <= 71; vt0++) VTYPES.push(vt0);
+    for (var fi = 52; fi <= 71; fi++) { var fk = fi >= 70 ? 'bed' : FKIND[Math.floor((fi - 52) / 3)], fw = FWC[fi >= 70 ? fi - 69 : (fi - 52) % 3]; VM[fi] = inst(mergeBoxes(furnParts(fk, fw[0], fw[1], fw[2])), lam(0xffffff, { vertexColors: true }), 200, true, false); }
+    W.VSIZE = { 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 3, 1], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
+    W.HPT = { 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
     var vkeys = {}, vcount = 0; VTYPES.forEach(function (t) { vkeys[t] = []; }); W.MAX_VOX = 2600;
     W.voxCount = function () { return vcount; };
     W.getVox = function (x, y, z) { return vox.get(vk(x, y, z)) || null; };
     W.setVox = function (x, y, z, t, hp, part, sz) {
-      if (y < 0 || y >= VMAX || Math.abs(x) > HALF + 2 || Math.abs(z) > HALF + 2) return false;
+      if (y < 0 || y >= VMAX || Math.abs(x) > MAPH + 2 || Math.abs(z) > MAPH + 2) return false;
       var k = vk(x, y, z); if (vox.has(k)) return false;
       var arr = vkeys[t]; if (!arr || arr.length >= VM[t].instanceMatrix.count) return false;
       var idx = arr.length, rec = { t: t, hp: hp, idx: idx }; arr.push([x, y, z]); vox.set(k, rec); if (part != null) rec.anc = part;
@@ -910,7 +1171,7 @@
     W.canPlaceBig = function (x, y, z, t, rot) {
       var sz = W.VSIZE[t] || [1, 1, 1], w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], out = [];
       for (var dx = 0; dx < w; dx++) for (var dz = 0; dz < d; dz++) for (var dy = 0; dy < h; dy++) {
-        var cx = x + dx, cy = y + dy, cz = z + dz; if (cy >= VMAX || vox.has(vk(cx, cy, cz)) || Math.abs(cx) > HALF + 2 || Math.abs(cz) > HALF + 2) return null;
+        var cx = x + dx, cy = y + dy, cz = z + dz; if (cy >= VMAX || vox.has(vk(cx, cy, cz)) || Math.abs(cx) > MAPH + 2 || Math.abs(cz) > MAPH + 2) return null;
         if (!(dx === 0 && dy === 0 && dz === 0) && W.hit(cx + 0.02, cx + 0.98, cy + 0.02, cy + 0.98, cz + 0.02, cz + 0.98)) return null;
         out.push([cx, cy, cz]);
       }
@@ -942,33 +1203,34 @@
       var out = [];
       vox.forEach(function (v) {
         if (v.anc != null) return;
-        var a = vkeys[v.t][v.idx], p = ((a[0] + 1024) * 2048 + (a[2] + 1024)) * 2048 + a[1] * 32 + (v.t - 1);
+        var a = vkeys[v.t][v.idx], p = (((a[0] + 4096) * 8192 + (a[2] + 4096)) * 64 + a[1]) * 128 + (v.t - 1);
         if (v.cells) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
         else out.push(Math.round(v.hp) < W.HPT[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
       });
       return out;
     };
     W.voxLoad = function (list, ver) {
-      if (!Array.isArray(list)) return; var v4 = (ver || 1) >= 4, v2 = (ver || 1) >= 3;
+      if (!Array.isArray(list)) return; var v5 = (ver || 1) >= 5, v4 = (ver || 1) >= 4, v2 = (ver || 1) >= 3;
       list.forEach(function (en) {
         var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, rot = Array.isArray(en) && en.length > 2 ? en[2] : null, t, y, r, z, x;
         if (!v2) return;
-        if (v4) { t = (n % 32) + 1; y = Math.floor(n / 32) % 64; r = Math.floor(n / 2048); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
+        if (v5) { t = (n % 128) + 1; r = Math.floor(n / 128); y = r % 64; r = Math.floor(r / 64); z = (r % 8192) - 4096; x = Math.floor(r / 8192) - 4096; }
+        else if (v4) { t = (n % 32) + 1; y = Math.floor(n / 32) % 64; r = Math.floor(n / 2048); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
         else { t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
-        if (t >= 1 && t <= 50) { if (rot != null) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
+        if (t >= 1 && t <= 127 && VM[t]) { if (rot != null) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
       });
     };
     W.resetWorld = function (newSeed, keepBuild) {
       if (!keepBuild) {
         vox.clear(); VTYPES.forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
-        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0; W.mills.length = W.bombs.length = W.kilns.length = W.crafts.length = W.works.length = W.liqs.length = W.sews.length = W.blasts.length = W.presses.length = W.casings.length = W.trapbs.length = W.masons.length = W.chests.length = 0;
+        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0; W.mills.length = W.bombs.length = W.kilns.length = W.crafts.length = W.works.length = W.seats.length = W.tables.length = W.lamps.length = 0; W.gods.length = W.liqs.length = W.sews.length = W.blasts.length = W.presses.length = W.casings.length = W.trapbs.length = W.masons.length = W.chests.length = 0;
       }
       sgrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
       egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn && l[i].vx == null) l.splice(i, 1); });
       W.ents = W.ents.filter(function (e) { return !e.dyn || e.vx != null; });
       W.trees.length = 0; W.rocks.length = 0; W.piles.length = 0; W.cars.length = 0; W.crates.length = staticCrateCount;
       for (var ci = 0; ci < staticCrateCount; ci++) { W.crates[ci].respawn = 0; W.setCrate(W.crates[ci], true); }
-      TMESH.forEach(function (m) { m.count = 0; }); leafM.count = 0; leaf2M.count = 0; rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = carBody.count = carTop.count = 0;
+      TMESH.forEach(function (m) { m.count = 0; }); leafM.count = 0; leaf2M.count = 0; rockM.count = pileM.count = shineM.count = tableM.count = tlegM.count = carBody.count = carTop.count = carCab.count = carRoof.count = carFr.count = carRr.count = carWh.count = 0;
       crateM.count = lidM.count = staticCrateCount;
       spawnNature(newSeed != null ? newSeed : rndSeed(), !!keepBuild);
     };

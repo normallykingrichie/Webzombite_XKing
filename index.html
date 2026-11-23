@@ -116,6 +116,7 @@ button { font: inherit; cursor: pointer; }
 body.touch #altHint { display: none !important; }
 body.touch #hotbar { pointer-events: auto; bottom: 8px; }
 body.touch #hotbar .slot { pointer-events: auto; }
+img.ico{width:1.35em;height:1.35em;object-fit:contain;vertical-align:-.3em;pointer-events:none}
 </style>
 </head>
 <body>
@@ -181,7 +182,7 @@ body.touch #hotbar .slot { pointer-events: auto; }
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=19';
+      s.src = files[i] + '?v=21';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }

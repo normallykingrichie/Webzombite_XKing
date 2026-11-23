@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Webzombite Wiki</title>
+<style>
+:root{--bg:#14161a;--card:#1d2026;--line:#2d323b;--txt:#e9e6dc;--muted:#9aa0a8;--gold:#e3b02a;--red:#d24a3a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 system-ui,Segoe UI,Roboto,sans-serif}
+a{color:var(--gold)}header{position:sticky;top:0;z-index:5;background:#101216ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+header h1{font-size:1.05rem;margin:0;margin-right:auto}header h1 b{color:var(--gold)}
+input,select,textarea,button{font:inherit;color:var(--txt);background:#262a32;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+button{cursor:pointer}button.pri{background:var(--gold);color:#201a08;border-color:var(--gold);font-weight:700}button.dng{border-color:var(--red);color:#ff9b8d}
+main{display:grid;grid-template-columns:230px 1fr;gap:16px;max-width:1150px;margin:0 auto;padding:16px}
+nav{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;height:fit-content;position:sticky;top:64px}
+nav button{display:block;width:100%;text-align:left;margin:3px 0;background:transparent;border-color:transparent}nav button.on{background:#2c313b;border-color:var(--gold)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{display:flex;gap:8px;align-items:center;background:#22262d;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer;min-height:54px}
+.tile:hover{border-color:var(--gold)}.tile .i{width:36px;height:36px;display:grid;place-items:center;font-size:1.6rem;flex:none}.tile .i img,.ic img,img.ico{width:100%;height:100%;object-fit:contain}
+.tile span{font-size:.86rem;line-height:1.2}.ic{width:64px;height:64px;display:grid;place-items:center;font-size:3rem;flex:none}
+.chip{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:99px;background:#2c313b;color:var(--muted);margin-right:6px}
+.top{display:flex;gap:14px;align-items:center;margin-bottom:10px}.top h2{margin:0}.muted{color:var(--muted)}
+table.st{border-collapse:collapse;margin:10px 0}table.st td{border:1px solid var(--line);padding:4px 10px}table.st td:first-child{color:var(--muted)}
+.body img{max-width:100%;border-radius:8px}.body blockquote{margin:8px 0;padding:4px 12px;border-left:3px solid var(--gold);color:var(--muted)}.body code{background:#0f1114;padding:1px 5px;border-radius:5px}
+.ed-tabs button.on{border-color:var(--gold)}#wys{min-height:220px;background:#15171b;border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
+.tb{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}.tb button{padding:4px 9px}textarea{width:100%;min-height:220px;font-family:ui-monospace,monospace}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row>*{flex:1 1 150px}.row>button{flex:0 0 auto}
+.gal{display:flex;gap:6px;flex-wrap:wrap;max-height:130px;overflow:auto;background:#15171b;border:1px solid var(--line);border-radius:10px;padding:6px}.gal img{width:36px;height:36px;cursor:pointer;border-radius:6px;border:2px solid transparent}.gal img:hover{border-color:var(--gold)}
+.msg{padding:8px 12px;border-radius:10px;background:#2c313b;margin:8px 0}.err{color:#ff9b8d}
+@media(max-width:760px){main{grid-template-columns:1fr}nav{position:static;display:flex;flex-wrap:wrap}nav button{width:auto}}
+</style></head>
+<body>
+<header><h1><b>Webzombite</b> Wiki</h1><input id="q" placeholder="Search..." style="max-width:220px"><span id="who" class="muted"></span><button id="bAuth"></button><a href="index.html" style="text-decoration:none"><button>Back to Game</button></a></header>
+<main><nav id="nav"></nav><section id="view"></section></main>
+<script src="config.js"></script><script src="data.js"></script><script src="vendor/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+  var C = window.WZ_CONFIG || {}, W = window.WZ || {}, $ = function (s, r) { return (r || document).querySelector(s); }, sb = null;
+  var CATS = [['home', 'Home'], ['items', 'Items'], ['mobs', 'Mobs'], ['materials', 'Materials'], ['accessories', 'Accessories'], ['tools', 'Tools'], ['weapons', 'Weapons'], ['guides', 'Guides']];
+  var S = { pages: {}, builtin: {}, me: null, staff: false, admin: false, edit: false, cat: 'home' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); }
+  /* ---------- built-in entries from the game data ---------- */
+  var WEAPON_T = { sword: 1, spear: 1, greatsword: 1, bow: 1, club: 1, hammer: 1 };
+  function buildBuiltin() {
+    var I = W.ITEMS || {}, k;
+    for (k in I) { var it = I[k], cat = it.type === 'material' ? 'materials' : it.type === 'acc' ? 'accessories' : it.type === 'tool' ? (WEAPON_T[it.tool] ? 'weapons' : 'tools') : 'items';
+      var st = []; if (it.type) st.push(['Type', it.type]); if (it.tool) st.push(['Tool kind', it.tool]); if (it.dmg) st.push(['Damage', it.dmg]); if (it.def) st.push(['Defense', it.def]); if (it.range) st.push(['Range', it.range]); if (it.hp) st.push(['Durability', it.hp]);
+      S.builtin[k] = { slug: k, title: it.name, category: cat, icon: it.ic, body_md: it.desc || '', stats: st, builtin: true, itemId: k }; }
+    var Z = W.ZOMBIES || {};
+    for (k in Z) { var z = Z[k]; S.builtin['mob-' + k] = { slug: 'mob-' + k, title: z.name || k, category: 'mobs', icon: '🧟', body_md: z.desc || '', stats: [['HP', z.hp], ['Damage', z.dmg], ['Speed', z.spd], ['Defense', z.def], ['World tier', z.tier], ['Rarity', z.rarity]].filter(function (a) { return a[1] != null; }), builtin: true }; }
+  }
+  function all() { var o = {}, k; for (k in S.builtin) o[k] = S.builtin[k]; for (k in S.pages) o[k] = S.pages[k]; return o; }
+  function iconHtml(p) { var ic = p.icon_url || p.icon || ''; if (/^(https?:|icons\/|data:image)/.test(ic)) return '<img src="' + esc(ic) + '" alt="">'; return ic && ic.charAt(0) === '<' ? ic : esc(ic || '📖'); }
+  /* ---------- markdown + sanitizer ---------- */
+  function inline(t) {
+    t = esc(t);
+    t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img alt="$1" src="$2">').replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '<a href="#/p/$1">$2</a>').replace(/\[\[([^\]]+)\]\]/g, function (m, a) { var e = all()[slug(a)] || all()[a]; return '<a href="#/p/' + slug(a) + '">' + esc(e ? e.title : a) + '</a>'; })
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\*([^*]+)\*/g, '<i>$1</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+    return t;
+  }
+  function md2html(md) {
+    var out = [], lines = String(md || '').replace(/\r/g, '').split('\n'), i, inList = null;
+    function close() { if (inList) { out.push('</' + inList + '>'); inList = null; } }
+    for (i = 0; i < lines.length; i++) {
+      var l = lines[i], m;
+      if ((m = /^(#{1,4})\s+(.*)$/.exec(l))) { close(); out.push('<h' + m[1].length + '>' + inline(m[2]) + '</h' + m[1].length + '>'); }
+      else if ((m = /^\s*[-*]\s+(.*)$/.exec(l))) { if (inList !== 'ul') { close(); out.push('<ul>'); inList = 'ul'; } out.push('<li>' + inline(m[1]) + '</li>'); }
+      else if ((m = /^\s*\d+\.\s+(.*)$/.exec(l))) { if (inList !== 'ol') { close(); out.push('<ol>'); inList = 'ol'; } out.push('<li>' + inline(m[1]) + '</li>'); }
+      else if ((m = /^>\s?(.*)$/.exec(l))) { close(); out.push('<blockquote>' + inline(m[1]) + '</blockquote>'); }
+      else if (/^---+$/.test(l.trim())) { close(); out.push('<hr>'); }
+      else if (!l.trim()) close();
+      else { close(); out.push('<p>' + inline(l) + '</p>'); }
+    }
+    close(); return out.join('\n');
+  }
+  function html2md(h) {
+    var d = document.createElement('div'); d.innerHTML = sanitize(h);
+    function walk(n) { var s = ''; n.childNodes.forEach(function (c) {
+      if (c.nodeType === 3) { s += c.nodeValue; return; } if (c.nodeType !== 1) return; var t = c.tagName.toLowerCase(), inner = walk(c);
+      if (/^h[1-4]$/.test(t)) s += '\n' + '#'.repeat(+t[1]) + ' ' + inner + '\n\n'; else if (t === 'p' || t === 'div') s += inner + '\n\n'; else if (t === 'b' || t === 'strong') s += '**' + inner + '**'; else if (t === 'i' || t === 'em') s += '*' + inner + '*';
+      else if (t === 'code') s += '`' + inner + '`'; else if (t === 'br') s += '\n'; else if (t === 'li') s += (c.parentNode.tagName === 'OL' ? '1. ' : '- ') + inner + '\n'; else if (t === 'ul' || t === 'ol') s += inner + '\n'; else if (t === 'blockquote') s += '> ' + inner + '\n\n';
+      else if (t === 'a') s += '[' + inner + '](' + (c.getAttribute('href') || '') + ')'; else if (t === 'img') s += '![' + (c.alt || '') + '](' + (c.getAttribute('src') || '') + ')'; else if (t === 'hr') s += '\n---\n\n'; else s += inner; }); return s; }
+    return walk(d).replace(/\n{3,}/g, '\n\n').trim();
+  }
+  var OKT = { A: 1, B: 1, I: 1, EM: 1, STRONG: 1, P: 1, BR: 1, UL: 1, OL: 1, LI: 1, H1: 1, H2: 1, H3: 1, H4: 1, BLOCKQUOTE: 1, CODE: 1, PRE: 1, IMG: 1, HR: 1, DIV: 1, SPAN: 1, U: 1, TABLE: 1, TR: 1, TD: 1, TH: 1, TBODY: 1, THEAD: 1 };
+  function sanitize(h) {
+    var doc = new DOMParser().parseFromString('<div>' + h + '</div>', 'text/html'), root = doc.body.firstChild;
+    (function clean(n) { Array.prototype.slice.call(n.childNodes).forEach(function (c) {
+      if (c.nodeType === 8) { n.removeChild(c); return; } if (c.nodeType !== 1) return;
+      if (!OKT[c.tagName]) { n.removeChild(c); return; }
+      Array.prototype.slice.call(c.attributes).forEach(function (a) { var nm = a.name.toLowerCase(), v = a.value;
+        if (nm === 'href') { if (!/^(https?:|#|mailto:)/i.test(v.trim())) c.removeAttribute(a.name); }
+        else if (nm === 'src') { if (!/^(https?:|icons\/|data:image\/(png|jpe?g|gif|webp);)/i.test(v.trim())) c.removeAttribute(a.name); }
+        else if (nm !== 'alt' && nm !== 'title') c.removeAttribute(a.name); });
+      if (c.tagName === 'A') { c.setAttribute('rel', 'noopener noreferrer nofollow'); if (/^https?:/i.test(c.getAttribute('href') || '')) c.setAttribute('target', '_blank'); }
+      clean(c); }); })(root);
+    return root.innerHTML;
+  }
+  /* ---------- data ---------- */
+  function load() {
+    return sb ? sb.from('wiki_pages').select('*').order('title').then(function (r) { S.pages = {}; if (r.error) { S.dbErr = r.error.message; return; } S.dbErr = ''; (r.data || []).forEach(function (p) { S.pages[p.slug] = p; }); }) : Promise.resolve();
+  }
+  function initAuth() {
+    if (!window.supabase || !C.supabaseUrl) return Promise.resolve();
+    sb = window.supabase.createClient(C.supabaseUrl, C.supabaseKey, { auth: { storage: { getItem: function (k) { var v = null; try { v = localStorage.getItem(k); } catch (e) {} if (v == null) { try { v = sessionStorage.getItem(k); } catch (e) {} } return v; }, setItem: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { try { sessionStorage.setItem(k, v); } catch (e2) {} } }, removeItem: function (k) { try { localStorage.removeItem(k); } catch (e) {} } }, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } });
+    return sb.auth.getSession().then(function (r) { var se = r.data && r.data.session; S.me = se ? se.user : null; return checkStaff(); }, function () {});
+  }
+  function checkStaff() {
+    S.staff = false; S.admin = false; if (!S.me) return Promise.resolve();
+    return sb.from('profiles').select('staff_role').eq('id', S.me.id).maybeSingle().then(function (r) { S.staff = !!(r.data && r.data.staff_role); S.role = r.data && r.data.staff_role; if (!S.staff) return; return sb.rpc('is_admin_active').then(function (a) { S.admin = !a.error && a.data === true; }); }).catch(function () {});
+  }
+  /* ---------- views ---------- */
+  function chrome() {
+    $('#nav').innerHTML = CATS.map(function (c) { return '<button data-c="' + c[0] + '" class="' + (S.cat === c[0] ? 'on' : '') + '">' + c[1] + '</button>'; }).join('') + (S.admin ? '<hr style="border-color:var(--line)"><button id="nNew">+ New page</button><button id="nImp">Import built-in data</button>' : '');
+    $('#who').textContent = S.me ? (S.admin ? 'Admin' : S.staff ? 'Staff (no active admin session)' : 'Viewer') : '';
+    $('#bAuth').textContent = !S.me ? 'Sign in' : S.admin ? 'Sign out' : S.staff ? 'Request admin' : 'Sign out';
+    Array.prototype.forEach.call(document.querySelectorAll('#nav [data-c]'), function (b) { b.onclick = function () { S.cat = b.dataset.c; location.hash = '#/c/' + S.cat; }; });
+    if ($('#nNew')) $('#nNew').onclick = function () { editor(null); }; if ($('#nImp')) $('#nImp').onclick = importAll;
+  }
+  function tile(p) { return '<div class="tile" data-s="' + esc(p.slug) + '"><div class="i">' + iconHtml(p) + '</div><span>' + esc(p.title) + '</span></div>'; }
+  function bindTiles() { Array.prototype.forEach.call(document.querySelectorAll('.tile'), function (t) { t.onclick = function () { location.hash = '#/p/' + t.dataset.s; }; }); }
+  function listView(cat, q) {
+    var a = all(), arr = Object.keys(a).map(function (k) { return a[k]; }).filter(function (p) { return !p.redirect_to_hide && (cat === 'home' || p.category === cat) && (!q || (p.title + ' ' + p.slug).toLowerCase().indexOf(q) >= 0); }).sort(function (x, y) { return x.title < y.title ? -1 : 1; });
+    var h = '<div class="card"><h2 style="margin-top:0">' + esc((CATS.filter(function (c) { return c[0] === cat; })[0] || ['', 'Search'])[1]) + (q ? ' &middot; "' + esc(q) + '"' : '') + ' <span class="muted" style="font-size:.8rem">(' + arr.length + ')</span></h2>';
+    if (cat === 'home' && !q) h += '<p>Welcome to the Webzombite community wiki. Browse items, mobs, materials, accessories, tools and weapons. Pages written by the staff team override the built-in game data.</p>' + (S.dbErr ? '<div class="msg err">Server pages unavailable: ' + esc(S.dbErr) + '</div>' : '');
+    h += '<div class="grid">' + arr.map(tile).join('') + '</div></div>'; $('#view').innerHTML = h; bindTiles();
+  }
+  function recipeOf(id) { var R = W.RECIPES || [], o = []; (Array.isArray(R) ? R : Object.keys(R).map(function (k) { return R[k]; })).forEach(function (r) { if (r && r.out && r.out[0] === id) o.push(r); }); return o; }
+  function pageView(sl, from) {
+    var p = all()[sl]; if (!p) { $('#view').innerHTML = '<div class="card"><h2>Page not found</h2><p class="muted">No page "' + esc(sl) + '" yet.</p>' + (S.admin ? '<button class="pri" id="mk">Create it</button>' : '') + '</div>'; if ($('#mk')) $('#mk').onclick = function () { editor({ slug: sl, title: sl, category: 'items', body_md: '' }); }; return; }
+    if (p.redirect_to && p.redirect_to !== sl && all()[p.redirect_to] && !S.noRedirect) { location.replace('#/p/' + p.redirect_to + '?from=' + encodeURIComponent(sl)); return; }
+    var body = p.body_html ? sanitize(p.body_html) : md2html(p.body_md || ''), st = p.stats || [];
+    var rec = p.itemId ? recipeOf(p.itemId) : [], I = W.ITEMS || {};
+    var h = '<div class="card">' + (from ? '<div class="msg">Redirected from <b>' + esc(from) + '</b></div>' : '') + '<div class="top"><div class="ic">' + iconHtml(p) + '</div><div><h2>' + esc(p.title) + '</h2><span class="chip">' + esc(p.category) + '</span>' + (p.builtin ? '<span class="chip">built-in</span>' : '') + '</div></div>';
+    if (st.length) h += '<table class="st">' + st.map(function (a) { return '<tr><td>' + esc(a[0]) + '</td><td>' + esc(a[1]) + '</td></tr>'; }).join('') + '</table>';
+    h += '<div class="body">' + body + '</div>';
+    if (rec.length) h += '<h3>Crafting</h3>' + rec.map(function (r) { return '<div class="msg">' + Object.keys(r.cost || {}).map(function (id) { var t = I[id]; return '<a href="#/p/' + id + '" style="margin-right:10px">' + (t ? t.ic : '') + ' ' + r.cost[id] + '× ' + esc(t ? t.name : id) + '</a>'; }).join('') + (r.st ? ' <span class="muted">at ' + esc(r.st) + '</span>' : '') + '</div>'; }).join('');
+    if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : '') + '</div>';
+    $('#view').innerHTML = h + '</div>';
+    if ($('#eb')) $('#eb').onclick = function () { editor(p); };
+    if ($('#db')) $('#db').onclick = function () { if (confirm('Delete this page?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(route); }); };
+  }
+  /* ---------- editor ---------- */
+  function editor(p) {
+    var isNew = !p || p.builtin, cur = p || { slug: '', title: '', category: 'items', body_md: '' };
+    var md = cur.body_md || '', html = cur.body_html || md2html(md), mode = 'wys', icon = cur.icon_url || (cur.icon && cur.icon.charAt(0) !== '<' ? cur.icon : '') || '';
+    var gal = ''; for (var s = 1; s <= 6; s++) for (var n = 0; n < 30; n++) gal += '<img src="icons/s' + s + '_' + n + '.png" data-ic="icons/s' + s + '_' + n + '.png" alt="">';
+    $('#view').innerHTML = '<div class="card"><h2 style="margin-top:0">' + (p && !p.builtin ? 'Edit page' : 'New page') + '</h2>' +
+      '<div class="row"><input id="eT" placeholder="Title" value="' + esc(cur.title) + '"><input id="eS" placeholder="slug (url name)" value="' + esc(cur.slug) + '"' + (p && !p.builtin ? ' readonly' : '') + '><select id="eC">' + CATS.filter(function (c) { return c[0] !== 'home'; }).map(function (c) { return '<option value="' + c[0] + '"' + (cur.category === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="row"><input id="eI" placeholder="Icon: emoji, image URL, or pick/upload below" value="' + esc(icon) + '"><input id="eR" placeholder="Redirect to slug (optional)" value="' + esc(cur.redirect_to || '') + '"><label class="muted" style="flex:0 0 auto">Upload logo <input type="file" id="eF" accept="image/*" style="display:none"><button type="button" onclick="document.getElementById(\'eF\').click()">Choose file</button></label></div>' +
+      '<div class="gal" id="gal">' + gal + '</div>' +
+      '<div class="ed-tabs row"><button id="tW" class="on">WYSIWYG</button><button id="tM">Markdown</button><span class="muted" style="flex:1 1 auto">Link pages with [[slug]] or [[slug|label]]</span></div>' +
+      '<div id="wA"><div class="tb">' + [['b', 'B'], ['i', 'I'], ['h2', 'H2'], ['h3', 'H3'], ['ul', '• List'], ['ol', '1. List'], ['q', '❝'], ['a', 'Link'], ['img', 'Image'], ['hr', '—']].map(function (b) { return '<button type="button" data-t="' + b[0] + '">' + b[1] + '</button>'; }).join('') + '</div><div id="wys" contenteditable="true"></div></div>' +
+      '<div id="mA" hidden><textarea id="mdT"></textarea><div class="muted">Preview</div><div class="body card" id="pv"></div></div>' +
+      '<div class="row"><button class="pri" id="eSave">Save</button><button id="eCancel">Cancel</button><span id="eMsg" class="err"></span></div></div>';
+    var wys = $('#wys'); wys.innerHTML = sanitize(html); $('#mdT').value = md || html2md(html);
+    function sync(to) { if (to === 'md') { html = sanitize(wys.innerHTML); md = html2md(html); $('#mdT').value = md; } else { md = $('#mdT').value; html = md2html(md); wys.innerHTML = sanitize(html); } }
+    $('#tW').onclick = function () { if (mode === 'md') sync('wys'); mode = 'wys'; $('#wA').hidden = false; $('#mA').hidden = true; $('#tW').className = 'on'; $('#tM').className = ''; };
+    $('#tM').onclick = function () { if (mode === 'wys') sync('md'); mode = 'md'; $('#wA').hidden = true; $('#mA').hidden = false; $('#tM').className = 'on'; $('#tW').className = ''; $('#pv').innerHTML = sanitize(md2html($('#mdT').value)); };
+    $('#mdT').oninput = function () { $('#pv').innerHTML = sanitize(md2html($('#mdT').value)); };
+    Array.prototype.forEach.call(document.querySelectorAll('.tb button'), function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { var t = b.dataset.t; wys.focus();
+      if (t === 'b') document.execCommand('bold'); else if (t === 'i') document.execCommand('italic'); else if (t === 'h2' || t === 'h3') document.execCommand('formatBlock', false, t); else if (t === 'ul') document.execCommand('insertUnorderedList'); else if (t === 'ol') document.execCommand('insertOrderedList'); else if (t === 'q') document.execCommand('formatBlock', false, 'blockquote'); else if (t === 'hr') document.execCommand('insertHorizontalRule');
+      else if (t === 'a') { var u = prompt('Link target (https://... or #/p/slug):'); if (u) document.execCommand('createLink', false, u); } else if (t === 'img') { var iu = prompt('Image URL:'); if (iu) document.execCommand('insertImage', false, iu); } }; });
+    $('#gal').onclick = function (e) { var ic = e.target.dataset && e.target.dataset.ic; if (ic) $('#eI').value = ic; };
+    $('#eF').onchange = function () { var f = this.files[0]; if (!f) return; if (f.size > 2e6) { $('#eMsg').textContent = 'Image must be under 2 MB.'; return; }
+      var path = Date.now().toString(36) + '-' + slug(f.name.replace(/\.[^.]+$/, '')) + '.' + (f.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      sb.storage.from('wiki').upload(path, f, { upsert: false, contentType: f.type }).then(function (r) { if (r.error) { $('#eMsg').textContent = r.error.message; return; } $('#eI').value = sb.storage.from('wiki').getPublicUrl(path).data.publicUrl; $('#eMsg').textContent = ''; }); };
+    $('#eCancel').onclick = function () { history.back(); };
+    $('#eSave').onclick = function () {
+      if (mode === 'wys') sync('md'); else sync('wys');
+      var row = { slug: slug($('#eS').value || $('#eT').value), title: $('#eT').value.trim(), category: $('#eC').value, icon_url: $('#eI').value.trim() || null, redirect_to: slug($('#eR').value) || null, body_md: md, body_html: sanitize(html), updated_by: S.me.id, updated_at: new Date().toISOString() };
+      if (!row.slug || !row.title) { $('#eMsg').textContent = 'Title and slug are required.'; return; }
+      sb.from('wiki_pages').upsert(row, { onConflict: 'slug' }).then(function (r) { if (r.error) $('#eMsg').textContent = r.error.message; else load().then(function () { location.hash = '#/p/' + row.slug; route(); }); });
+    };
+  }
+  function importAll() {
+    var rows = Object.keys(S.builtin).filter(function (k) { return !S.pages[k]; }).map(function (k) { var b = S.builtin[k], ic = (b.icon || '').match(/src="([^"]+)"/); return { slug: b.slug, title: b.title, category: b.category, icon_url: ic ? ic[1] : (b.icon && b.icon.charAt(0) !== '<' ? b.icon : null), body_md: (b.body_md || '') + (b.stats && b.stats.length ? '\n\n' + b.stats.map(function (a) { return '- **' + a[0] + ':** ' + a[1]; }).join('\n') : ''), body_html: null, updated_by: S.me.id }; });
+    if (!rows.length) { alert('Everything is already imported.'); return; } if (!confirm('Import ' + rows.length + ' built-in entries as editable wiki pages?')) return;
+    var chunks = [], i; for (i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
+    chunks.reduce(function (pr, ch) { return pr.then(function () { return sb.from('wiki_pages').upsert(ch, { onConflict: 'slug', ignoreDuplicates: true }).then(function (r) { if (r.error) throw r.error; }); }); }, Promise.resolve()).then(load).then(route, function (e) { alert(e.message); });
+  }
+  /* ---------- auth buttons ---------- */
+  function authClick() {
+    if (!sb) { alert('The sign-in library did not load.'); return; }
+    if (S.me && !S.staff || S.admin) { sb.auth.signOut().then(function () { S.me = null; S.staff = S.admin = false; route(); }); return; }
+    if (S.me && S.staff) { var pw = prompt('Admin password (leave empty if you are the leader):'); if (pw == null) return;
+      sb.rpc('request_admin_session', { p_password: pw }).then(function (r) { if (r.error) { alert(r.error.message); return; } var st = r.data && r.data.status; if (st === 'wrong_password') alert('Wrong password.'); else if (st === 'pending') { alert('Request sent. The leader must approve it in XKing Core; this page will unlock when approved.'); pollAdmin(); } else checkStaff().then(route); }); return; }
+    var e = prompt('XKing account email:'); if (!e) return; var pw2 = prompt('Password:'); if (!pw2) return;
+    sb.auth.signInWithPassword({ email: e, password: pw2 }).then(function (r) { if (r.error) { alert(r.error.message); return; } S.me = r.data.user; checkStaff().then(route); });
+  }
+  function pollAdmin() { var n = 0, t = setInterval(function () { if (++n > 60) { clearInterval(t); return; } checkStaff().then(function () { if (S.admin) { clearInterval(t); route(); } }); }, 5000); }
+  /* ---------- router ---------- */
+  function route() {
+    chrome(); var h = location.hash || '#/c/home', m, q = $('#q').value.trim().toLowerCase();
+    if (q) { S.cat = 'home'; listView('home', q); return; }
+    if ((m = /^#\/p\/([^?]+)(?:\?from=(.*))?$/.exec(h))) { var sl = decodeURIComponent(m[1]); S.cat = (all()[sl] || {}).category || S.cat; chrome(); pageView(sl, m[2] ? decodeURIComponent(m[2]) : ''); }
+    else { m = /^#\/c\/(\w+)/.exec(h); S.cat = m ? m[1] : 'home'; chrome(); listView(S.cat, ''); }
+    window.scrollTo(0, 0);
+  }
+  $('#q').oninput = route; $('#bAuth').onclick = authClick; window.addEventListener('hashchange', route);
+  window.WZW = { md2html: md2html, html2md: html2md, sanitize: sanitize };
+  buildBuiltin(); route();
+  initAuth().then(load).then(route, route);
+})();
+</script></body></html>

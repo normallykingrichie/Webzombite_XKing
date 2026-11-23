@@ -61,7 +61,9 @@
   function bloodFlag(night) { if (night < 1) return false; var pc = WZ.BLOOD[Math.min(worldTier(night), 10) - 1]; if (!pc) return false; return (hash32((baseSeed | 0) ^ Math.imul(night, 0x9e3779b1)) % 10000) / 100 < pc; }
   function curSeed(base, ep) { return ep <= 0 ? base : (hash32((base | 0) ^ Math.imul(ep, 0x7f4a7c15)) || 1); }
   function epochOf(t) { return Math.floor((clockInfo(t).day - 1) / 10); }
-  function newWorld(seed) { W.resetWorld(seed); baseSeed = W.seed; epoch = 0; bf = [0, 0, 0]; }
+  var pendSeed = null;
+  function seedFrom(txt) { txt = (txt || '').trim(); if (!txt) return null; if (/^-?\d{1,10}$/.test(txt)) return (parseInt(txt, 10) | 0) || 1; var h = 2166136261; for (var i = 0; i < txt.length; i++) { h ^= txt.charCodeAt(i); h = Math.imul(h, 16777619); } return (h | 0) || 1; }
+  function newWorld(seed) { if (seed == null && pendSeed != null) seed = pendSeed; pendSeed = null; W.resetWorld(seed); baseSeed = W.seed; epoch = 0; bf = [0, 0, 0]; }
   function GFXD() { return { rd: 12, ed: 8, fog: true, shadow: true, smap: true, godray: false, water: true, cull: true, dynLeaves: false, extraLeaves: false, fallLeaves: false, illum: false, ripples: false, flow: false, skyCloud: true, volCloud: false, aurora: false, stars: false, discs: false, haze: false, dirty: false, uwDist: false, wet: false, blurFx: false }; }
   function loadGfx() {
     var g = GFXD(), GFX_DEF = g; try { var q = JSON.parse(localStorage.getItem('wz_gfx') || 'null'); if (q) { ['rd', 'ed'].forEach(function (k) { if (typeof q[k] === 'number' && q[k] >= 2) g[k] = q[k] >= 9999 ? 9999 : Math.min(100, Math.round(q[k])); }); ['fog', 'shadow', 'smap', 'godray', 'water', 'cull', 'dynLeaves', 'extraLeaves', 'fallLeaves', 'illum', 'ripples', 'flow', 'skyCloud', 'volCloud', 'aurora', 'stars', 'discs', 'haze', 'dirty', 'uwDist', 'wet', 'blurFx'].forEach(function (k) { if (typeof q[k] === 'boolean') g[k] = q[k]; }); } } catch (e) {}
@@ -87,7 +89,7 @@
   }
   function snapshot(worldOnly) {
     if (cache.ver !== voxVer) { cache.list = W.voxList(); cache.ver = voxVer; }
-    var o = { v: 4, df: wDiff, tm: wTime, sd: baseSeed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [], cs: [], bf: bf.slice(), tu: [] };
+    var o = { v: 5, tb: W.tables.filter(function (e) { return e.alive && e.on; }).map(function (e) { return [e.vx, e.vy, e.vz, e.on]; }), df: wDiff, tm: wTime, sd: baseSeed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [], cs: [], bf: bf.slice(), tu: [] };
     W.turrets.forEach(function (e) { if (e.alive && e.ammo > 0) o.tu.push([e.vx, e.vy, e.vz, e.ammo]); });
     o.ch = []; W.chests.forEach(function (e) { if (e.alive && Object.keys(e.box).length) o.ch.push([e.vx, e.vy, e.vz, e.box]); });
     W.trees.forEach(function (t, i) { if (!t.alive || t.hp < t.max) o.tr.push([i, Math.round(t.hp), t.given, Math.round(t.respawn)]); });
@@ -132,7 +134,7 @@
   }
   function applySave(s, worldOnly) {
     if (!s || (s.v !== 3 && s.v !== 4)) return false;
-    wDiff = s.df | 0; wTime = s.tm | 0; baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], s.v); voxVer++; (s.ch || []).forEach(function (a) { for (var i = 0; i < W.chests.length; i++) { var e = W.chests[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) e.box = a[3] || {}; } }); (s.tu || []).forEach(function (a) { var te = turretAt(a[0], a[1], a[2]); if (te) te.ammo = a[3] | 0; });
+    wDiff = s.df | 0; wTime = s.tm | 0; baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], s.v); voxVer++; (s.tb || []).forEach(function (a) { for (var ti = 0; ti < W.tables.length; ti++) { var te = W.tables[ti]; if (te.alive && te.vx === a[0] && te.vy === a[1] && te.vz === a[2] && ITEMS[a[3]]) setTableOn(te, a[3]); } }); (s.ch || []).forEach(function (a) { for (var i = 0; i < W.chests.length; i++) { var e = W.chests[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) e.box = a[3] || {}; } }); (s.tu || []).forEach(function (a) { var te = turretAt(a[0], a[1], a[2]); if (te) te.ammo = a[3] | 0; });
     bf = Array.isArray(s.bf) ? [s.bf[0] | 0, s.bf[1] | 0, s.bf[2] | 0] : [0, 0, 0];
     (s.tr || []).forEach(function (a) { var t = W.trees[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setTree(t, false); });
     (s.rk || []).forEach(function (a) { var t = W.rocks[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setRock(t, false); });
@@ -162,7 +164,8 @@
   }
 
   function placeAtSpawn(slotIdx) {
-    var off = slotIdx || 0; P.x = W.spawn.x + (off % 2) * 1.4; P.z = W.spawn.z + Math.floor(off / 2) * 1.4;
+    var off = slotIdx || 0, h1 = (hash32((baseSeed | 0) ^ 0x5bd1e995) >>> 0) / 4294967296, h2 = (hash32((baseSeed | 0) ^ 0x2545f491) >>> 0) / 4294967296, sa = h1 * 6.2832 + off * 0.5, sr = 7.6 + h2 * 4.4;
+    P.x = -32 + Math.cos(sa) * sr; P.z = 32 + Math.sin(sa) * sr; if (W.seaAt && W.seaAt(P.x, P.z)) { P.x = W.spawn.x; P.z = W.spawn.z; }
     P.y = 0; P.vx = P.vz = P.vy = 0; P.yaw = 0; P.pitch = 0; ugOn = false; if (W.setUnderground) { W.setUnderground(false); }
     while (W.hit(P.x - 0.3, P.x + 0.3, P.y, P.y + 1.8, P.z - 0.3, P.z + 0.3) && P.y < 30) P.y += 1;
   }
@@ -370,22 +373,22 @@
       '<div class="warn-note">Progress only lasts for this session and is <b>erased when the tab closes</b>. Use <b>Save Code &amp; Load</b> (or Cloud Save) to keep your world safe!</div>' +
       '<div class="box-sub"><div class="row" style="justify-content:space-between"><label style="font-size:.86rem;color:var(--muted)">Survivor name</label><span style="font-size:.78rem;color:var(--muted)">' + esc(userName || 'Signed in') + ' &middot; <a href="#" id="bSignOut" style="color:var(--gold)">Sign out</a></span></div>' +
       '<input type="text" id="inpName" maxlength="16" value="' + esc(playerName) + '" placeholder="Enter your name...">' +
-      '<div class="row" style="font-size:.84rem;color:var(--muted)"><label>Difficulty <select id="selDiff"><option value="0">Normal</option><option value="1">Hard (Zombie HP 1.2x, DMG 1.1x)</option><option value="2">Harder (HP 1.5x, DMG 1.2x)</option><option value="3">Hardcore (HP 2x, DMG 1.5x)</option></select></label><label>Time <select id="selTime"><option value="0">Default</option><option value="1">Slow (tiers at day 20, 60, 120...)</option></select></label></div>' +
-      '<div class="row"><button class="btn primary" id="bSolo">Play Solo</button><button class="btn" id="bHost">Create Room (Max 4)</button><button class="btn" id="bOpenLoad">Load Save Code</button><button class="btn" id="bGfx">Graphics Settings</button></div></div>' +
+      '<div class="row" style="font-size:.84rem;color:var(--muted)"><label>Difficulty <select id="selDiff"><option value="0">Normal</option><option value="1">Hard (Zombie HP 1.2x, DMG 1.1x)</option><option value="2">Harder (HP 1.5x, DMG 1.2x)</option><option value="3">Hardcore (HP 2x, DMG 1.5x)</option></select></label><label>Seed <input type="text" id="inpSeed" maxlength="24" placeholder="random" style="width:110px"></label><label>Time <select id="selTime"><option value="0">Default</option><option value="1">Slow (tiers at day 20, 60, 120...)</option></select></label></div>' +
+      '<div class="row"><button class="btn primary" id="bSolo">Play Solo</button><button class="btn" id="bHost">Create Room (Max 4)</button><button class="btn" id="bOpenLoad">Load Save Code</button><button class="btn" id="bGfx">Graphics Settings</button><button class="btn" id="bWiki">Wiki</button></div></div>' +
       '<div class="box-sub"><div style="font-size:.88rem;font-weight:700">Join a Friend\'s Room (6 random characters)</div>' +
       '<div class="row" style="flex-wrap:nowrap"><input type="text" id="inpRoom" maxlength="6" placeholder="Example: k4m9p2 (not case sensitive)" style="text-transform:lowercase;letter-spacing:.12em"><button class="btn primary" id="bJoin" style="white-space:nowrap">Join Room</button></div>' +
       '<div class="err" id="menuErr">' + esc(errMsg || '') + '</div></div>' +
       controlsHtml() + '<div class="row"><a class="btn sm" href="' + esc(C.coreUrl || '../index.html') + '">Back to XKing Core</a></div></div>');
 
-    function syncOpts() { wDiff = +($('#selDiff').value) || 0; wTime = +($('#selTime').value) || 0; }
+    function syncOpts() { pendSeed = seedFrom($('#inpSeed') && $('#inpSeed').value); wDiff = +($('#selDiff').value) || 0; wTime = +($('#selTime').value) || 0; }
     function syncName() { playerName = ($('#inpName').value || '').trim().slice(0, 16) || 'Survivor'; }
     $('#bSignOut').onclick = function (ev) { ev.preventDefault(); signOut(); };
-    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); leaveRoom(); newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); enterGame(); say('30 seconds of safe time have started! Gather materials quickly.'); };
+    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); leaveRoom(); newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); enterGame(); say('World seed: ' + baseSeed + '. 30 seconds of safe time have started! Gather materials quickly.'); };
     $('#bHost').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); hostRoom(false); };
     $('#bJoin').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); var c = Net.normalizeCode($('#inpRoom').value); if (c.length !== 6) { $('#menuErr').textContent = 'Enter exactly 6 letters/numbers for the room code.'; return; } joinRoom(c); };
     $('#inpRoom').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('#bJoin').click(); });
     $('#bOpenLoad').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); openCodeModal('menu'); };
-    $('#bGfx').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); openGfxModal('menu'); };
+    $('#bWiki').onclick = function () { location.href = 'wiki.html'; }; $('#bGfx').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); openGfxModal('menu'); };
   }
   function enterGame() {
     renderHotbar(); renderStats(); $('#hud').hidden = false; mode = 'ready'; fallbackLook = false; $('#altHint').classList.remove('on');
@@ -856,8 +859,10 @@
     var i, top;
     if (dx) { b.x += dx; i = W.hit(b.x - r, b.x + r, b.y, b.y + h, b.z - r, b.z + r); if (i) { top = i.top; if (canStep && top - b.y <= 0.62 && !W.hit(b.x - r, b.x + r, top + 0.001, top + h, b.z - r, b.z + r)) b.y = top + 0.001; else { b.x -= dx; if (b.vx !== undefined) b.vx = 0; } } }
     if (dz) { b.z += dz; i = W.hit(b.x - r, b.x + r, b.y, b.y + h, b.z - r, b.z + r); if (i) { top = i.top; if (canStep && top - b.y <= 0.62 && !W.hit(b.x - r, b.x + r, top + 0.001, top + h, b.z - r, b.z + r)) b.y = top + 0.001; else { b.z -= dz; if (b.vz !== undefined) b.vz = 0; } } }
-    if (dy) { b.y += dy; b.onGround = false; i = W.hit(b.x - r, b.x + r, b.y, b.y + h, b.z - r, b.z + r); if (i) { if (dy < 0) { b.y = i.top; b.onGround = true; } else b.y = i.bottom - h; b.vy = 0; } if (b.y <= 0) { b.y = 0; b.vy = 0; if (dy < 0) b.onGround = true; } }
+    var gy = onSurfaceB(b) ? W.gh(b.x, b.z) : 0; if (dx || dz) { if (b.y < gy && gy - b.y <= 1.4) b.y = gy; }
+    if (dy) { b.y += dy; b.onGround = false; i = W.hit(b.x - r, b.x + r, b.y, b.y + h, b.z - r, b.z + r); if (i) { if (dy < 0) { b.y = i.top; b.onGround = true; } else b.y = i.bottom - h; b.vy = 0; } if (b.y <= gy) { b.y = gy; b.vy = 0; if (dy < 0) b.onGround = true; } }
   }
+  function onSurfaceB(b) { return b.x <= W.half + 50 && W.gh; }
   function stepPlayer(dt) {
     if (fallbackLook) {
       var tr = (keys.ArrowLeft ? 1 : 0) - (keys.ArrowRight ? 1 : 0), ly = (keys.ArrowUp ? 1 : 0) - (keys.ArrowDown ? 1 : 0);
@@ -893,11 +898,12 @@
     }
     return null;
   }
-  function unkey(k) { var y = k % 64, r = Math.floor(k / 64), z = (r % 4096) - 1100, x = Math.floor(r / 4096) - 1100; return [x, y, z]; }
-  var ROCKITEM = { granite: 'granite_ore', andesite: 'andesite_ore', diorite: 'diorite_ore', calcite: 'calcite_ore', clay: 'clay_ore', zinc: 'zinc_ore', titanium: 'titanium_ore' }, ROCKNAME = { granite: 'Granite Ore', andesite: 'Andesite Ore', diorite: 'Diorite Ore', calcite: 'Calcite Ore', clay: 'Clay Ore', titanium: 'Titanium Ore' };
-  var VNAME = { 49: 'Liquiders Workbench', 50: 'Sewing Table', 44: 'Wooden Spike', 45: 'Sharp Palm Fibrous Root', 46: 'Iron Circular Barbed Wire', 47: 'Ivy Grass', 48: 'Titanium Barbed Wire', 43: 'Blast Smelter', 33: 'Smooth Granite Block', 34: 'Smooth Andesite Block', 35: 'Smooth Diorite Block', 36: 'Smooth Calcite Block', 37: 'Stone Bricks Block', 38: 'Red Bricks Block', 39: 'Granite Bricks Block', 40: 'Andesite Bricks Block', 41: 'Diorite Bricks Block', 42: 'Calcite Bricks Block', 29: 'Manual Pressing', 30: 'Manual Casing & Frame Crafter', 31: 'Trap Bench', 32: 'Mason Workbench', 16: 'Manual Milling', 17: 'Bomb Workbench', 18: 'Glass Kiln', 19: 'Crafting Workbench', 20: 'Working Workbench', 21: 'Wooden Chest', 22: 'Iron-Cased Chest', 23: 'Iron Chest', 24: 'Copper-Cased Chest', 25: 'Copper Chest', 26: 'Glass Block', 27: 'Cactus Block', 28: 'TNT Block', 10: 'Wood Plank Block', 11: 'Sawmill', 12: 'Turret Workbench', 13: 'Handmade Cannon', 14: 'Cannon', 15: 'Manual Cannon', 1: 'Wood Log Block', 2: 'Stone Block', 3: 'Smelting Furnace', 4: 'Cozy Bed', 5: 'Cozy Couch', 6: 'Sink', 7: 'Campfire', 8: 'Iron Anvil', 9: 'Computer Bench' };
-  var VITEM = { 49: 'liquiders_workbench', 50: 'sewing_table', 44: 'wooden_spike', 45: 'sharp_palm_root', 46: 'iron_barbed_wire', 47: 'ivy_grass', 48: 'titanium_barbed_wire', 43: 'blast_smelter', 33: 'smooth_granite_block', 34: 'smooth_andesite_block', 35: 'smooth_diorite_block', 36: 'smooth_calcite_block', 37: 'stone_bricks_block', 38: 'red_bricks_block', 39: 'granite_bricks_block', 40: 'andesite_bricks_block', 41: 'diorite_bricks_block', 42: 'calcite_bricks_block', 29: 'manual_press', 30: 'casing_crafter', 31: 'trap_bench', 32: 'mason_bench', 16: 'manual_milling', 17: 'bomb_bench', 18: 'glass_kiln', 19: 'craft_bench', 20: 'work_bench', 21: 'wooden_chest', 22: 'ironcased_chest', 23: 'iron_chest', 24: 'coppercased_chest', 25: 'copper_chest', 26: 'glass_block', 27: 'cactus_block', 28: 'tnt_block', 10: 'wood_plank_block', 11: 'sawmill', 12: 'turret_bench', 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon', 1: 'wood_block', 2: 'stone_block', 3: 'furnace', 4: 'bed_block', 5: 'couch_block', 6: 'sink_block', 7: 'campfire', 8: 'anvil_block', 9: 'computer_bench' };
+  function unkey(k) { var y = k % 64, r = Math.floor(k / 64), z = (r % 8192) - 2600, x = Math.floor(r / 8192) - 2600; return [x, y, z]; }
+  var ROCKITEM = { granite: 'granite_ore', andesite: 'andesite_ore', diorite: 'diorite_ore', calcite: 'calcite_ore', clay: 'clay_ore', zinc: 'zinc_ore', titanium: 'titanium_ore', permafrost: 'permafrost_ore', diamond: 'diamond', ruby: 'ruby', emerald: 'emerald', amethyst: 'amethyst', sapphire: 'sapphire' }, ROCKNAME = { granite: 'Granite Ore', andesite: 'Andesite Ore', diorite: 'Diorite Ore', calcite: 'Calcite Ore', clay: 'Clay Ore', titanium: 'Titanium Ore', permafrost: 'Permafrost Ore', diamond: 'Diamond Ore', ruby: 'Ruby Ore', emerald: 'Emerald Ore', amethyst: 'Amethyst Ore', sapphire: 'Sapphire Ore' };
+  var VNAME = { 51: 'Statue of God', 49: 'Liquiders Workbench', 50: 'Sewing Table', 44: 'Wooden Spike', 45: 'Sharp Palm Fibrous Root', 46: 'Iron Circular Barbed Wire', 47: 'Ivy Grass', 48: 'Titanium Barbed Wire', 43: 'Blast Smelter', 33: 'Smooth Granite Block', 34: 'Smooth Andesite Block', 35: 'Smooth Diorite Block', 36: 'Smooth Calcite Block', 37: 'Stone Bricks Block', 38: 'Red Bricks Block', 39: 'Granite Bricks Block', 40: 'Andesite Bricks Block', 41: 'Diorite Bricks Block', 42: 'Calcite Bricks Block', 29: 'Manual Pressing', 30: 'Manual Casing & Frame Crafter', 31: 'Trap Bench', 32: 'Mason Workbench', 16: 'Manual Milling', 17: 'Bomb Workbench', 18: 'Glass Kiln', 19: 'Crafting Workbench', 20: 'Working Workbench', 21: 'Wooden Chest', 22: 'Iron-Cased Chest', 23: 'Iron Chest', 24: 'Copper-Cased Chest', 25: 'Copper Chest', 26: 'Glass Block', 27: 'Cactus Block', 28: 'TNT Block', 10: 'Wood Plank Block', 11: 'Sawmill', 12: 'Turret Workbench', 13: 'Handmade Cannon', 14: 'Cannon', 15: 'Manual Cannon', 1: 'Wood Log Block', 2: 'Stone Block', 3: 'Smelting Furnace', 4: 'Cozy Bed', 5: 'Cozy Couch', 6: 'Sink', 7: 'Campfire', 8: 'Iron Anvil', 9: 'Computer Bench' };
+  var VITEM = { 51: 'statue_god', 49: 'liquiders_workbench', 50: 'sewing_table', 44: 'wooden_spike', 45: 'sharp_palm_root', 46: 'iron_barbed_wire', 47: 'ivy_grass', 48: 'titanium_barbed_wire', 43: 'blast_smelter', 33: 'smooth_granite_block', 34: 'smooth_andesite_block', 35: 'smooth_diorite_block', 36: 'smooth_calcite_block', 37: 'stone_bricks_block', 38: 'red_bricks_block', 39: 'granite_bricks_block', 40: 'andesite_bricks_block', 41: 'diorite_bricks_block', 42: 'calcite_bricks_block', 29: 'manual_press', 30: 'casing_crafter', 31: 'trap_bench', 32: 'mason_bench', 16: 'manual_milling', 17: 'bomb_bench', 18: 'glass_kiln', 19: 'craft_bench', 20: 'work_bench', 21: 'wooden_chest', 22: 'ironcased_chest', 23: 'iron_chest', 24: 'coppercased_chest', 25: 'copper_chest', 26: 'glass_block', 27: 'cactus_block', 28: 'tnt_block', 10: 'wood_plank_block', 11: 'sawmill', 12: 'turret_bench', 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon', 1: 'wood_block', 2: 'stone_block', 3: 'furnace', 4: 'bed_block', 5: 'couch_block', 6: 'sink_block', 7: 'campfire', 8: 'anvil_block', 9: 'computer_bench' };
 
+  Object.keys(ITEMS).forEach(function (id) { var it = ITEMS[id]; if (it.vox >= 52) { VITEM[it.vox] = id; VNAME[it.vox] = it.name; } });
   function turretAt(x, y, z) { for (var i = 0; i < W.turrets.length; i++) { var e = W.turrets[i]; if (e.alive && e.vx === x && e.vy === y && e.vz === z) return e; } return null; }
   function tcfg(e) { return ITEMS[WZ.TURRET_VOX[e.vt]].turret; }
   function dropScraps(vt, x, z) {
@@ -962,6 +968,7 @@
     }
   }
   function hitZombie(z, dmg, attacker) {
+    if (W.gods.length && aura(z.x, z.z).weak) dmg = Math.round(dmg * 1.1 + 0.4);
     if (z.def.mutant) z.guard = 2.5; if (z.def.wingguard && !(z.gcd > 0) && !(z.guard > 0)) { z.guard = 2.5; z.gcd = 6; } z.hp -= Math.max(1, dmg - (z.def.wingguard ? (z.guard > 0 ? 10 : 0) : z.def.def) - (z.def.mutant && z.guard > 0 ? 4 : 0)); z.flash = 0.14;
     if (attacker !== 'turret') { var dx = z.x - P.x, dz = z.z - P.z, l = Math.hypot(dx, dz) || 1; moveBody(z, dx / l * 0.35, 0, dz / l * 0.35, z.rad, 1.7, false); }
     if (z.hp <= 0) killZombie(z, attacker);
@@ -974,7 +981,7 @@
     scene.remove(z.g); var i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1); delete zMap[z.id];
     var dropId = null, zt = z.type;
     if (z.def.boss && mp.role !== 'client') { var bi = zt === 'gigantus' ? 0 : zt === 'mutanoider' ? 2 : 1; bf[bi] = 2; }
-    if (zt === 'spider') dropId = rnd() < 1 / 3 ? 'string' : null; else if (zt === 'programmer') dropId = rnd() < 0.10 ? 'signal_chip' : null; else if (zt !== 'miner' && zt !== 'zfish') dropId = rnd() < 0.15 ? WZ.rollLoot('trash1', rnd) : null;
+    if (zt === 'spider') dropId = rnd() < 1 / 3 ? 'string' : null; else if (zt === 'programmer') dropId = rnd() < 0.10 ? 'signal_chip' : null; else if (zt !== 'miner' && zt !== 'zfish' && zt !== 'drowned') dropId = rnd() < 0.15 ? WZ.rollLoot('trash1', rnd) : null;
     if (zt === 'spider' && rnd() < 0.6) dropId = 'cobweb'; if (zt === 'pfwalker' && rnd() < 0.10) dropId = 'permafrost_ore'; if (zt === 'berserk' && rnd() < 0.05) dropId = 'berserkers_boots'; if (zt === 'bomber' && rnd() < 0.05) dropId = 'gunpowder'; else if (zt === 'miner' && rnd() < 0.15) dropId = 'dynamite';
     if (attacker === 'self' || !attacker) { kills++; awardKill(zt); if (dropId) { give(dropId, 1); say('+1 ' + ITEMS[dropId].name); } }
     else if (attacker !== 'turret' && mp.role === 'host') Net.send({ t: 'zkill', to: attacker, drop: dropId, ty: z.ti });
@@ -1028,7 +1035,7 @@
   function applySearchEnt(e, targetPid) {
     if (e.searched) { if (targetPid === 'self') say('Already searched.'); else if (mp.role === 'host') Net.send({ t: 'say', to: targetPid, msg: 'Already searched.' }); return; }
     var wtier = worldTier(clockInfo(T).day), ctx = { village: W.biomeOf(e.x, e.z) !== 'city' || W.zoneOf(e.x, e.z) === 'out' };
-    var key = e.k === 'pile' ? (e.bush ? 'bush_' + (e.bush === 'jungle' ? 'jungle' : 'plain') : e.tier === 4 ? (wtier >= 4 ? 'table4' : 'trash2') : e.tier === 2 && wtier >= 2 && WZ.LOOT.trash2.enabled ? 'trash2' : 'trash1') : ('crate' + Math.max(1, Math.min(e.tier || 1, wtier, 5)));
+    var key = e.k === 'pile' ? (e.bush ? 'bush_' + (e.bush === 'jungle' ? 'jungle' : 'plain') : e.tier === 4 ? (wtier >= 4 ? 'table4' : wtier >= 2 ? 'trash2' : 'trash1') : e.tier === 2 && wtier >= 2 && WZ.LOOT.trash2.enabled ? 'trash2' : 'trash1') : ('crate' + Math.max(1, Math.min(e.tier || 1, wtier, 5)));
     var rolls = WZ.LOOT[key].rolls || 1, got = {};
     for (var i = 0; i < rolls; i++) { var id = e.bush ? WZ.rollBush(key, rnd) : WZ.rollLoot(key, rnd, ctx); got[id] = (got[id] || 0) + 1; }
     Object.keys(got).forEach(function (id) {
@@ -1039,6 +1046,66 @@
     if (mp.role === 'host') Net.send({ t: 'ent', k: e.k, idx: e.idx, searched: true });
   }
   function endRest() { rest = null; $('#dark').style.opacity = 0; }
+  /* ---- Statue of God blessings ---- */
+  var unl = { armed: false, imm: 0 }, godE = null;
+  function aura(x, z) { var o = { weak: false, foot: false }; for (var i = 0; i < W.gods.length; i++) { var g = W.gods[i]; if (!g.alive || !(g.weakT > 0 || g.footT > 0)) continue; if (Math.hypot(x - (g.vx + 0.5), z - (g.vz + 0.5)) < 25) { if (g.weakT > 0) o.weak = true; if (g.footT > 0) o.foot = true; } } return o; }
+  function godTick(dt) { unl.imm = Math.max(0, unl.imm - dt); for (var i = 0; i < W.gods.length; i++) { var g = W.gods[i]; g.weakT = Math.max(0, (g.weakT || 0) - dt); g.footT = Math.max(0, (g.footT || 0) - dt); g.cdU = Math.max(0, (g.cdU || 0) - dt); g.cdW = Math.max(0, (g.cdW || 0) - dt); g.cdF = Math.max(0, (g.cdF || 0) - dt); } }
+  function openGod(e) {
+    godE = e; SFX.play('click'); mode = 'inv'; keys = {}; lmb = false; eatT = 0; wire = null; mg = null; chestE = null; queue.length = 0; $('#eat').style.display = 'none'; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (er) {} } $('#screen').hidden = true; $('#inv').hidden = false; renderGod();
+  }
+  function renderGod() {
+    var e = godE; if (!e || !e.alive) { godE = null; renderInv(); return; }
+    function row(k, name, desc, cd, left, extra) { return '<div class="rec"><div><b>🗿 ' + name + '</b><div class="cost">' + desc + '<br>Cooldown ' + cd + ' s' + (extra || '') + '</div></div><button class="btn' + (left > 0 ? '' : ' primary') + '" data-bless="' + k + '"' + (left > 0 ? ' disabled' : '') + '>' + (left > 0 ? Math.ceil(left) + ' s' : 'Pray') + '</button></div>'; }
+    $('#inv').innerHTML = '<div class="inv-wrap"><div class="top"><h2 style="margin:0">🗿 Statue of God &middot; Blessing</h2><button class="btn primary" data-gclose="1">Close</button></div><div class="box">' +
+      row('unl', 'Unlethal', 'When you would die at 0 HP you survive with 1 HP and are immortal for 1 second, then the effect ends.', 600, e.cdU || 0, unl.armed ? '<br><span style="color:var(--gold)">Active: waiting for a deadly blow</span>' : '') +
+      row('weak', 'Zombie Weaks', 'Zombies within 50 m (diameter) of this statue deal 10 less damage and take 10% more damage for 2 minutes.', 300, e.cdW || 0, e.weakT > 0 ? '<br><span style="color:var(--gold)">Active: ' + Math.ceil(e.weakT) + ' s left</span>' : '') +
+      row('foot', 'Zombie Weak Foot', 'Zombies within 50 m (diameter) of this statue move 20% slower for 2 minutes.', 240, e.cdF || 0, e.footT > 0 ? '<br><span style="color:var(--gold)">Active: ' + Math.ceil(e.footT) + ' s left</span>' : '') + '</div></div>';
+  }
+  /* ---- Sea: oxygen (-1 per 0.1 s underwater) + Drowned Zombies ---- */
+  var o2 = 100, drownT = 0.5, seaT = 4;
+  function seaTick(dt) {
+    var under = !ugOn && W.seaAt && W.seaAt(P.x, P.z) && P.y + (typeof crouch !== 'undefined' && crouch ? 1.2 : 1.62) < -0.3, bar = $('#o2');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'o2'; bar.style.cssText = 'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);width:260px;height:14px;border:2px solid #0b2a3a;border-radius:8px;background:#0a1a22cc;display:none;z-index:6;overflow:hidden'; bar.innerHTML = '<i style="display:block;height:100%;width:100%;background:linear-gradient(#7fd7ff,#2a8fd6)"></i><span style="position:absolute;inset:0;text-align:center;font:700 10px/14px system-ui;color:#fff">OXYGEN</span>'; document.body.appendChild(bar); }
+    if (under) { o2 -= dt * 10; if (o2 <= 0) { o2 = 0; drownT -= dt; if (drownT <= 0) { drownT = 0.5; hurt(2, 'drown'); } } } else o2 = Math.min(100, o2 + dt * 40);
+    bar.style.display = o2 < 100 && !dead ? 'block' : 'none'; bar.firstChild.style.width = o2 + '%';
+    if (mp.role === 'client') return;
+    var nd = 0, i; for (i = zombies.length - 1; i >= 0; i--) { var zz = zombies[i]; if (zz.type !== 'drowned') continue; nd++; if (Math.hypot(zz.x - P.x, zz.z - P.z) > 48 || !under && Math.hypot(zz.x - P.x, zz.z - P.z) > 20) { scene.remove(zz.g); delete zMap[zz.id]; zombies.splice(i, 1); nd--; } }
+    if (under || (W.seaAt && W.seaAt(P.x, P.z))) { seaT -= dt; if (seaT <= 0) { seaT = 7; if (nd < 3) { for (var a = 0; a < 8; a++) { var an = rnd() * 6.28, d = 14 + rnd() * 8, sx = P.x + Math.cos(an) * d, sz = P.z + Math.sin(an) * d; if (W.seaAt(sx, sz) && W.gh(sx, sz) < -1) { zombies.push(makeZombie('drowned', sx, sz)); break; } } } } }
+  }
+  /* ---- Furniture: lamps, tables (object on top, cutting station), seats ---- */
+  var lampL = [], tMeshes = [];
+  function lampTick() {
+    var arr = [], i; for (i = 0; i < W.lamps.length; i++) { var l = W.lamps[i]; if (!l.alive) continue; var d = Math.hypot(l.x - P.x, l.z - P.z); if (d < 45) arr.push([d, l]); }
+    arr.sort(function (a, b) { return a[0] - b[0]; });
+    for (i = 0; i < lampL.length; i++) { var li = lampL[i], a = arr[i]; if (a) { li.position.set(a[1].x, (a[1].y || 0) + (a[1].k === 'lamp' && a[1].vy != null ? a[1].vy : 0) + 1.0, a[1].z); li.intensity = 1.15; } else li.intensity = 0; }
+  }
+  function itemSprite(id) {
+    var it = ITEMS[id], cv = document.createElement('canvas'); cv.width = cv.height = 64; var g = cv.getContext('2d'); g.font = '46px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(it.emoji || (it.ic && it.ic.charAt(0) !== '<' ? it.ic : '📦'), 32, 36);
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true })); sp.scale.set(0.5, 0.5, 0.5); return sp;
+  }
+  function setTableOn(e, id) {
+    e.on = id; if (e.mesh) { scene.remove(e.mesh); e.mesh = null; }
+    if (!id) return;
+    var m; if (id === 'cutting_board') { m = new THREE.Group(); var b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.42), new THREE.MeshLambertMaterial({ color: 0xc89b5c })); m.add(b); var kn = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.02, 0.05), new THREE.MeshLambertMaterial({ color: 0xcfd3d8 })); kn.position.set(0.05, 0.04, 0.1); kn.rotation.y = 0.5; m.add(kn); m.position.set(e.x, e.vy + 0.98, e.z); }
+    else { m = itemSprite(id); m.position.set(e.x, e.vy + 1.25, e.z); }
+    scene.add(m); e.mesh = m;
+  }
+  function tableTick() {
+    var cut = W.cuttables; cut.length = 0;
+    for (var i = 0; i < W.tables.length; i++) { var e = W.tables[i]; if (!e.alive) { if (e.on) { give(e.on, 1); e.on = null; } if (e.mesh) { scene.remove(e.mesh); e.mesh = null; } continue; } if (e.on === 'cutting_board') cut.push(e); }
+  }
+  function tableUse(e) {
+    if (e.on) {
+      if (e.on === 'cutting_board' && !keys.ShiftLeft) { SFX.play('click'); openInv(); return; }
+      give(e.on, 1); say('You picked up the ' + ITEMS[e.on].name + '.'); setTableOn(e, null); SFX.play('click'); return;
+    }
+    var id = hot[sel]; if (!id || id === 'fists' || !ITEMS[id] || ITEMS[id].type === 'block' || count(id) < 1) { say('Hold an item in your hand, then press [E] to put it on the table. Put a Cutting Board here to cut food.', true); return; }
+    take(id, 1); setTableOn(e, id); SFX.play('click'); say(id === 'cutting_board' ? 'Cutting Board placed. Press [E] on the table to cut food. Shift+[E] takes it back.' : ITEMS[id].name + ' placed on the table.');
+  }
+  function sitOn(e) {
+    if (!e.clean && e.clean !== undefined && false) return;
+    rest = { k: 'sit', clean: !!e.comfy, en: e.seat }; P.vx = P.vz = 0; P.x = e.x; P.z = e.z; say(e.comfy ? 'Relaxing: Energy +8 every 0.5 s and Comfort recovers. Move or jump to stand up.' : 'Sitting: Energy +5 per second. Move or jump to stand up.');
+  }
   function useStatue() {
     var HZ = 'wz_hz', last = 0; try { last = +localStorage.getItem(HZ) || 0; } catch (e) { }
     var left = last + 2 * 3600 * 1000 - Date.now(); if (left > 0) { say('The statue is cooling down: ' + Math.ceil(left / 60000) + ' min left (2 h real time).', true); return; }
@@ -1054,8 +1121,12 @@
     var h = aim(3.6); if (!h || h.kind !== 'ent') return; var e = h.e;
     if (e.k === 'pile' || e.k === 'crate') { SFX.play('loot'); if (mp.role === 'client') { if (e.searched) { say('Already searched.'); return; } Net.send({ t: 'search', k: e.k, idx: e.idx }); } else applySearchEnt(e, 'self'); }
     else if (e.k === 'bed') { rest = { k: 'sleep', clean: !!e.clean }; P.vx = P.vz = 0; $('#dark').style.opacity = 0.75; say(e.clean ? 'Sleeping in a clean bed: time passes 3x faster. Comfort & Energy recover.' : 'Sleeping in a shabby bed: time passes 2x faster. Energy recovers, but Comfort does not.'); }
+    else if (e.k === 'sofa') sitOn(e);
     else if (e.k === 'couch') { if (!e.clean) say('The couch is dirty. It does not restore Comfort.', true); else { rest = { k: 'sit', clean: true }; P.vx = P.vz = 0; say('Sitting on a clean couch. Comfort is recovering.'); } }
     else if (e.k === 'furnace' || e.k === 'campfire' || e.k === 'anvil' || e.k === 'computer' || e.k === 'sawmill' || e.k === 'tbench' || e.k === 'milling' || e.k === 'bomb' || e.k === 'kiln' || e.k === 'craft' || e.k === 'work' || e.k === 'press' || e.k === 'casing' || e.k === 'trapb' || e.k === 'mason' || e.k === 'blast' || e.k === 'liquiders' || e.k === 'sewing') { SFX.play('click'); openInv(); }
+    else if (e.k === 'godstatue') { openGod(e); }
+    else if (e.k === 'table') tableUse(e);
+    else if (e.k === 'seat') sitOn(e);
     else if (e.k === 'chest') openChest(e);
     else if (e.k === 'turret') { if (e.vt === 15) toggleManning(e); else loadTurret(e); }
     else if (e.k === 'sink') {
@@ -1091,17 +1162,18 @@
   }
 
   function hurt(n, elem) {
-    if (dead) return;
+    if (dead || unl.imm > 0) return;
     var ast0 = armorStats(), def = elem ? 0 : ast0.def, dmg = n - def; if (elem === 'frost') dmg = Math.round(n * (1 - ast0.frostRes)); else if (elem === 'fire') dmg = Math.round(n * (1 - ast0.fireRes));
     if (dmg <= 0) dmg = 1; if (status.gold > 0) dmg = Math.max(1, Math.round(dmg * 0.9));
-    P.hp -= dmg; P.comfort = Math.max(0, P.comfort - 3); if (rest) endRest(); if (fish) { endFish(); say('Fishing canceled.', true); }
+    P.hp -= dmg; if (P.hp <= 0 && unl.armed) { P.hp = 1; unl.armed = false; unl.imm = 1; say('UNLETHAL! You are immortal for 1 second.', true); }
+    P.comfort = Math.max(0, P.comfort - 3); if (rest) endRest(); if (fish) { endFish(); say('Fishing canceled.', true); }
     var v = $('#vig'); v.style.opacity = 1; setTimeout(function () { v.style.opacity = 0; }, 180); SFX.play('hurt');
     if (P.hp <= 0) die();
   }
   function applyWaterPoison() { if (rnd() < armorStats().wpResist) { status.wpoison = 15; say('You got Water Poison!', true); } }
   function infectKeys(sec) { status.keylock = sec; keys = {}; lmb = false; queue.length = 0; say('Keybind Error Virus! All keys are disabled (only Pause works).', true); SFX.play('hurt'); }
   function die() {
-    if (dead) return; dead = true; mode = 'dead'; keys = {}; lmb = false; eatT = 0; endFish(); $('#eat').style.display = 'none'; $('#dark').style.opacity = 0;
+    if (dead) return; dead = true; unl.armed = false; mode = 'dead'; keys = {}; lmb = false; eatT = 0; endFish(); $('#eat').style.display = 'none'; $('#dark').style.opacity = 0;
     if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) {} }
     var loot = { inv: JSON.parse(JSON.stringify(inv)), eq: ['head', 'chest', 'legs', 'boots'].map(function (k) { return equip[k]; }).filter(Boolean), ac: acc.filter(Boolean) };
     if (Object.keys(loot.inv).length || loot.eq.length || loot.ac.length) {
@@ -1122,7 +1194,7 @@
     var ast = armorStats(), hm = status.stomach > 0 ? 3 : 1, sl = rest && rest.k === 'sleep';
     tempTick(dt); var tst = tempState(); P.hunger = Math.max(0, P.hunger - 0.12 * hm * (tst < 0 ? 1.1 : 1) * dt); P.thirst = Math.max(0, P.thirst - 0.17 * hm * (tst > 0 ? 1.1 : 1) * dt);
     P.comfort = Math.max(0, P.comfort - 0.05 * ast.comfortDrain * dt); P.energy = Math.max(0, P.energy - 0.07 * dt);
-    if (rest) { if (rest.clean) P.comfort = Math.min(100, P.comfort + (sl ? 4 : 2.5) * dt); P.energy = Math.min(100, P.energy + (sl ? 6 : 1.5) * dt); }
+    if (rest && rest.en) { P.energy = Math.min(100, P.energy + rest.en * dt); if (rest.clean) P.comfort = Math.min(100, P.comfort + 2.5 * dt); } else if (rest) { if (rest.clean) P.comfort = Math.min(100, P.comfort + (sl ? 4 : 2.5) * dt); P.energy = Math.min(100, P.energy + (sl ? 6 : 1.5) * dt); }
     else if (Math.hypot(P.vx, P.vz) < 0.2) P.energy = Math.min(100, P.energy + 0.3 * dt);
     if (status.gold > 0) { status.gold -= dt; P.hp = Math.min(ast.hpMax, P.hp + 1 * dt); }
     if (status.poison > 0) { status.poison -= dt; P.hp -= 1.2 * dt; } if (status.stomach > 0) status.stomach -= dt;
@@ -1214,7 +1286,7 @@
   function applyCarHit(e, bd, pid) {
     if (!e.alive) return; e.hp -= Math.max(1, Math.round(bd / 2));
     if (e.hp <= 0) {
-      var wt = worldTier(clockInfo(T).day), tier = wt < 2 ? 1 : 2 + ((rnd() * (Math.min(5, wt) - 1)) | 0), key = e.truck ? (wt >= 3 ? 'truck3' : 'truck') : 'crate' + tier, lname = e.truck ? 'Iron Crate (Tier ' + Math.min(5, wt) + ')' : WZ.LOOT[key].name, rolls = WZ.LOOT[key].rolls || 3, got = {};
+      var wt = worldTier(clockInfo(T).day), tier = wt < 2 ? 1 : 2 + ((rnd() * (Math.min(5, wt) - 1)) | 0), key = e.wreck ? 'wreck' : e.truck ? (wt >= 3 ? 'truck3' : wt >= 2 ? 'truck' : 'crate1') : 'crate' + tier, lname = e.wreck ? 'Shipwreck Chest' : e.truck ? (wt < 2 ? 'Wooden Crate (Tier 1)' : 'Iron Crate (Tier ' + Math.min(5, wt) + ')') : WZ.LOOT[key].name, rolls = WZ.LOOT[key].rolls || 3, got = {};
       for (var i = 0; i < rolls; i++) { var id = WZ.rollLoot(key, rnd); got[id] = (got[id] || 0) + 1; }
       if (pid === 'self') say((e.truck ? 'Truck opened! (' : 'Trunk opened! (') + lname + ')'); else if (mp.role === 'host') Net.send({ t: 'say', to: pid, msg: (e.truck ? 'Truck opened! (' : 'Trunk opened! (') + lname + ')' });
       Object.keys(got).forEach(function (id) {
@@ -1226,12 +1298,13 @@
     if (mp.role === 'host') Net.send({ t: 'ent', k: 'car', idx: e.idx, hp: Math.round(e.hp), alive: e.alive });
   }
   /* Underground doors */
-  function enterUG() {
-    ugCd = 2; P.x = W.ug.spawn.x; P.z = W.ug.spawn.z; P.y = 0; P.vx = P.vz = P.vy = 0; ugOn = true; W.setUnderground(true); torchOn = true; chunkT = 0;
-    say('You went underground. Find the glowing yellow marker to return to the surface.');
+  var ugFrom = null;
+  function enterUG(cave) {
+    ugFrom = cave || null; ugCd = 2; P.x = W.ug.spawn.x; P.z = W.ug.spawn.z; P.y = 0; P.vx = P.vz = P.vy = 0; ugOn = true; W.setUnderground(true); torchOn = true; chunkT = 0;
+    say(cave ? (cave.kind === 'mountain' ? 'Mountain Cave: you went underground.' : 'Hill Cave: you went underground.') + ' Find the glowing yellow marker to return.' : 'You went underground. Find the glowing yellow marker to return to the surface.');
   }
   function exitUG() {
-    ugCd = 2; P.x = W.mine.entrance.x; P.z = W.mine.entrance.z; P.y = 0; P.vx = P.vz = P.vy = 0; ugOn = false; W.setUnderground(false); applyGfx(); say('Back on the surface.');
+    var ex = ugFrom || W.mine; ugFrom = null; ugCd = 2; P.x = ex.entrance.x; P.z = ex.entrance.z; P.y = ex.y != null ? ex.y : 0; P.vx = P.vz = P.vy = 0; ugOn = false; W.setUnderground(false); applyGfx(); say('Back on the surface.');
   }
   function cookTick(dt) {
     if (!cooking.length || !nearArr(W.camps)) return; cooking[0].t -= dt;
@@ -1244,7 +1317,7 @@
   }
 
   /* ---------------- Zombies ---------------- */
-  var BOX = new THREE.BoxGeometry(1, 1, 1), EYE = new THREE.MeshBasicMaterial({ color: 0xff3030 }), FLASH_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaa2222 }), Z_MATS = Object.create(null), MAT_YEL = new THREE.MeshLambertMaterial({ color: 0xe3b02a }), MAT_GLASS = new THREE.MeshBasicMaterial({ color: 0x66ccff }), MAT_ACID = new THREE.MeshBasicMaterial({ color: 0xb6ff00 }), MAT_STEEL = new THREE.MeshLambertMaterial({ color: 0x8b9096 }), SHADOW_GEO = new THREE.CircleGeometry(0.5, 12), SHADOW_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
+  var BOX = new THREE.BoxGeometry(1, 1, 1), EYE = new THREE.MeshBasicMaterial({ color: 0xc02222 }), FLASH_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0xaa2222 }), Z_MATS = Object.create(null), MAT_YEL = new THREE.MeshLambertMaterial({ color: 0xe3b02a }), MAT_GLASS = new THREE.MeshBasicMaterial({ color: 0x66ccff }), MAT_ACID = new THREE.MeshBasicMaterial({ color: 0xb6ff00 }), MAT_STEEL = new THREE.MeshLambertMaterial({ color: 0x8b9096 }), SHADOW_GEO = new THREE.CircleGeometry(0.5, 12), SHADOW_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38, depthWrite: false });
   function tint(c, k) { var col = new THREE.Color(c); col.multiplyScalar(1 + k); return col; }
   function getZMats(type) {
     if (Z_MATS[type]) return Z_MATS[type]; var d = ZDEF[type];
@@ -1288,13 +1361,13 @@
       }
     } else {
     bx(0.52 * wide, 0.7, 0.3 * wide, m.cloth, 0, 1.05, 0, null, true); if (type === 'hardzombie') bx(0.46, 0.18, 0.36, m.skin, 0, 1.5, 0, null, true); else bx(0.32, 0.32, 0.32, m.skin, 0, 1.55, 0, null, true);
-    var ew = type === 'tough' ? 0.095 : 0.07; bx(ew + 0.03, (type === 'tough' ? 0.07 : 0.05) + 0.03, 0.02, EYE, -0.08, 1.58, -0.165); bx(ew + 0.03, (type === 'tough' ? 0.07 : 0.05) + 0.03, 0.02, EYE, 0.08, 1.58, -0.165);
+    var ew = type === 'tough' ? 0.095 : 0.07; bx(ew * 0.6, (type === 'tough' ? 0.07 : 0.05) * 0.6, 0.015, EYE, -0.08, 1.58, -0.165); bx(ew * 0.6, (type === 'tough' ? 0.07 : 0.05) * 0.6, 0.015, EYE, 0.08, 1.58, -0.165);
     var lL = new THREE.Group(), lR = new THREE.Group(), aL = new THREE.Group(), aR = new THREE.Group();
     lL.position.set(-0.14 * wide, 0.7, 0); lR.position.set(0.14 * wide, 0.7, 0); aL.position.set(-0.36 * wide, 1.38, 0); aR.position.set(0.36 * wide, 1.38, 0);
     [lL, lR, aL, aR].forEach(function (p) { g.add(p); });
     bx(0.2, 0.7, 0.22, m.pants, 0, -0.35, 0, lL); bx(0.2, 0.7, 0.22, m.pants, 0, -0.35, 0, lR);
     bx(0.15, 0.62, 0.15, m.skin, 0, -0.3, 0, aL, true); bx(0.15, 0.62, 0.15, m.skin, 0, -0.3, 0, aR, true);
-    aL.rotation.x = aR.rotation.x = -1.35;
+    aL.rotation.x = aR.rotation.x = 1.35;
     if (type === 'jacket') { var jm = new THREE.MeshLambertMaterial({ color: [0x3b4a5a, 0x5a3b2e, 0x2f4a38, 0x4a4a52][(rnd() * 4) | 0] }); bx(0.58, 0.56, 0.34, jm, 0, 1.12, 0, null, true); bx(0.42, 0.08, 0.38, jm, 0, 1.42, 0); bx(0.19, 0.36, 0.19, jm, 0, -0.12, 0, aL, true); bx(0.19, 0.36, 0.19, jm, 0, -0.12, 0, aR, true); }
     if (type === 'pfwalker') { var ICE = new THREE.MeshBasicMaterial({ color: 0xbfe8ff }), ICE2 = new THREE.MeshBasicMaterial({ color: 0x7fb6ff }); [[0.28, 1.5, 0.02, 0.1, 0.3], [-0.26, 1.46, 0.04, 0.09, 0.26], [0.1, 1.3, 0.18, 0.12, 0.34], [-0.12, 1.1, 0.19, 0.1, 0.28], [0.2, 0.95, 0.17, 0.1, 0.22], [0, 1.72, 0, 0.08, 0.2]].forEach(function (c, ci) { var o = bx(c[3], c[4], c[3], ci % 2 ? ICE : ICE2, c[0], c[1], c[2]); o.rotation.z = (ci - 2.5) * 0.18; o.rotation.x = 0.2; }); }
     if (type === 'berserk') { bx(0.35, 0.07, 0.35, new THREE.MeshLambertMaterial({ color: 0xaa1c1c }), 0, 1.66, 0); bx(0.06, 0.1, 0.05, new THREE.MeshLambertMaterial({ color: 0xaa1c1c }), 0.18, 1.62, 0.17); }
@@ -1354,13 +1427,13 @@
       x += dx / nt.d * mv; z += dz / nt.d * mv; DF[o + 1] = x; DF[o + 2] = z; DF[o + 3] = Math.atan2(-dx, -dz); DU[o + 7] = dSum(o);
     }
     if (E < 1e8) for (i = zombies.length - 1; i >= 0; i--) {
-      var zb = zombies[i]; if (zb.type === 'miner' || zb.type === 'zfish' || dorm.n >= DMAX) continue;
+      var zb = zombies[i]; if (zb.type === 'miner' || zb.type === 'zfish' || zb.type === 'drowned' || dorm.n >= DMAX) continue;
       if (nearestT(tg, zb.x, zb.z).d > E + 30) { dAdd(zb.ti, zb.x, zb.z, zb.hp / zb.mhp, zb.g.rotation.y, zb.id); scene.remove(zb.g); zombies.splice(i, 1); delete zMap[zb.id]; }
     }
   }
   function placeZombie(type, x, z) {
     var tg = targets(), bd = nearestT(tg, x, z).d;
-    if (tg.length && bd > edMeters() && type !== 'miner' && type !== 'zfish' && dorm.n < DMAX) { dAdd(ZTYPES.indexOf(type), x, z, 1, 0, nextZid++); return; }
+    if (tg.length && bd > edMeters() && type !== 'miner' && type !== 'zfish' && type !== 'drowned' && dorm.n < DMAX) { dAdd(ZTYPES.indexOf(type), x, z, 1, 0, nextZid++); return; }
     zombies.push(makeZombie(type, x, z));
   }
   function ringPoint(ref) {
@@ -1375,18 +1448,18 @@
       var cand = W.graves.filter(function (g) { var dd = Math.hypot(g.x - ref.x, g.z - ref.z); return dd > 50 && dd < 450; });
       if (cand.length) { var gv = cand[(rnd() * cand.length) | 0]; best = { x: gv.x + (rnd() - 0.5) * gv.r, z: gv.z + (rnd() - 0.5) * gv.r }; }
     }
-    if (!best) best = ringPoint(ref); var biome = W.biomeOf(best.x, best.z), tier = worldTier(clockInfo(T).day);
+    if (!best) best = ringPoint(ref); if (W.seaAt && W.seaAt(best.x, best.z)) return; var biome = W.biomeOf(best.x, best.z), tier = worldTier(clockInfo(T).day);
     var pool = [], sum = 0; for (var k in ZDEF) { var d = ZDEF[k]; if (d.nospawn || d.boss) continue; if (d.tier > tier) continue; if (d.biome && d.biome !== biome) continue; var wgt = d.w * (WZ.RARITY[d.rarity] || 0); if (wgt <= 0) continue; pool.push([k, wgt]); sum += wgt; }
     if (!pool.length) return; var r = rnd() * sum, type = pool[0][0]; for (var i = 0; i < pool.length; i++) { r -= pool[i][1]; if (r <= 0) { type = pool[i][0]; break; } }
     placeZombie(type, best.x, best.z);
   }
   function ann(msg) { say(msg, true); if (mp.role === 'host') Net.send({ t: 'ann', msg: msg }); }
   function bossAlive(type) { var ti = ZTYPES.indexOf(type), i; for (i = 0; i < zombies.length; i++) if (zombies[i].type === type) return true; for (i = 0; i < dorm.n; i++) if ((DU[i * 8] & 31) === ti) return true; return false; }
-  /* boss rule: Gigantus Zombie appears ONCE when day 10 starts (tier 1->2); Armored-Full Zombie Mk-1 ONCE at day 30 (tier 2->3). bf[i]: 0 not spawned, 1 alive, 2 dead */
+  /* boss rule: Gigantus Zombie appears ONCE when day 10 starts (tier 1->2); Armored-Full Zombie Mk-1 ONCE at tier 3 (day 30, tier 2->3); Mutanoiders Zombos ONCE at tier 4 (day 60, tier 3->4). bf[i]: 0 not spawned, 1 alive, 2 dead */
   function bossLogic(dt) {
     bossT -= dt; if (bossT > 0) return; bossT = 3; var day = clockInfo(T).day, tg = targets(); if (!tg.length) return;
-    [['gigantus', 10, 'GIGANTUS ZOMBIE has appeared! The world is entering Tier 2...'], ['armored', 30, 'ARMORED-FULL ZOMBIE Mk-1 has appeared! The world is entering Tier 3...'], ['mutanoider', 30, 'MUTANOIDERS ZOMBOS has risen! A winged, tentacled horror walks the land...']].slice(0, 3).forEach(function (b, bi) {
-      if (day >= b[1] && bf[bi] !== 2 && !bossAlive(b[0])) { var pt = ringPoint(tg[0]); placeZombie(b[0], pt.x, pt.z); if (bf[bi] === 0) ann(b[2]); bf[bi] = 1; }
+    [['gigantus', 2, 'GIGANTUS ZOMBIE has appeared! The world is entering Tier 2...'], ['armored', 3, 'ARMORED-FULL ZOMBIE Mk-1 has appeared! The world is entering Tier 3...'], ['mutanoider', 4, 'MUTANOIDERS ZOMBOS has risen! A winged, tentacled horror walks the land. The world is entering Tier 4...']].slice(0, 3).forEach(function (b, bi) {
+      if (worldTier(day) >= b[1] && bf[bi] !== 2 && !bossAlive(b[0])) { var pt = ringPoint(tg[0]); placeZombie(b[0], pt.x, pt.z); if (bf[bi] === 0) ann(b[2]); bf[bi] = 1; }
     });
   }
   function explode(z) {
@@ -1397,7 +1470,7 @@
   }
   function updateZombieVisuals(z, dt) {
     if (z.spl) { for (var si = 0; si < 8; si++) { var sl2 = z.spl[si]; sl2.g.rotation.y = sl2.base + Math.sin(z.anim * 1.4 + sl2.i * 1.7) * 0.28; } } else { var sw = Math.sin(z.anim) * 0.7; z.legs[0].rotation.x = sw; z.legs[1].rotation.x = -sw;
-    z.arms[0].rotation.x = -1.35 + Math.sin(z.anim * 0.5) * 0.15; z.arms[1].rotation.x = -1.35 - Math.sin(z.anim * 0.5) * 0.15; }
+    z.arms[0].rotation.x = 1.35 + Math.sin(z.anim * 0.5) * 0.15; z.arms[1].rotation.x = 1.35 - Math.sin(z.anim * 0.5) * 0.15; }
     if (z.wings) z.wings.forEach(function (w) { var tgW = z.guard > 0 ? w.sd * 1.5 : -w.sd * (0.6 + Math.sin(z.anim * 0.7) * 0.2); w.g.rotation.y += (tgW - w.g.rotation.y) * Math.min(1, dt * 8); });
     if (z.tents) for (var ti2 = 0; ti2 < z.tents.length; ti2++) { var tt = z.tents[ti2], tg2 = z.guard > 0 ? 1.05 + Math.sin(z.anim * 0.8 + ti2) * 0.1 : -0.55 + Math.sin(z.anim * 0.6 + ti2 * 1.3) * 0.35; tt.rotation.x += (tg2 - tt.rotation.x) * Math.min(1, dt * 8); tt.rotation.z = (ti2 < 2 ? 1 : 1.6) * (ti2 % 2 ? 0.25 : -0.25); }
     if (z.flash > 0) { z.flash -= dt; if (!z.flashing) { z.flashing = true; z.swaps.forEach(function (s) { s.mesh.material = FLASH_MAT; }); } }
@@ -1407,7 +1480,7 @@
   function thornDmg() { var T2 = { cactus_helmet: 1, cactus_chest: 3, cactus_legs: 2, cactus_boots: 1 }, n = 0; ['head', 'chest', 'legs', 'boots'].forEach(function (sl) { n += T2[equip[sl]] || 0; }); return n; }
   function zombieHit(z, tgt) {
     var d = z.def, reach = (1.15 + d.scale * 0.35) * (d.rng || 1);
-    var zd = d.dmg * DIFF[wDiff][1] * (z.buff > 0 ? 1.1 : 1);
+    var zd = d.dmg * DIFF[wDiff][1] * (z.buff > 0 ? 1.1 : 1); if (W.gods.length && aura(z.x, z.z).weak) zd = Math.max(1, zd - 10);
     function one(isSelf, pid) { z.rush = false; if (isSelf) { hurt(zd, d.elem); if (d.wpoison) applyWaterPoison(); var th = thornDmg(); if (th > 0 && zMap[z.id]) hitZombie(z, th, 'turret'); } else if (mp.role === 'host') Net.send({ t: 'hurt', to: pid, dmg: zd, wp: d.wpoison ? 1 : 0 }); }
     one(tgt.isSelf, tgt.pid);
     if (d.splash && z.type !== 'bomber') { /* SPLASH: other players next to the zombie get hit too */
@@ -1431,7 +1504,7 @@
     if (!dead && (z.type === 'miner' ? inUG(P.x) : onSurface(P.x))) { bd = Math.hypot(P.x - z.x, P.z - z.z); tgt = { isSelf: true, x: P.x, y: P.y, z: P.z, d: bd }; }
     for (var pid in mp.peers) { var pr = mp.peers[pid]; if (pr.dead || pr.hp <= 0 || (z.type === 'miner' ? !inUG(pr.x) : !onSurface(pr.x))) continue; var pd = Math.hypot(pr.x - z.x, pr.z - z.z); if (pd < bd) { bd = pd; tgt = { isSelf: false, pid: pid, x: pr.x, y: pr.y, z: pr.z, d: pd }; } }
     if (!tgt) return;
-    var dx = tgt.x - z.x, dz = tgt.z - z.z, dist = tgt.d, base = Math.atan2(dz, dx), sp = z.def.spd * 2.2 * (z.def.rage && z.hp < z.mhp * 0.2 ? 2 : 1) * (z.guard > 0 ? (z.def.wingguard ? 0.17 : 0.5) : 1) * (z.rush ? 2 : 1), reach = (1.15 + z.def.scale * 0.35) * (z.def.rng || 1);
+    var dx = tgt.x - z.x, dz = tgt.z - z.z, dist = tgt.d, base = Math.atan2(dz, dx), sp = z.def.spd * 2.2 * (W.gods.length && aura(z.x, z.z).foot ? 0.8 : 1) * (z.def.rage && z.hp < z.mhp * 0.2 ? 2 : 1) * (z.guard > 0 ? (z.def.wingguard ? 0.17 : 0.5) : 1) * (z.rush ? 2 : 1), reach = (1.15 + z.def.scale * 0.35) * (z.def.rng || 1);
     if (z.type === 'miner' && dist > 22) { updateZombieVisuals(z, dt); return; }
     if (z.def.ranged) { z.vcd = (z.vcd == null ? 2 : z.vcd) - dt; if (dist > 3 && dist < 14 && z.vcd <= 0) { z.vcd = z.def.ranged === 'acid' ? 3 : 4; fireVirus(z, tgt); } }
     z.cd -= dt; z.anim += dt * sp * 2.2; if (z.gcd > 0) z.gcd -= dt; if (z.guard > 0) z.guard -= dt; if (z.buff > 0) z.buff -= dt;
@@ -1463,7 +1536,7 @@
     spawnT -= dt;
     var cap = zombieCap(), interval = (Math.max(1.2, 6 - T / 120) / 0.9) * (isNight ? 0.8 : 1) / (bloodOn ? 2 : 1);
     mineLogic(dt); bossLogic(dt); dormTick(dt);
-    var hostile = dormCount(true); for (var hz = 0; hz < zombies.length; hz++) { var zt = zombies[hz]; if (zt.type !== 'miner' && zt.type !== 'zfish' && !zt.def.boss) hostile++; }
+    var hostile = dormCount(true); for (var hz = 0; hz < zombies.length; hz++) { var zt = zombies[hz]; if (zt.type !== 'miner' && zt.type !== 'zfish' && zt.type !== 'drowned' && !zt.def.boss) hostile++; }
     if (spawnT <= 0 && hostile < cap) { spawnZombie(); spawnT = interval; }
     for (var j = zombies.length - 1; j >= 0; j--) { var zz = zombies[j]; zz.g.visible = entVisible(zz.x, zz.z); stepZombie(zz, dt); }
   }
@@ -1603,11 +1676,11 @@
   /* ---------------- Bag, gear & crafting ---------------- */
   function nearArr(arr) { for (var i = 0; i < arr.length; i++) { var f = arr[i]; if (f.alive && Math.hypot(f.x - P.x, f.z - P.z) < 5.5) return true; } return false; }
   function openInv() { mode = 'inv'; keys = {}; lmb = false; eatT = 0; wire = null; mg = null; queue.length = 0; $('#eat').style.display = 'none'; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) {} } $('#screen').hidden = true; $('#inv').hidden = false; renderInv(); }
-  function closeInv() { $('#inv').hidden = true; wire = null; mg = null; chestE = null; enterGame(); }
+  function closeInv() { $('#inv').hidden = true; wire = null; mg = null; chestE = null; godE = null; enterGame(); }
   function costHtml(r) { return Object.keys(r.cost).map(function (id) { var have = count(id); return '<span class="' + (have >= r.cost[id] ? 'ok' : 'no') + '">' + ITEMS[id].ic + ' ' + have + '/' + r.cost[id] + ' ' + ITEMS[id].name + '</span>'; }).join(' &middot; '); }
-  var STN0 = [['hand', 'Handmade', null], ['sawmill', 'Sawmill', 'saws'], ['furnace', 'Furnace', 'furn'], ['campfire', 'Campfire', 'camps'], ['anvil', 'Iron Anvil', 'anvils'], ['sink', 'Sink', 'sinks'], ['turret', 'Turret Workbench', 'tbench'], ['computer', 'Computer Bench', 'comps'], ['milling', 'Manual Milling', 'mills'], ['bomb', 'Bomb Workbench', 'bombs'], ['kiln', 'Glass Kiln', 'kilns'], ['craft', 'Crafting Workbench', 'crafts'], ['work', 'Working Workbench', 'works'], ['press', 'Manual Pressing', 'presses'], ['casing', 'Casing & Frame Crafter', 'casings'], ['trapb', 'Trap Bench', 'trapbs'], ['mason', 'Mason Workbench', 'masons'], ['blast', 'Blast Smelter', 'blasts'], ['liquiders', 'Liquiders Workbench', 'liqs'], ['sewing', 'Sewing Table', 'sews']];
+  var STN0 = [['hand', 'Handmade', null], ['sawmill', 'Sawmill', 'saws'], ['furnace', 'Furnace', 'furn'], ['campfire', 'Campfire', 'camps'], ['anvil', 'Iron Anvil', 'anvils'], ['sink', 'Sink', 'sinks'], ['turret', 'Turret Workbench', 'tbench'], ['computer', 'Computer Bench', 'comps'], ['milling', 'Manual Milling', 'mills'], ['bomb', 'Bomb Workbench', 'bombs'], ['kiln', 'Glass Kiln', 'kilns'], ['craft', 'Crafting Workbench', 'crafts'], ['work', 'Working Workbench', 'works'], ['press', 'Manual Pressing', 'presses'], ['casing', 'Casing & Frame Crafter', 'casings'], ['trapb', 'Trap Bench', 'trapbs'], ['mason', 'Mason Workbench', 'masons'], ['blast', 'Blast Smelter', 'blasts'], ['liquiders', 'Liquiders Workbench', 'liqs'], ['sewing', 'Sewing Table', 'sews'], ['cutting', 'Cutting Board (on a Table)', 'cuttables']];
   function stnList() { return STN0.map(function (a) { return [a[0], a[1], a[2] ? W[a[2]] : null]; }); }
-  var STBTN = { hand: 'Craft', sawmill: 'Cut', furnace: 'Smelt', campfire: 'Cook', anvil: 'Forge', sink: 'Wash', turret: 'Build', computer: 'Build', milling: 'Mill', bomb: 'Build', kiln: 'Craft', craft: 'Craft', work: 'Craft', press: 'Press', casing: 'Craft', trapb: 'Build', mason: 'Cut', blast: 'Smelt', liquiders: 'Craft', sewing: 'Sew' };
+  var STBTN = { hand: 'Craft', sawmill: 'Cut', furnace: 'Smelt', campfire: 'Cook', anvil: 'Forge', sink: 'Wash', turret: 'Build', computer: 'Build', milling: 'Mill', bomb: 'Build', kiln: 'Craft', craft: 'Craft', work: 'Craft', press: 'Press', casing: 'Craft', trapb: 'Build', mason: 'Cut', blast: 'Smelt', liquiders: 'Craft', sewing: 'Sew', cutting: 'Cut' };
   function stationOk(r) { if (r.st === 'furnace' && nearArr(W.blasts)) return true; var S = stnList(); for (var i = 0; i < S.length; i++) if (S[i][0] === r.st) return !S[i][2] || nearArr(S[i][2]); return true; }
   /* Recipe reveal rule: a recipe is only listed when you are at its station AND you already own the ingredients (WZ.REVEAL: 'all' = every ingredient type, 'any' = at least one) */
   function revealed(r) { var ks = Object.keys(r.cost); return stationOk(r) && (WZ.REVEAL === 'any' ? ks.some(function (k) { return count(k) > 0; }) : ks.every(function (k) { return count(k) > 0; })); }
@@ -1787,7 +1860,7 @@
     $('#inv').innerHTML = h;
   }
   function craftNow(r) {
-    Object.keys(r.cost).forEach(function (k) { take(k, r.cost[k]); });
+    Object.keys(r.cost).forEach(function (k) { if (r.keep && r.keep.indexOf(k) >= 0) return; take(k, r.cost[k]); });
     if (r.chance != null && rnd() >= r.chance) { say('The gravel crumbled to dust. Try again!', true); SFX.play('hit'); return; }
     var oq = r.out[1] + (r.extra && rnd() < r.extra ? 1 : 0); give(r.out[0], oq);
     say((r.st === 'sink' ? 'Washed: ' : 'Crafted ') + ITEMS[r.out[0]].name + (oq > 1 ? ' x' + oq : '')); SFX.play(r.st === 'sink' ? 'wash' : 'craft');
@@ -1909,6 +1982,7 @@
     $('#inv').innerHTML = h + '</div></div></div></div>';
   }
   function renderInv() {
+    if (godE) { renderGod(); return; }
     if (wire) { renderWireGame(); return; }
     if (mg) { renderMg(); return; }
     var ids = Object.keys(inv).filter(function (id) { return inv[id] > 0 && ITEMS[id]; });
@@ -1930,7 +2004,9 @@
     $('#inv').innerHTML = h; $('#bBack').onclick = closeInv;
   }
   document.addEventListener('click', function (ev) {
-    if (mode !== 'inv') return; var t = ev.target.closest('[data-item],[data-slot],[data-craft],[data-eq],[data-acc],[data-wl],[data-wr],[data-wcancel],[data-mcancel],[data-cb],[data-cw],[data-cclose]'); if (!t) return;
+    if (mode !== 'inv') return; var t = ev.target.closest('[data-item],[data-slot],[data-craft],[data-eq],[data-acc],[data-wl],[data-wr],[data-wcancel],[data-mcancel],[data-cb],[data-cw],[data-cclose],[data-bless],[data-gclose]'); if (!t) return;
+    if (t.dataset.gclose) { godE = null; closeInv(); return; }
+    if (t.dataset.bless) { var ge = godE; if (!ge) return; var bk = t.dataset.bless; if (bk === 'unl' && !(ge.cdU > 0)) { unl.armed = true; ge.cdU = 600; say('Blessing of Unlethal received. It triggers once when a blow would kill you.'); } else if (bk === 'weak' && !(ge.cdW > 0)) { ge.weakT = 120; ge.cdW = 300; say('Zombie Weaks: zombies near the statue are weaker for 2 minutes.'); } else if (bk === 'foot' && !(ge.cdF > 0)) { ge.footT = 120; ge.cdF = 240; say('Zombie Weak Foot: zombies near the statue are slower for 2 minutes.'); } SFX.play('craft'); renderGod(); return; }
     if (t.dataset.cclose) { chestE = null; closeInv(); return; }
     if (t.dataset.cb) { var ci = t.dataset.cb, cn = Math.min(inv[ci] || 0, WZ.maxStack(ci), chestRoom(chestE, ci)); if (cn <= 0) { say('The chest is full.', true); return; } takeRaw(ci, cn); chestE.box[ci] = (chestE.box[ci] || 0) + cn; SFX.play('click'); renderChest(); return; }
     if (t.dataset.cw) { var wi = t.dataset.cw, wn = Math.min(chestE.box[wi] || 0, WZ.maxStack(wi), roomFor(wi)); if (wn <= 0) { say('Your bag is full.', true); return; } chestE.box[wi] -= wn; if (chestE.box[wi] <= 0) delete chestE.box[wi]; give(wi, wn); SFX.play('click'); renderChest(); return; }
@@ -1985,7 +2061,7 @@
   function update(dt, nowMs, clk) {
     drain(); T += dt * (rest && rest.k === 'sleep' ? (rest.clean ? 3 : 2) : 1); /* sleeping: clean bed = time x3, shabby bed = time x2 */ swingCd -= dt; stepPlayer(dt); stats(dt); if (dead) return;
     if (lmb && !manning) { var it = curItem(); if (it.type === 'tool' && swingCd <= 0) swing(); }
-    ugCd -= dt; if (W.ug) { if (!inUG(P.x)) { if (ugCd <= 0 && Math.hypot(P.x - W.mine.door.x, P.z - W.mine.door.z) < 1.5 && P.y < 1.5) enterUG(); } else if (ugCd <= 0 && Math.hypot(P.x - W.ug.exit.x, P.z - W.ug.exit.z) < 1.8) exitUG(); }
+    godTick(dt); seaTick(dt); tableTick(); lampTick(); ugCd -= dt; if (W.ug) { if (!inUG(P.x)) { if (ugCd <= 0 && Math.hypot(P.x - W.mine.door.x, P.z - W.mine.door.z) < 1.5 && P.y < 1.5) enterUG(); else if (ugCd <= 0 && W.caves) { for (var cvi = 0; cvi < W.caves.length; cvi++) { var cv = W.caves[cvi]; if (Math.hypot(P.x - cv.door.x, P.z - cv.door.z) < 1.6 && Math.abs(P.y - cv.y) < 2.5) { enterUG(cv); break; } } } } else if (ugCd <= 0 && Math.hypot(P.x - W.ug.exit.x, P.z - W.ug.exit.z) < 1.8) exitUG(); }
     var nd = clk.hour < 5.5 ? clk.day - 1 : clk.day, bo = clk.night && bloodFlag(nd);
     if (bo && !bloodOn && bmAnn !== nd) { bmAnn = nd; say('The BLOOD MOON rises! Zombies spawn twice as fast.', true); } bloodOn = !!bo;
     if (mp.role !== 'client') { var ep = epochOf(T); if (ep !== epoch) { epoch = ep; var sd = curSeed(baseSeed, ep); W.resetWorld(sd, true); while (W.hit(P.x - 0.3, P.x + 0.3, P.y, P.y + 1.8, P.z - 0.3, P.z + 0.3) && P.y < 30) P.y += 1; if (mp.role === 'host') Net.send({ t: 'refresh', seed: sd, ep: ep }); say('10 days passed: loot, ore, trees, rocks and cars respawned in new places!', true); } }
@@ -2012,12 +2088,16 @@
           else if (e.k === 'computer') txt = 'Computer Bench' + hpTxt + ' · [E] Open · Left Click: Dismantle';
           else if (e.k === 'sawmill') txt = 'Sawmill' + hpTxt + ' · [E] Open · Left Click: Dismantle';
           else if (e.k === 'tbench') txt = 'Turret Workbench' + hpTxt + ' · [E] Open · Left Click: Dismantle';
+          else if (e.k === 'table') txt = 'Table' + hpTxt + (e.on ? (e.on === 'cutting_board' ? ' · [E] Cut food · Shift+[E] Take board' : ' · [E] Take ' + ITEMS[e.on].name) : ' · [E] Put held item on top') + ' · Left Click: Dismantle';
+          else if (e.k === 'seat' || e.k === 'sofa') txt = (e.comfy ? 'Sofa' : 'Chair') + hpTxt + ' · [E] Sit · Left Click: Dismantle';
+          else if (e.k === 'lamp') txt = 'Bulb Lamp' + hpTxt + ' · Left Click: Dismantle';
+          else if (e.k === 'godstatue') txt = 'Statue of God' + hpTxt + ' · [E] Blessing · Left Click: Dismantle';
           else if (e.k === 'milling' || e.k === 'bomb' || e.k === 'kiln' || e.k === 'craft' || e.k === 'work' || e.k === 'press' || e.k === 'casing' || e.k === 'trapb' || e.k === 'mason' || e.k === 'blast' || e.k === 'liquiders' || e.k === 'sewing') txt = VNAME[bv ? bv.t : 16] + hpTxt + ' · [E] Open · Left Click: Dismantle';
           else if (e.k === 'chest') txt = VNAME[e.vt] + hpTxt + ' · ' + chestSlots(e) + '/' + ITEMS[VITEM[e.vt]].chest + ' slots · [E] Open · Left Click: Dismantle';
           else if (e.k === 'turret') { var tc = tcfg(e); txt = VNAME[e.vt] + hpTxt + ' · Ammo ' + e.ammo + '/' + tc.cap + (e.vt === 15 ? (manning === e ? ' · [E] Leave · Left Click: Fire' : ' · [E] Man the cannon') : ' · [E] Load cannon balls') + ' · Left Click: Dismantle'; }
           else if (e.k === 'sink') { var hid = hot[sel]; txt = (hid && ITEMS[hid] && /^dirty_/.test(hid)) ? 'Sink' + hpTxt + ' · [E] Wash Now · Left Click: Dismantle' : 'Sink' + hpTxt + ' · [E] Open Sink · Left Click: Dismantle'; }
         }
-        else if (e.k === 'pile') txt = e.searched ? (e.tier === 4 ? 'Table already searched' : 'Trash already searched') : (e.tier === 4 ? '[E] Search Above Table (Tier 4)' : '[E] Search trash (Tier ' + e.tier + ')');
+        else if (e.k === 'pile') txt = e.searched ? (e.tier === 4 ? 'Table already searched' : e.bush ? 'Bush already searched' : 'Trash already searched') : (e.tier === 4 ? '[E] Search Above Table (Tier 4)' : e.bush ? '[E] Search Bush (Tier 1)' : '[E] Search trash (Tier ' + e.tier + ')');
         else if (e.k === 'crate') txt = e.searched ? 'Empty crate' : '[E] Open wooden crate (Tier ' + (e.tier || 1) + ')';
         else if (e.k === 'bed') txt = e.clean ? '[E] Sleep in the clean bed' : '[E] Sleep in the shabby bed';
         else if (e.k === 'couch') txt = e.clean ? '[E] Sit on the clean couch' : 'Dirty couch (does not restore Comfort)';
@@ -2081,6 +2161,7 @@
     W = WZ.createWorld(THREE, scene, maxAniso);
     torch = new THREE.PointLight(0xffeec2, 0, 26, 1.3);
     scene.add(torch); scene.add(camera); buildVM(); baseSeed = W.seed;
+    lampL = [0, 1, 2].map(function () { var l = new THREE.PointLight(0xffd79a, 0, 13, 1.6); scene.add(l); return l; });
     bmEl = document.createElement('div'); bmEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.5s;background:radial-gradient(ellipse at center,rgba(120,0,0,0) 38%,rgba(150,10,10,.55) 100%)'; $('#hud').appendChild(bmEl);
     applyGfx();
 
