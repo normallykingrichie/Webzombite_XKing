@@ -2,55 +2,97 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Webzombite Wiki</title>
 <style>
-:root{--bg:#14161a;--card:#1d2026;--line:#2d323b;--txt:#e9e6dc;--muted:#9aa0a8;--gold:#e3b02a;--red:#d24a3a}
+:root{--bg:#14161a;--card:#1d2026;--line:#2d323b;--txt:#e9e6dc;--muted:#9aa0a8;--gold:#e3b02a;--red:#d24a3a;--grn:#5fcf80}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 system-ui,Segoe UI,Roboto,sans-serif}
 a{color:var(--gold)}header{position:sticky;top:0;z-index:5;background:#101216ee;backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-header h1{font-size:1.05rem;margin:0;margin-right:auto}header h1 b{color:var(--gold)}
+header h1{font-size:1.05rem;margin:0;margin-right:auto}header h1 b{color:var(--gold)}header h1 a{text-decoration:none;color:inherit}
 input,select,textarea,button{font:inherit;color:var(--txt);background:#262a32;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
 button{cursor:pointer}button.pri{background:var(--gold);color:#201a08;border-color:var(--gold);font-weight:700}button.dng{border-color:var(--red);color:#ff9b8d}
-main{display:grid;grid-template-columns:230px 1fr;gap:16px;max-width:1150px;margin:0 auto;padding:16px}
+main{display:grid;grid-template-columns:210px 1fr;gap:16px;max-width:1180px;margin:0 auto;padding:16px}
 nav{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;height:fit-content;position:sticky;top:64px}
-nav button{display:block;width:100%;text-align:left;margin:3px 0;background:transparent;border-color:transparent}nav button.on{background:#2c313b;border-color:var(--gold)}
+nav button{display:flex;justify-content:space-between;width:100%;text-align:left;margin:3px 0;background:transparent;border-color:transparent}nav button.on{background:#2c313b;border-color:var(--gold)}
+nav .n{font-size:.72rem;color:var(--muted)}nav .nw{background:var(--grn);color:#08210f;border-radius:99px;padding:0 7px;font-weight:700;font-size:.72rem}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.tile{display:flex;gap:8px;align-items:center;background:#22262d;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer;min-height:54px}
-.tile:hover{border-color:var(--gold)}.tile .i{width:36px;height:36px;display:grid;place-items:center;font-size:1.6rem;flex:none}.tile .i img,.ic img,img.ico{width:100%;height:100%;object-fit:contain}
-.tile span{font-size:.86rem;line-height:1.2}.ic{width:64px;height:64px;display:grid;place-items:center;font-size:3rem;flex:none}
-.chip{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:99px;background:#2c313b;color:var(--muted);margin-right:6px}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-top:12px}
+.cat{background:#22262d;border:1px solid var(--line);border-radius:14px;padding:16px 12px;text-align:center;cursor:pointer}.cat:hover{border-color:var(--gold)}.cat .e{font-size:2rem;height:44px;display:grid;place-items:center}.cat .e img{height:44px}.cat b{display:block}.cat small{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.tile{display:flex;gap:8px;align-items:center;background:#22262d;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer;min-height:54px;position:relative}
+.tile:hover{border-color:var(--gold)}.tile .i{width:36px;height:36px;display:grid;place-items:center;font-size:1.6rem;flex:none}.tile .i img,.ic img{width:100%;height:100%;object-fit:contain}
+.tile span{font-size:.86rem;line-height:1.2}.tile .nb{position:absolute;top:3px;right:6px;font-size:.62rem;background:var(--grn);color:#08210f;border-radius:99px;padding:0 6px;font-weight:700}
+.ic{width:72px;height:72px;display:grid;place-items:center;font-size:3.2rem;flex:none}
+/* sprite-sheet icons */
+.ico.sp{display:inline-block;width:1.5em;height:1.5em;background-size:2000% 2000%;background-repeat:no-repeat;vertical-align:-.35em}.sp0{background-image:url(icons/atlas0.webp)}.sp1{background-image:url(icons/atlas1.webp)}.sp2{background-image:url(icons/atlas2.webp)}.sp3{background-image:url(icons/atlas3.webp)}.tile .i .ico,.cat .e .ico{width:100%;height:100%}.ic .ico{width:72px;height:72px}.gal .ico{width:36px;height:36px;cursor:pointer;border-radius:6px;border:2px solid transparent;vertical-align:top}.gal .ico:hover{border-color:var(--gold)}.pick .ico{width:22px;height:22px}
+img.ico{width:1.5em!important;height:1.5em!important;max-width:1.5em;vertical-align:middle;object-fit:contain;display:inline-block}
+.chip{display:inline-block;font-size:.72rem;padding:2px 9px;border-radius:99px;background:#2c313b;color:var(--muted);margin-right:6px}.chip.g{background:var(--grn);color:#08210f}
 .top{display:flex;gap:14px;align-items:center;margin-bottom:10px}.top h2{margin:0}.muted{color:var(--muted)}
-table.st{border-collapse:collapse;margin:10px 0}table.st td{border:1px solid var(--line);padding:4px 10px}table.st td:first-child{color:var(--muted)}
+table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{border:1px solid var(--line);padding:4px 10px}table.st td:first-child{color:var(--muted)}
+.box{border-left:3px solid var(--gold);background:#22262d;border-radius:8px;padding:8px 12px;margin:10px 0}.box b{color:var(--gold)}
 .body img{max-width:100%;border-radius:8px}.body blockquote{margin:8px 0;padding:4px 12px;border-left:3px solid var(--gold);color:var(--muted)}.body code{background:#0f1114;padding:1px 5px;border-radius:5px}
-.ed-tabs button.on{border-color:var(--gold)}#wys{min-height:220px;background:#15171b;border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
-.tb{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}.tb button{padding:4px 9px}textarea{width:100%;min-height:220px;font-family:ui-monospace,monospace}
+.ed-tabs button.on{border-color:var(--gold)}#wys{min-height:200px;background:#15171b;border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
+.tb{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}.tb button{padding:4px 9px}textarea{width:100%;min-height:90px;font-family:inherit}#mdT{min-height:220px;font-family:ui-monospace,monospace}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.row>*{flex:1 1 150px}.row>button{flex:0 0 auto}
+.flt{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.flt select,.flt input{flex:0 1 auto;padding:6px 10px}
+.pill{padding:4px 12px;border-radius:99px;font-size:.82rem}.pill.on{background:var(--gold);color:#201a08;border-color:var(--gold)}
 .gal{display:flex;gap:6px;flex-wrap:wrap;max-height:130px;overflow:auto;background:#15171b;border:1px solid var(--line);border-radius:10px;padding:6px}.gal img{width:36px;height:36px;cursor:pointer;border-radius:6px;border:2px solid transparent}.gal img:hover{border-color:var(--gold)}
+.srow{display:flex;gap:6px;margin:4px 0}.srow input{flex:1}.srow button{flex:0 0 auto;padding:6px 10px}
 .msg{padding:8px 12px;border-radius:10px;background:#2c313b;margin:8px 0}.err{color:#ff9b8d}
 @media(max-width:760px){main{grid-template-columns:1fr}nav{position:static;display:flex;flex-wrap:wrap}nav button{width:auto}}
 </style></head>
 <body>
-<header><h1><b>Webzombite</b> Wiki</h1><input id="q" placeholder="Search..." style="max-width:220px"><span id="who" class="muted"></span><button id="bAuth"></button><a href="index.html" style="text-decoration:none"><button>Back to Game</button></a></header>
+<header><h1><a href="#/c/home"><b>Webzombite</b> Wiki</a></h1><input id="q" placeholder="Search everything..." style="max-width:240px"><span id="who" class="muted"></span><button id="bAuth"></button><a href="index.html" style="text-decoration:none"><button>Back to Game</button></a></header>
 <main><nav id="nav"></nav><section id="view"></section></main>
-<script src="config.js"></script><script src="data.js"></script><script src="vendor/supabase.js"></script>
+<script src="config.js"></script><script src="icons/atlas.js"></script><script src="data.js"></script><script src="vendor/supabase.js"></script>
 <script>
 (function () {
   'use strict';
   var C = window.WZ_CONFIG || {}, W = window.WZ || {}, $ = function (s, r) { return (r || document).querySelector(s); }, sb = null;
-  var CATS = [['home', 'Home'], ['items', 'Items'], ['mobs', 'Mobs'], ['materials', 'Materials'], ['accessories', 'Accessories'], ['tools', 'Tools'], ['weapons', 'Weapons'], ['guides', 'Guides']];
-  var S = { pages: {}, builtin: {}, me: null, staff: false, admin: false, edit: false, cat: 'home' };
+  /* Categories shown on Home. 'new' is the sync list (admin clears it after the game is updated). */
+  var CATS = [['zombie', 'Zombie', '🧟'], ['boss', 'Boss', '👹'], ['material', 'Material', '🪵'], ['tools', 'Tools', '⛏️'], ['weapons', 'Weapons', '⚔️'], ['armor', 'Armor', '🛡️'], ['accessory', 'Accessory', '⌚'], ['block', 'Block', '🧱'], ['food', 'Food & Medical', '🍖'], ['guides', 'Guides', '📖']];
+  var CATNAME = {}; CATS.forEach(function (c) { CATNAME[c[0]] = c[1]; }); CATNAME.new = 'NEW'; CATNAME.home = 'Home';
+  var LEGACY = { items: 'food', mobs: 'zombie', materials: 'material', accessories: 'accessory' };
+  var S = { pages: {}, builtin: {}, me: null, staff: false, admin: false, cat: 'home', f: { sub: '', tier: '', src: '', sort: 'az' } };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); }
+  function slug(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); }
+  function cap(s) { s = String(s == null ? '' : s); return s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' '); }
   /* ---------- built-in entries from the game data ---------- */
-  var WEAPON_T = { sword: 1, spear: 1, greatsword: 1, bow: 1, club: 1, hammer: 1 };
-  function buildBuiltin() {
-    var I = W.ITEMS || {}, k;
-    for (k in I) { var it = I[k], cat = it.type === 'material' ? 'materials' : it.type === 'acc' ? 'accessories' : it.type === 'tool' ? (WEAPON_T[it.tool] ? 'weapons' : 'tools') : 'items';
-      var st = []; if (it.type) st.push(['Type', it.type]); if (it.tool) st.push(['Tool kind', it.tool]); if (it.dmg) st.push(['Damage', it.dmg]); if (it.def) st.push(['Defense', it.def]); if (it.range) st.push(['Range', it.range]); if (it.hp) st.push(['Durability', it.hp]);
-      S.builtin[k] = { slug: k, title: it.name, category: cat, icon: it.ic, body_md: it.desc || '', stats: st, builtin: true, itemId: k }; }
-    var Z = W.ZOMBIES || {};
-    for (k in Z) { var z = Z[k]; S.builtin['mob-' + k] = { slug: 'mob-' + k, title: z.name || k, category: 'mobs', icon: '🧟', body_md: z.desc || '', stats: [['HP', z.hp], ['Damage', z.dmg], ['Speed', z.spd], ['Defense', z.def], ['World tier', z.tier], ['Rarity', z.rarity]].filter(function (a) { return a[1] != null; }), builtin: true }; }
+  var STN = { tablecraft: 'Furniture Table', liquiders: 'Liquiders Workbench', hand: 'Handmade', sink: 'Sink', furnace: 'Furnace', sawmill: 'Sawmill', mason: 'Mason Workbench', anvil: 'Iron Anvil', cutting: 'Cutting Board (on a Table)', camp: 'Campfire', workbench: 'Workbench' };
+  var LBL = { rng: 'RNG (m)', clip: 'Ammunition Clip', reload: 'Reload Time (s)', tier: 'Tier', slot: 'Slot', def: 'Defense', dmg: 'Damage', bd: 'Block damage', cd: 'Attack delay (s)', range: 'Range', reach: 'Reach', dly: 'Delay (s)', hp: 'Durability / HP', size: 'Size (x y z)', chest: 'Storage slots', eat: 'Restores', splash: 'Splash', thorn: 'Thorns', luck: 'Luck', wtype: 'Weapon type', power: 'Power', bdef: 'Block defense', tool: 'Tool kind', type: 'Type', vox: 'Block id' };
+  function wcat(it) {
+    if (it.type === 'material') return 'material'; if (it.type === 'armor') return 'armor'; if (it.type === 'acc') return 'accessory'; if (it.type === 'block') return 'block';
+    if (it.type === 'tool') { if (it.tool === 'axe' || it.tool === 'pick' || it.tool === 'rod') return 'tools'; if (it.tool === 'fist') return 'weapons'; return it.dmg != null || /sword|club|weapon|bow|bomb|dart|hammer|spear/.test(it.tool || '') ? 'weapons' : 'tools'; }
+    return 'food';
   }
-  function all() { var o = {}, k; for (k in S.builtin) o[k] = S.builtin[k]; for (k in S.pages) o[k] = S.pages[k]; return o; }
-  function iconHtml(p) { var ic = p.icon_url || p.icon || ''; if (/^(https?:|icons\/|data:image)/.test(ic)) return '<img src="' + esc(ic) + '" alt="">'; return ic && ic.charAt(0) === '<' ? ic : esc(ic || '📖'); }
+  function wsub(it, k, cat) {
+    var n = (k + ' ' + (it.name || '')).toLowerCase();
+    if (cat === 'block') { if (it.shape) return 'Stairs & Slabs'; if (/chair|table|sofa|couch|lamp|bed\b|bed_|bulb/.test(n)) return 'Furniture'; if (/workbench|bench|anvil|furnace|sawmill|mason|sink|stove|campfire|crafting/.test(n)) return 'Workbench'; if (/chest|crate|barrel|locker|safe/.test(n)) return 'Storage'; if (/turret|cannon|barbed|spike|trap|wire/.test(n)) return 'Defense'; if (/block|brick|plank|wall|door|window|glass|fence|stair|slab|floor|roof/.test(n)) return 'Building'; return 'Utility'; }
+    if (cat === 'tools') return it.tool === 'axe' ? 'Axe' : it.tool === 'pick' ? 'Pickaxe' : it.tool === 'rod' ? 'Fishing Rod' : 'Other';
+    if (cat === 'weapons') return it.tool === 'sword' ? 'Sword' : /club|weapon|hammer|fist/.test(it.tool || '') ? 'Melee' : /bow|dart/.test(it.tool || '') ? 'Ranged' : it.tool === 'bomb' ? 'Explosive' : 'Other';
+    if (cat === 'armor') return cap(it.slot || 'Other');
+    if (cat === 'food') return it.type === 'drink' ? 'Drink' : it.type === 'med' ? 'Medical' : 'Food';
+    return '';
+  }
+  function plainIc(ic) { return ic && ic.charAt(0) === '<' ? '' : ic; }
+  function buildBuiltin() {
+    var I = W.ITEMS || {}, k, MI = W.MOBINFO || {};
+    for (k in I) { var it = I[k], cat = wcat(it), st = [];
+      ['tier', 'slot', 'dmg', 'cd', 'def', 'bd', 'range', 'reach', 'dly', 'wtype', 'hp', 'chest', 'eat', 'splash', 'thorn', 'luck', 'power', 'bdef', 'rng', 'clip', 'reload'].forEach(function (f) { if (it[f] != null && typeof it[f] !== 'object') st.push([LBL[f] || cap(f), f === 'tier' || f === 'slot' ? cap(it[f]) : it[f]]); });
+      if (it.size) st.push([LBL.size, [].concat(it.size).join(' x ')]); if (it.bleed) st.push(['Bleeding', it.bleed.dmg + ' dmg every ' + it.bleed.tick + ' s for ' + it.bleed.dur + ' s']);
+      S.builtin[k] = { slug: k, title: it.name, category: cat, subcat: wsub(it, k, cat), icon: it.ic, body_md: it.desc || '', stats: st, skills: it.note || '', builtin: true, itemId: k, tierv: it.tier, cats: (k === 'iron_bucket' || k === 'titanium_bucket') ? ['armor', 'tools'] : [cat], recipes: recipeOf(k).map(function (r) { return { st: r.st, cost: r.cost, out: r.out && r.out[1] }; }), loot: lootSources(k) }; }
+    var Z = W.ZOMBIES || {};
+    for (k in Z) { var z = Z[k], mi = MI[k] || {}, boss = z.rarity === 'boss';
+      S.builtin['mob-' + k] = { cats: [boss ? 'boss' : 'zombie'], slug: 'mob-' + k, title: z.name || k, category: boss ? 'boss' : 'zombie', subcat: z.rarity ? cap(z.rarity) : '', icon: W.spr('z_' + k) || '🧟', mob: k, body_md: z.desc || '', skills: mi.skills || 'No special skills', spawn: mi.spawn || 'Any biome', builtin: true, tierv: z.tier,
+        stats: [['HP', z.hp], ['Damage', z.dmg], ['Speed', z.spd], ['Defense', z.def], ['Attack delay (s)', z.cd], ['World tier', 'T' + z.tier], ['Rarity', cap(z.rarity)], ['Reward', mi.reward]].filter(function (a) { return a[1] != null && a[1] !== ''; }) }; }
+  }
+  /* DB page + built-in = one merged entry, so editing a built-in changes that same entry (not a new page). */
+  function merged() {
+    var o = {}, k, b, p, m;
+    for (k in S.builtin) o[k] = S.builtin[k];
+    for (k in S.pages) { p = S.pages[k]; b = S.builtin[k]; if (b) { m = {}; for (var f in b) m[f] = b[f]; for (f in p) if (p[f] != null && p[f] !== '' && !(f === 'body_md' && !p.body_md && !p.body_html)) m[f] = p[f]; m.builtin = true; m.edited = true; m.category = normCat(p.category) || b.category; m.cats = p.cats && p.cats.length ? p.cats : (b.cats || [m.category]); if (p.recipes && p.recipes.length) m.recipes = p.recipes; m.obtain = p.obtain || b.obtain; if (p.stats && p.stats.length) m.stats = p.stats; m.icon_url = p.icon_url || null; o[k] = m; } else { p.category = normCat(p.category); p.cats = p.cats && p.cats.length ? p.cats : [p.category]; o[k] = p; } }
+    return o;
+  }
+  function normCat(c) { return LEGACY[c] || c; }
+  function sprOf(ic) { var m = /icons\/(s\d+_\d+|z_[a-z0-9_]+)\.png/.exec(ic || ''); return m ? W.spr(m[1]) : null; }
+  function iconHtml(p) { var ic = p.icon_url || p.icon || ''; var sp = sprOf(ic); if (sp) return sp; if (/^(https?:|data:image)/.test(ic)) return '<img src="' + esc(ic) + '" alt="">'; if (/^spr:/.test(ic)) return W.spr(ic.slice(4)) || '📖'; return ic && ic.charAt(0) === '<' ? ic : esc(ic || '📖'); }
   /* ---------- markdown + sanitizer ---------- */
   function inline(t) {
     t = esc(t);
@@ -110,72 +152,178 @@ table.st{border-collapse:collapse;margin:10px 0}table.st td{border:1px solid var
     return sb.from('profiles').select('staff_role').eq('id', S.me.id).maybeSingle().then(function (r) { S.staff = !!(r.data && r.data.staff_role); S.role = r.data && r.data.staff_role; if (!S.staff) return; return sb.rpc('is_admin_active').then(function (a) { S.admin = !a.error && a.data === true; }); }).catch(function () {});
   }
   /* ---------- views ---------- */
+  function counts() { var a = merged(), c = { new: 0 }, k; for (k in a) { (a[k].cats || [a[k].category]).forEach(function (cc) { cc = normCat(cc); c[cc] = (c[cc] || 0) + 1; }); if (a[k].is_new) c.new++; } c.drafts = (S.drafts || []).length; return c; }
   function chrome() {
-    $('#nav').innerHTML = CATS.map(function (c) { return '<button data-c="' + c[0] + '" class="' + (S.cat === c[0] ? 'on' : '') + '">' + c[1] + '</button>'; }).join('') + (S.admin ? '<hr style="border-color:var(--line)"><button id="nNew">+ New page</button><button id="nImp">Import built-in data</button>' : '');
-    $('#who').textContent = S.me ? (S.admin ? 'Admin' : S.staff ? 'Staff (no active admin session)' : 'Viewer') : '';
-    $('#bAuth').textContent = !S.me ? 'Sign in' : S.admin ? 'Sign out' : S.staff ? 'Request admin' : 'Sign out';
-    Array.prototype.forEach.call(document.querySelectorAll('#nav [data-c]'), function (b) { b.onclick = function () { S.cat = b.dataset.c; location.hash = '#/c/' + S.cat; }; });
+    var c = counts();
+    $('#nav').innerHTML = '<button data-c="home" class="' + (S.cat === 'home' ? 'on' : '') + '">Home</button><button data-c="new" class="' + (S.cat === 'new' ? 'on' : '') + '">NEW' + (c.new ? '<span class="nw">' + c.new + '</span>' : '') + '</button><hr style="border-color:var(--line)">' + CATS.map(function (x) { return '<button data-c="' + x[0] + '" class="' + (S.cat === x[0] ? 'on' : '') + '">' + x[1] + '<span class="n">' + (c[x[0]] || 0) + '</span></button>'; }).join('') + (S.admin ? '<hr style="border-color:var(--line)"><button data-c="drafts" class="' + (S.cat === 'drafts' ? 'on' : '') + '">My drafts<span class="n">' + (c.drafts || 0) + '</span></button><button id="nNew">+ New page</button><button id="nImp">Import built-in data</button>' : '');
+    $('#who').textContent = S.me ? (S.admin ? 'Admin' : S.staff ? 'Staff (no active admin session)' : 'Viewer (read-only)') : '';
+    $('#bAuth').textContent = !S.me ? 'Admin sign in' : S.admin ? 'Sign out' : S.staff ? 'Request admin' : 'Sign out';
+    Array.prototype.forEach.call(document.querySelectorAll('#nav [data-c]'), function (b) { b.onclick = function () { S.f = { sub: '', tier: '', src: '', sort: 'az' }; $('#q').value = ''; location.hash = '#/c/' + b.dataset.c; }; });
     if ($('#nNew')) $('#nNew').onclick = function () { editor(null); }; if ($('#nImp')) $('#nImp').onclick = importAll;
   }
-  function tile(p) { return '<div class="tile" data-s="' + esc(p.slug) + '"><div class="i">' + iconHtml(p) + '</div><span>' + esc(p.title) + '</span></div>'; }
+  function tile(p) { return '<div class="tile" data-s="' + esc(p.slug) + '"><div class="i">' + iconHtml(p) + '</div><span>' + esc(p.title) + (p.subcat && S.cat === 'home' ? '<br><small class="muted">' + esc(CATNAME[p.category] || '') + '</small>' : '') + '</span>' + (p.is_new ? '<i class="nb">NEW</i>' : '') + '</div>'; }
   function bindTiles() { Array.prototype.forEach.call(document.querySelectorAll('.tile'), function (t) { t.onclick = function () { location.hash = '#/p/' + t.dataset.s; }; }); }
+  function homeView() {
+    var c = counts();
+    $('#view').innerHTML = '<div class="card"><h2 style="margin-top:0">Webzombite Wiki</h2><p class="muted">Pick a category, or use the search box above. Pages edited by the admin override the built-in game data.</p>' + (S.dbErr ? '<div class="msg err">Server pages unavailable: ' + esc(S.dbErr) + '</div>' : '') +
+      '<div class="cats">' + CATS.map(function (x) { return '<div class="cat" data-c="' + x[0] + '"><div class="e">' + (x[0] === 'zombie' ? (W.spr('z_walker') || x[2]) : x[2]) + '</div><b>' + x[1] + '</b><small>' + (c[x[0]] || 0) + ' pages</small></div>'; }).join('') + '<div class="cat" data-c="new"><div class="e">🆕</div><b>NEW</b><small>' + (c.new || 0) + ' to sync</small></div></div></div>';
+    Array.prototype.forEach.call(document.querySelectorAll('.cat'), function (b) { b.onclick = function () { location.hash = '#/c/' + b.dataset.c; }; });
+  }
+  function draftsView() {
+    var d = S.drafts || [];
+    $('#view').innerHTML = '<div class="card"><h2 style="margin-top:0">My drafts <span class="muted" style="font-size:.8rem">(' + d.length + ')</span></h2><p class="muted">Edits that were not saved are kept here automatically (also when the browser was closed).</p>' + (d.length ? d.map(function (x, i) { var r = x.payload || {}; return '<div class="msg"><b>' + esc(r.title || x.slug) + '</b> <span class="muted">' + esc(x.slug) + ' &middot; ' + new Date(x.updated_at).toLocaleString() + '</span> <button data-dr="' + i + '" class="pri">Continue editing</button> <button data-dd="' + i + '" class="dng">Delete</button></div>'; }).join('') : '<p class="muted">No drafts.</p>') + '</div>';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dr]'), function (b) { b.onclick = function () { var x = d[+b.dataset.dr], r = x.payload || {}, base = merged()[r.slug]; editor(base || null, r); }; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dd]'), function (b) { b.onclick = function () { var x = d[+b.dataset.dd]; sb.from('wiki_drafts').delete().eq('slug', x.slug).eq('admin_id', S.me.id).then(function () { loadDrafts().then(route); }); }; });
+  }
   function listView(cat, q) {
-    var a = all(), arr = Object.keys(a).map(function (k) { return a[k]; }).filter(function (p) { return !p.redirect_to_hide && (cat === 'home' || p.category === cat) && (!q || (p.title + ' ' + p.slug).toLowerCase().indexOf(q) >= 0); }).sort(function (x, y) { return x.title < y.title ? -1 : 1; });
-    var h = '<div class="card"><h2 style="margin-top:0">' + esc((CATS.filter(function (c) { return c[0] === cat; })[0] || ['', 'Search'])[1]) + (q ? ' &middot; "' + esc(q) + '"' : '') + ' <span class="muted" style="font-size:.8rem">(' + arr.length + ')</span></h2>';
-    if (cat === 'home' && !q) h += '<p>Welcome to the Webzombite community wiki. Browse items, mobs, materials, accessories, tools and weapons. Pages written by the staff team override the built-in game data.</p>' + (S.dbErr ? '<div class="msg err">Server pages unavailable: ' + esc(S.dbErr) + '</div>' : '');
-    h += '<div class="grid">' + arr.map(tile).join('') + '</div></div>'; $('#view').innerHTML = h; bindTiles();
+    var a = merged(), base = Object.keys(a).map(function (k) { return a[k]; }).filter(function (p) { return cat === 'home' || (cat === 'new' ? p.is_new : (p.cats || [p.category]).map(normCat).indexOf(cat) >= 0); });
+    var subs = {}, tiers = {}; base.forEach(function (p) { if (p.subcat) subs[p.subcat] = 1; if (p.tierv != null && p.tierv !== '') tiers[p.tierv] = 1; });
+    var F = S.f, arr = base.filter(function (p) { return (!q || (p.title + ' ' + p.slug + ' ' + (p.subcat || '') + ' ' + (p.skills || '') + ' ' + (p.spawn || '') + ' ' + (p.body_md || '')).toLowerCase().indexOf(q) >= 0) && (!F.sub || p.subcat === F.sub) && (!F.tier || String(p.tierv) === F.tier) && (!F.src || (F.src === 'built' ? p.builtin && !p.edited : F.src === 'edited' ? p.edited : !p.builtin)); });
+    arr.sort(function (x, y) { if (F.sort === 'tier') { var tx = parseFloat(x.tierv) || 0, ty = parseFloat(y.tierv) || 0; if (tx !== ty) return tx - ty; } return x.title < y.title ? -1 : 1; });
+    var h = '<div class="card"><h2 style="margin-top:0">' + esc(q && cat === 'home' ? 'Search' : CATNAME[cat] || cat) + (q ? ' &middot; "' + esc(q) + '"' : '') + ' <span class="muted" style="font-size:.8rem">(' + arr.length + ')</span></h2>';
+    if (cat === 'new') h += '<p class="muted">Everything added or edited since the last Clear. After the game has been updated with these changes, the admin presses Clear.</p><div class="row">' + (S.admin ? '<button class="pri" id="bClr">Clear NEW list</button>' : '') + '<button id="bCp">Copy list</button></div>';
+    var subKeys = Object.keys(subs).sort(); if (subKeys.length > 1) h += '<div class="flt"><button class="pill' + (!F.sub ? ' on' : '') + '" data-sub="">All</button>' + subKeys.map(function (s) { return '<button class="pill' + (F.sub === s ? ' on' : '') + '" data-sub="' + esc(s) + '">' + esc(s) + '</button>'; }).join('') + '</div>';
+    h += '<div class="flt"><select id="fT"><option value="">Any tier</option>' + Object.keys(tiers).sort().map(function (t) { return '<option' + (F.tier === t ? ' selected' : '') + ' value="' + esc(t) + '">Tier ' + esc(cap(t)) + '</option>'; }).join('') + '</select><select id="fS"><option value="">All sources</option><option value="built"' + (F.src === 'built' ? ' selected' : '') + '>Built-in only</option><option value="edited"' + (F.src === 'edited' ? ' selected' : '') + '>Edited by admin</option><option value="custom"' + (F.src === 'custom' ? ' selected' : '') + '>Custom pages</option></select><select id="fO"><option value="az">Sort A-Z</option><option value="tier"' + (F.sort === 'tier' ? ' selected' : '') + '>Sort by tier</option></select></div>';
+    h += arr.length ? '<div class="grid">' + arr.map(tile).join('') + '</div>' : '<p class="muted">Nothing here.</p>';
+    $('#view').innerHTML = h + '</div>'; bindTiles();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sub]'), function (b) { b.onclick = function () { S.f.sub = b.dataset.sub; route(true); }; });
+    $('#fT') && ($('#fT').onchange = function () { S.f.tier = this.value; route(true); }); $('#fS') && ($('#fS').onchange = function () { S.f.src = this.value; route(true); }); $('#fO') && ($('#fO').onchange = function () { S.f.sort = this.value; route(true); });
+    if ($('#bCp')) $('#bCp').onclick = function () { var t = arr.map(function (p) { return p.slug + ' | ' + p.title + ' | ' + p.category + (p.subcat ? '/' + p.subcat : ''); }).join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { alert('Copied ' + arr.length + ' lines.'); }, function () { prompt('Copy:', t); }); };
+    if ($('#bClr')) $('#bClr').onclick = function () { if (!confirm('Clear the NEW list? Do this only after the game has been updated.')) return; sb.from('wiki_pages').update({ is_new: false }).eq('is_new', true).then(function (r) { if (r.error) alert(r.error.message); else load().then(function () { route(); }); }); };
   }
   function recipeOf(id) { var R = W.RECIPES || [], o = []; (Array.isArray(R) ? R : Object.keys(R).map(function (k) { return R[k]; })).forEach(function (r) { if (r && r.out && r.out[0] === id) o.push(r); }); return o; }
+  function usedIn(id) { var R = W.RECIPES || [], o = []; (Array.isArray(R) ? R : []).forEach(function (r) { if (r && r.cost && r.cost[id] != null && r.out) o.push(r.out[0]); }); return o.filter(function (v, i, a) { return a.indexOf(v) === i; }); }
+  function lootSources(id) {
+    var L = W.LOOT || {}, o = [], k, G = W.GROUPS || {};
+    for (k in L) { var has = (L[k].t || []).some(function (e) { return e[0] === id || (e[0].charAt(0) === '@' && (G[e[0].slice(1)] || []).indexOf(id) >= 0); }); if (has && L[k].name) o.push(L[k].name + (/^(crate|trash|table|truck)/.test(k) && /\d/.test(k) ? '' : '')); }
+    return o.filter(function (v, i, a) { return a.indexOf(v) === i; });
+  }
+  function obtainHtml(p) {
+    var I = W.ITEMS || {}, h = '', rs = p.recipes || [];
+    rs.forEach(function (r) { h += '<div class="msg"><b>Crafting on ' + esc(stName(r.st)) + '</b>' + (r.out > 1 ? ' (makes ' + r.out + ')' : '') + ', required ' + Object.keys(r.cost || {}).map(function (id) { var t = I[id]; return '<a href="#/p/' + id + '" style="margin-right:10px;white-space:nowrap">' + (t ? t.ic : '') + ' ' + r.cost[id] + '&times; ' + esc(t ? t.name : id) + '</a>'; }).join('') + '</div>'; });
+    if (p.obtain) h += '<div class="msg">' + esc(p.obtain) + '</div>';
+    if (!p.obtain && p.loot && p.loot.length) h += '<div class="msg">Looting: ' + p.loot.map(esc).join(', ') + '</div>';
+    return h;
+  }
   function pageView(sl, from) {
-    var p = all()[sl]; if (!p) { $('#view').innerHTML = '<div class="card"><h2>Page not found</h2><p class="muted">No page "' + esc(sl) + '" yet.</p>' + (S.admin ? '<button class="pri" id="mk">Create it</button>' : '') + '</div>'; if ($('#mk')) $('#mk').onclick = function () { editor({ slug: sl, title: sl, category: 'items', body_md: '' }); }; return; }
-    if (p.redirect_to && p.redirect_to !== sl && all()[p.redirect_to] && !S.noRedirect) { location.replace('#/p/' + p.redirect_to + '?from=' + encodeURIComponent(sl)); return; }
-    var body = p.body_html ? sanitize(p.body_html) : md2html(p.body_md || ''), st = p.stats || [];
-    var rec = p.itemId ? recipeOf(p.itemId) : [], I = W.ITEMS || {};
-    var h = '<div class="card">' + (from ? '<div class="msg">Redirected from <b>' + esc(from) + '</b></div>' : '') + '<div class="top"><div class="ic">' + iconHtml(p) + '</div><div><h2>' + esc(p.title) + '</h2><span class="chip">' + esc(p.category) + '</span>' + (p.builtin ? '<span class="chip">built-in</span>' : '') + '</div></div>';
+    var p = merged()[sl]; if (!p) { $('#view').innerHTML = '<div class="card"><h2>Page not found</h2><p class="muted">No page "' + esc(sl) + '" yet.</p>' + (S.admin ? '<button class="pri" id="mk">Create it</button>' : '') + '</div>'; if ($('#mk')) $('#mk').onclick = function () { editor({ slug: sl, title: sl, category: 'guides', body_md: '' }); }; return; }
+    if (p.redirect_to && p.redirect_to !== sl && merged()[p.redirect_to] && !S.noRedirect) { location.replace('#/p/' + p.redirect_to + '?from=' + encodeURIComponent(sl)); return; }
+    var body = p.body_html ? sanitize(p.body_html) : md2html(p.body_md || ''), st = p.stats || [], I = W.ITEMS || {};
+    var used = p.itemId ? usedIn(p.itemId) : [];
+    var h = '<div class="card">' + (from ? '<div class="msg">Redirected from <b>' + esc(from) + '</b></div>' : '') + '<div class="top"><div class="ic">' + iconHtml(p) + '</div><div><h2>' + esc(p.title) + '</h2><span class="chip">' + esc(CATNAME[p.category] || p.category) + '</span>' + (p.subcat ? '<span class="chip">' + esc(p.subcat) + '</span>' : '') + (p.edited ? '<span class="chip">edited</span>' : p.builtin ? '<span class="chip">built-in</span>' : '') + (p.is_new ? '<span class="chip g">NEW</span>' : '') + '</div></div>';
+    if (p.spawn) h += '<div class="box"><b>Spawn on:</b> ' + esc(p.spawn) + '</div>';
+    if (p.mob || p.category === 'zombie' || p.category === 'boss') h += '<div class="box"><b>Special skills:</b> ' + esc(p.skills || 'No special skills') + '</div>'; else if (p.skills) h += '<div class="box"><b>Special:</b> ' + esc(p.skills) + '</div>';
     if (st.length) h += '<table class="st">' + st.map(function (a) { return '<tr><td>' + esc(a[0]) + '</td><td>' + esc(a[1]) + '</td></tr>'; }).join('') + '</table>';
     h += '<div class="body">' + body + '</div>';
-    if (rec.length) h += '<h3>Crafting</h3>' + rec.map(function (r) { return '<div class="msg">' + Object.keys(r.cost || {}).map(function (id) { var t = I[id]; return '<a href="#/p/' + id + '" style="margin-right:10px">' + (t ? t.ic : '') + ' ' + r.cost[id] + '× ' + esc(t ? t.name : id) + '</a>'; }).join('') + (r.st ? ' <span class="muted">at ' + esc(r.st) + '</span>' : '') + '</div>'; }).join('');
-    if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : '') + '</div>';
+    var ob = obtainHtml(p); h += '<h3>Obtain through</h3>' + (ob || '<div class="msg muted">Not obtainable yet.</div>');
+    if (used.length) h += '<h3>Used to craft</h3><div>' + used.slice(0, 40).map(function (id) { var t = I[id]; return t ? '<a href="#/p/' + id + '" style="margin-right:12px;white-space:nowrap">' + t.ic + ' ' + esc(t.name) + '</a>' : ''; }).join('') + '</div>';
+    if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit' + (p.builtin ? ' (changes this built-in entry)' : '') + '</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : p.edited ? '<button id="rb" class="dng">Reset to game data</button>' : '') + '</div>';
     $('#view').innerHTML = h + '</div>';
     if ($('#eb')) $('#eb').onclick = function () { editor(p); };
-    if ($('#db')) $('#db').onclick = function () { if (confirm('Delete this page?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(route); }); };
+    if ($('#db')) $('#db').onclick = function () { if (confirm('Delete this page?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(function () { location.hash = '#/c/home'; route(); }); }); };
+    if ($('#rb')) $('#rb').onclick = function () { if (confirm('Remove the admin edits and use the game data again?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(route); }); };
   }
+  /* ---------- visual pickers ---------- */
+  function stName(st) { return STN[st] || (function () { var g = W.GST || {}, k; for (k in g) if (g[k][0] === st) return g[k][1]; return cap(st); })(); }
+  function stationList() { var o = {}, k; Object.keys(STN).forEach(function (x) { o[x] = 1; }); (W.RECIPES || []).forEach(function (r) { if (r.st) o[r.st] = 1; }); Object.keys(W.GST || {}).forEach(function (t) { o[W.GST[t][0]] = 1; }); return Object.keys(o).sort(function (a, b) { return stName(a) < stName(b) ? -1 : 1; }); }
+  function pickItem(cb) {
+    var ov = document.createElement('div'); ov.style.cssText = 'position:fixed;inset:0;background:#000a;z-index:50;display:grid;place-items:center'; var I = W.ITEMS || {};
+    ov.innerHTML = '<div class="card pick" style="width:min(520px,94vw);max-height:80vh;overflow:auto"><div class="row"><input id="pkQ" placeholder="Search item or material..." autofocus><button id="pkX">Cancel</button></div><div id="pkL"></div></div>'; document.body.appendChild(ov);
+    function fill() { var q = $('#pkQ', ov).value.toLowerCase(), h = ''; var ids = Object.keys(I).filter(function (id) { return !q || (I[id].name + ' ' + id).toLowerCase().indexOf(q) >= 0; }).slice(0, 80); ids.forEach(function (id) { h += '<div class="tile" data-id="' + id + '" style="margin:4px 0"><div class="i" style="width:26px;height:26px;font-size:1.1rem">' + I[id].ic + '</div><span>' + esc(I[id].name) + ' <small class="muted">' + id + '</small></span></div>'; }); $('#pkL', ov).innerHTML = h || '<p class="muted">No match.</p>'; }
+    fill(); $('#pkQ', ov).oninput = fill; $('#pkX', ov).onclick = function () { ov.remove(); }; $('#pkL', ov).onclick = function (e) { var t = e.target.closest('.tile'); if (t) { ov.remove(); cb(t.dataset.id); } };
+    setTimeout(function () { $('#pkQ', ov).focus(); }, 30);
+  }
+  var STAT_SUGGEST = { weapons: ['DMG', 'DLY', 'RNG', 'Ammunition Clip', 'Reload Time', 'Durability', 'Tier'], tools: ['Durability', 'Power', 'Hoe Power', 'Capacity', 'Tier'], armor: ['Defense', 'Durability', 'Tier', 'Slot'], accessory: ['Effect', 'Tier'], material: ['Tier', 'Stack'], block: ['Size', 'HP', 'Station'], food: ['Restores', 'Thirst', 'Hunger'], zombie: ['HP', 'Damage', 'Speed', 'Defense', 'DLY', 'World tier'], boss: ['HP', 'Damage', 'Speed', 'Defense', 'DLY', 'World tier'], guides: [] };
   /* ---------- editor ---------- */
-  function editor(p) {
-    var isNew = !p || p.builtin, cur = p || { slug: '', title: '', category: 'items', body_md: '' };
-    var md = cur.body_md || '', html = cur.body_html || md2html(md), mode = 'wys', icon = cur.icon_url || (cur.icon && cur.icon.charAt(0) !== '<' ? cur.icon : '') || '';
-    var gal = ''; for (var s = 1; s <= 6; s++) for (var n = 0; n < 30; n++) gal += '<img src="icons/s' + s + '_' + n + '.png" data-ic="icons/s' + s + '_' + n + '.png" alt="">';
-    $('#view').innerHTML = '<div class="card"><h2 style="margin-top:0">' + (p && !p.builtin ? 'Edit page' : 'New page') + '</h2>' +
-      '<div class="row"><input id="eT" placeholder="Title" value="' + esc(cur.title) + '"><input id="eS" placeholder="slug (url name)" value="' + esc(cur.slug) + '"' + (p && !p.builtin ? ' readonly' : '') + '><select id="eC">' + CATS.filter(function (c) { return c[0] !== 'home'; }).map(function (c) { return '<option value="' + c[0] + '"' + (cur.category === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></div>' +
-      '<div class="row"><input id="eI" placeholder="Icon: emoji, image URL, or pick/upload below" value="' + esc(icon) + '"><input id="eR" placeholder="Redirect to slug (optional)" value="' + esc(cur.redirect_to || '') + '"><label class="muted" style="flex:0 0 auto">Upload logo <input type="file" id="eF" accept="image/*" style="display:none"><button type="button" onclick="document.getElementById(\'eF\').click()">Choose file</button></label></div>' +
+  var draftTimer = 0, cloudTimer = 0, curCollect = null;
+  function draftKey(slug) { return 'wzw_draft_' + (slug || 'new'); }
+  function saveDraftLocal(row) { try { localStorage.setItem(draftKey(row.slug), JSON.stringify({ at: Date.now(), row: row })); } catch (e) {} }
+  function saveDraftCloud(row) { if (!sb || !S.admin || !S.me) return Promise.resolve(); return sb.from('wiki_drafts').upsert({ slug: row.slug || 'new', admin_id: S.me.id, payload: row, updated_at: new Date().toISOString() }, { onConflict: 'slug,admin_id' }).then(function () {}, function () {}); }
+  function flushDraft() { if (curCollect) { var r = curCollect(); if (r && (r.title || r.slug)) { saveDraftLocal(r); saveDraftCloud(r); } } }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) flushDraft(); }); window.addEventListener('pagehide', flushDraft);
+  function loadDrafts() { if (!sb || !S.admin) { S.drafts = []; return Promise.resolve(); } return sb.from('wiki_drafts').select('*').eq('admin_id', S.me.id).then(function (r) { S.drafts = r.error ? [] : (r.data || []); }); }
+  function editor(p, draftRow) {
+    var exists = !!(p && (p.builtin || S.pages[p.slug])), cur = draftRow || p || { slug: '', title: '', category: 'guides', body_md: '' };
+    var md = cur.body_md || '', html = cur.body_html || md2html(md), mode = 'wys', icon = cur.icon_url || (/^</.test(cur.icon || '') ? '' : cur.icon) || '', stats = (cur.stats || []).map(function (a) { return [a[0], a[1]]; }), cats = (cur.cats && cur.cats.length ? cur.cats : [normCat(cur.category) || 'guides']).slice();
+    var recs = (cur.recipes || []).map(function (r) { return { st: r.st, cost: Object.assign({}, r.cost || {}), out: r.out }; }), I = W.ITEMS || {};
+    var gal = ''; Object.keys(S.builtin).forEach(function (k) { if (S.builtin[k].mob && W.spr('z_' + S.builtin[k].mob)) gal += '<span data-ic="spr:z_' + S.builtin[k].mob + '" title="' + esc(S.builtin[k].title) + '">' + W.spr('z_' + S.builtin[k].mob) + '</span>'; });
+    var A = window.WZ_ATLAS || { icons: {} }; Object.keys(A.icons).forEach(function (k) { if (k.charAt(0) === 's') gal += '<span data-ic="spr:' + k + '">' + W.spr(k) + '</span>'; });
+    var locked = exists;
+    $('#view').innerHTML = '<div class="card"><h2 style="margin-top:0">' + (p && p.builtin ? 'Edit built-in: ' + esc(p.title) : exists ? 'Edit page' : 'New page') + '</h2><div id="drBox"></div>' +
+      '<div class="row"><input id="eT" placeholder="Title" value="' + esc(cur.title) + '"><input id="eS" placeholder="slug (url name)" value="' + esc(cur.slug) + '"' + (locked ? ' readonly' : '') + '><select id="eC">' + CATS.map(function (c) { return '<option value="' + c[0] + '"' + (normCat(cur.category) === c[0] ? ' selected' : '') + '>Main: ' + c[1] + '</option>'; }).join('') + '</select><input id="eSub" placeholder="Sub-category (e.g. Furniture)" value="' + esc(cur.subcat || '') + '"></div>' +
+      '<label class="muted">Shown in these categories too (an item can be in several, e.g. Iron Bucket = Armor + Tools)</label><div class="flt" id="eCats"></div>' +
+      '<div class="row"><input id="eI" placeholder="Icon: emoji, spr:key, or image URL" value="' + esc(icon) + '"><input id="eR" placeholder="Redirect to slug (optional)" value="' + esc(cur.redirect_to || '') + '"><label class="muted" style="flex:0 0 auto">Upload logo <input type="file" id="eF" accept="image/*" style="display:none"><button type="button" onclick="document.getElementById(\'eF\').click()">Choose file</button></label></div>' +
       '<div class="gal" id="gal">' + gal + '</div>' +
-      '<div class="ed-tabs row"><button id="tW" class="on">WYSIWYG</button><button id="tM">Markdown</button><span class="muted" style="flex:1 1 auto">Link pages with [[slug]] or [[slug|label]]</span></div>' +
+      '<h3>How to obtain</h3><div id="rcR"></div><button type="button" id="rcA">+ Add crafting recipe</button>' +
+      '<label class="muted" style="display:block;margin-top:8px">Other ways to obtain (free text, e.g. "Mined from Titanium Ore in the Deeper Underground")</label><textarea id="eOb" style="min-height:60px">' + esc(cur.obtain || '') + '</textarea>' +
+      '<h3>Stats</h3><div class="flt" id="stSug"></div><div id="stR"></div><button type="button" id="stA">+ Add stat</button><datalist id="stNames">' + [].concat.apply([], Object.keys(STAT_SUGGEST).map(function (k) { return STAT_SUGGEST[k]; })).filter(function (v, i, a) { return a.indexOf(v) === i; }).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' +
+      '<div class="row"><div><label class="muted">Spawn on (mobs)</label><input id="eSp" style="width:100%" value="' + esc(cur.spawn || '') + '"></div></div>' +
+      '<label class="muted">Special skills / special effects (write "No special skills" if none)</label><textarea id="eSk">' + esc(cur.skills || '') + '</textarea>' +
+      '<h3>Description</h3><div class="ed-tabs row"><button id="tW" class="on">WYSIWYG</button><button id="tM">Markdown</button><span class="muted" style="flex:1 1 auto">Link pages with [[slug]] or [[slug|label]]</span></div>' +
       '<div id="wA"><div class="tb">' + [['b', 'B'], ['i', 'I'], ['h2', 'H2'], ['h3', 'H3'], ['ul', '• List'], ['ol', '1. List'], ['q', '❝'], ['a', 'Link'], ['img', 'Image'], ['hr', '—']].map(function (b) { return '<button type="button" data-t="' + b[0] + '">' + b[1] + '</button>'; }).join('') + '</div><div id="wys" contenteditable="true"></div></div>' +
       '<div id="mA" hidden><textarea id="mdT"></textarea><div class="muted">Preview</div><div class="body card" id="pv"></div></div>' +
-      '<div class="row"><button class="pri" id="eSave">Save</button><button id="eCancel">Cancel</button><span id="eMsg" class="err"></span></div></div>';
+      (exists ? '' : '<label class="msg" style="display:block"><input type="checkbox" id="eShapes" checked> Auto-create <b>Stair</b> (3/4 HP), <b>Slab</b> (1/2 HP) and <b>Layer Slab</b> (1/4 HP) pages for this block (only applies to Block pages; HP and materials are scaled automatically).</label>') +
+      '<div class="row"><button class="pri" id="eSave">Save</button><button id="eCancel">Cancel</button><span id="eMsg" class="err"></span><span class="muted" id="drSt"></span></div></div>';
+    function drawCats() { $('#eCats').innerHTML = CATS.map(function (c) { return '<button type="button" class="pill' + (cats.indexOf(c[0]) >= 0 ? ' on' : '') + '" data-cat="' + c[0] + '">' + c[1] + '</button>'; }).join(''); }
+    drawCats(); $('#eCats').onclick = function (e) { var c = e.target.dataset && e.target.dataset.cat; if (!c) return; var i = cats.indexOf(c); if (i >= 0) { if (cats.length > 1) cats.splice(i, 1); } else cats.push(c); drawCats(); touch(); };
+    function drawRecs() {
+      $('#rcR').innerHTML = recs.map(function (r, i) { return '<div class="msg"><div class="row"><b style="flex:0 0 auto">Crafting on</b><select data-rs="' + i + '">' + stationList().map(function (x) { return '<option value="' + x + '"' + (r.st === x ? ' selected' : '') + '>' + esc(stName(x)) + '</option>'; }).join('') + '</select><button type="button" class="dng" data-rx="' + i + '">Remove recipe</button></div>' +
+        '<div>' + Object.keys(r.cost).map(function (id) { var t = I[id]; return '<span class="chip" style="font-size:.85rem;padding:4px 10px">' + (t ? t.ic : '') + ' ' + esc(t ? t.name : id) + ' &times; <input type="number" min="1" value="' + r.cost[id] + '" data-rq="' + i + '|' + id + '" style="width:60px;padding:2px 6px"> <a href="#" data-rd="' + i + '|' + id + '">&times;</a></span>'; }).join(' ') + ' <button type="button" data-ra="' + i + '">+ Material</button></div></div>'; }).join('');
+    }
+    drawRecs();
+    $('#rcA').onclick = function () { recs.push({ st: 'hand', cost: {} }); drawRecs(); touch(); };
+    $('#rcR').onchange = function (e) { var t = e.target; if (t.dataset.rs != null) { recs[+t.dataset.rs].st = t.value; touch(); } else if (t.dataset.rq) { var q = t.dataset.rq.split('|'); recs[+q[0]].cost[q[1]] = Math.max(1, +t.value || 1); touch(); } };
+    $('#rcR').onclick = function (e) { var t = e.target, d = t.dataset || {}; if (d.rx != null) { recs.splice(+d.rx, 1); drawRecs(); touch(); } else if (d.rd) { e.preventDefault(); var q = d.rd.split('|'); delete recs[+q[0]].cost[q[1]]; drawRecs(); touch(); } else if (d.ra != null) { pickItem(function (id) { var r = recs[+d.ra]; r.cost[id] = (r.cost[id] || 0) + 1; drawRecs(); touch(); }); } };
+    function drawStats() { $('#stR').innerHTML = stats.map(function (a, i) { return '<div class="srow"><input data-k="' + i + '" list="stNames" value="' + esc(a[0]) + '" placeholder="Name"><input data-v="' + i + '" value="' + esc(a[1]) + '" placeholder="Value"><button type="button" data-x="' + i + '">&times;</button></div>'; }).join(''); var sg = (STAT_SUGGEST[cats[0]] || []).filter(function (n) { return !stats.some(function (a) { return a[0] === n; }); }); $('#stSug').innerHTML = sg.map(function (n) { return '<button type="button" class="pill" data-sg="' + esc(n) + '">+ ' + esc(n) + '</button>'; }).join(''); }
+    drawStats();
+    $('#stSug').onclick = function (e) { var n = e.target.dataset && e.target.dataset.sg; if (n) { stats.push([n, '']); drawStats(); touch(); } };
+    $('#stR').oninput = function (e) { var t = e.target; if (t.dataset.k != null) stats[+t.dataset.k][0] = t.value; else if (t.dataset.v != null) stats[+t.dataset.v][1] = t.value; touch(); };
+    $('#stR').onclick = function (e) { var x = e.target.dataset && e.target.dataset.x; if (x != null) { stats.splice(+x, 1); drawStats(); touch(); } };
+    $('#stA').onclick = function () { stats.push(['', '']); drawStats(); };
     var wys = $('#wys'); wys.innerHTML = sanitize(html); $('#mdT').value = md || html2md(html);
     function sync(to) { if (to === 'md') { html = sanitize(wys.innerHTML); md = html2md(html); $('#mdT').value = md; } else { md = $('#mdT').value; html = md2html(md); wys.innerHTML = sanitize(html); } }
     $('#tW').onclick = function () { if (mode === 'md') sync('wys'); mode = 'wys'; $('#wA').hidden = false; $('#mA').hidden = true; $('#tW').className = 'on'; $('#tM').className = ''; };
     $('#tM').onclick = function () { if (mode === 'wys') sync('md'); mode = 'md'; $('#wA').hidden = true; $('#mA').hidden = false; $('#tM').className = 'on'; $('#tW').className = ''; $('#pv').innerHTML = sanitize(md2html($('#mdT').value)); };
-    $('#mdT').oninput = function () { $('#pv').innerHTML = sanitize(md2html($('#mdT').value)); };
+    $('#mdT').oninput = function () { $('#pv').innerHTML = sanitize(md2html($('#mdT').value)); touch(); };
     Array.prototype.forEach.call(document.querySelectorAll('.tb button'), function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { var t = b.dataset.t; wys.focus();
       if (t === 'b') document.execCommand('bold'); else if (t === 'i') document.execCommand('italic'); else if (t === 'h2' || t === 'h3') document.execCommand('formatBlock', false, t); else if (t === 'ul') document.execCommand('insertUnorderedList'); else if (t === 'ol') document.execCommand('insertOrderedList'); else if (t === 'q') document.execCommand('formatBlock', false, 'blockquote'); else if (t === 'hr') document.execCommand('insertHorizontalRule');
-      else if (t === 'a') { var u = prompt('Link target (https://... or #/p/slug):'); if (u) document.execCommand('createLink', false, u); } else if (t === 'img') { var iu = prompt('Image URL:'); if (iu) document.execCommand('insertImage', false, iu); } }; });
-    $('#gal').onclick = function (e) { var ic = e.target.dataset && e.target.dataset.ic; if (ic) $('#eI').value = ic; };
+      else if (t === 'a') { var u = prompt('Link target (https://... or #/p/slug):'); if (u) document.execCommand('createLink', false, u); } else if (t === 'img') { var iu = prompt('Image URL:'); if (iu) document.execCommand('insertImage', false, iu); } touch(); }; });
+    $('#gal').onclick = function (e) { var t = e.target.closest('[data-ic]'); if (t) { $('#eI').value = t.dataset.ic; touch(); } };
     $('#eF').onchange = function () { var f = this.files[0]; if (!f) return; if (f.size > 2e6) { $('#eMsg').textContent = 'Image must be under 2 MB.'; return; }
       var path = Date.now().toString(36) + '-' + slug(f.name.replace(/\.[^.]+$/, '')) + '.' + (f.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
-      sb.storage.from('wiki').upload(path, f, { upsert: false, contentType: f.type }).then(function (r) { if (r.error) { $('#eMsg').textContent = r.error.message; return; } $('#eI').value = sb.storage.from('wiki').getPublicUrl(path).data.publicUrl; $('#eMsg').textContent = ''; }); };
-    $('#eCancel').onclick = function () { history.back(); };
-    $('#eSave').onclick = function () {
+      sb.storage.from('wiki').upload(path, f, { upsert: false, contentType: f.type }).then(function (r) { if (r.error) { $('#eMsg').textContent = r.error.message; return; } $('#eI').value = sb.storage.from('wiki').getPublicUrl(path).data.publicUrl; $('#eMsg').textContent = ''; touch(); }); };
+    function collect() {
       if (mode === 'wys') sync('md'); else sync('wys');
-      var row = { slug: slug($('#eS').value || $('#eT').value), title: $('#eT').value.trim(), category: $('#eC').value, icon_url: $('#eI').value.trim() || null, redirect_to: slug($('#eR').value) || null, body_md: md, body_html: sanitize(html), updated_by: S.me.id, updated_at: new Date().toISOString() };
+      return { slug: slug($('#eS').value || $('#eT').value), title: $('#eT').value.trim(), category: $('#eC').value, cats: cats.indexOf($('#eC').value) >= 0 ? cats : [$('#eC').value].concat(cats), subcat: $('#eSub').value.trim() || null, icon_url: $('#eI').value.trim() || null, redirect_to: slug($('#eR').value) || null, body_md: md, body_html: sanitize(html),
+        stats: stats.filter(function (a) { return String(a[0]).trim(); }), skills: $('#eSk').value.trim() || null, spawn: $('#eSp').value.trim() || null, obtain: $('#eOb').value.trim() || null, recipes: recs.filter(function (r) { return Object.keys(r.cost).length; }) };
+    }
+    curCollect = collect;
+    function touch() { clearTimeout(draftTimer); draftTimer = setTimeout(function () { var r = collect(); if (r.title || r.slug) { saveDraftLocal(r); $('#drSt') && ($('#drSt').textContent = 'Draft saved ' + new Date().toLocaleTimeString()); } }, 700); clearTimeout(cloudTimer); cloudTimer = setTimeout(flushDraft, 5000); }
+    ['eT', 'eS', 'eC', 'eSub', 'eI', 'eR', 'eOb', 'eSp', 'eSk'].forEach(function (id) { $('#' + id).addEventListener('input', touch); }); wys.addEventListener('input', touch);
+    /* restore banner */
+    var lk = null; try { lk = JSON.parse(localStorage.getItem(draftKey(cur.slug)) || 'null'); } catch (e) {}
+    if (lk && !draftRow && lk.row && (lk.row.title || lk.row.slug)) { $('#drBox').innerHTML = '<div class="msg">An unsaved draft from ' + new Date(lk.at).toLocaleString() + ' exists. <button id="drR" class="pri">Restore draft</button> <button id="drD">Discard</button></div>'; $('#drR').onclick = function () { editor(p, lk.row); }; $('#drD').onclick = function () { try { localStorage.removeItem(draftKey(cur.slug)); } catch (e) {} $('#drBox').innerHTML = ''; }; }
+    if (draftRow) $('#drBox').innerHTML = '<div class="msg">Editing a recovered draft. Press Save to publish it.</div>';
+    $('#eCancel').onclick = function () { flushDraft(); curCollect = null; history.back(); };
+    $('#eSave').onclick = function () {
+      if (!S.admin) { $('#eMsg').textContent = 'Only an active admin can edit.'; return; }
+      var row = collect(); row.is_new = true; row.new_at = new Date().toISOString(); row.updated_by = S.me.id; row.updated_at = row.new_at;
       if (!row.slug || !row.title) { $('#eMsg').textContent = 'Title and slug are required.'; return; }
-      sb.from('wiki_pages').upsert(row, { onConflict: 'slug' }).then(function (r) { if (r.error) $('#eMsg').textContent = r.error.message; else load().then(function () { location.hash = '#/p/' + row.slug; route(); }); });
+      var rows = [row], shp = $('#eShapes');
+      if (shp && shp.checked && (row.cats || [row.category]).indexOf('block') >= 0 && !/-(stair|slab|layer-slab)$/.test(row.slug)) {
+        var hpS = (row.stats || []).filter(function (a) { return /^(hp|health)$/i.test(String(a[0]).trim()); })[0], hp0 = hpS ? parseFloat(hpS[1]) : NaN;
+        [['Stair', 'stair', 0.75, 4, 3], ['Slab', 'slab', 0.5, 2, 1], ['Layer Slab', 'layer-slab', 0.25, 4, 1]].forEach(function (sh) {
+          var v = JSON.parse(JSON.stringify(row)); v.slug = row.slug + '-' + sh[1]; v.title = row.title.replace(/\s*Block$/i, '') + ' ' + sh[0]; v.subcat = row.subcat; v.redirect_to = null;
+          v.stats = (row.stats || []).filter(function (a) { return String(a[0]).trim().toLowerCase() !== 'hp'; }); if (!isNaN(hp0)) v.stats.unshift(['HP', String(Math.max(1, Math.round(hp0 * sh[2])))]);
+          var c = {}; c[row.slug] = sh[4]; v.recipes = [{ st: 'mason', cost: c, out: sh[3] }]; v.obtain = null;
+          v.body_md = v.title + ': ' + Math.round(sh[2] * 100) + '% of [[' + row.slug + '|' + row.title + ']]. ' + (sh[1] === 'stair' ? 'Rises toward the direction you face.' : sh[1] === 'slab' ? 'Half-height block you can step onto.' : 'Quarter-height layer.'); v.body_html = sanitize(md2html(v.body_md)); rows.push(v); });
+      }
+      sb.from('wiki_pages').upsert(rows, { onConflict: 'slug' }).then(function (r) { if (r.error) $('#eMsg').textContent = r.error.message + (/column|constraint/i.test(r.error.message) ? ' - run 09_wiki_v3.sql in Supabase first.' : ''); else { try { localStorage.removeItem(draftKey(cur.slug)); localStorage.removeItem(draftKey('new')); } catch (e) {} curCollect = null; sb.from('wiki_drafts').delete().eq('slug', row.slug).eq('admin_id', S.me.id).then(function () {}, function () {}); load().then(function () { location.hash = '#/p/' + row.slug; route(); }); } });
     };
   }
   function importAll() {
-    var rows = Object.keys(S.builtin).filter(function (k) { return !S.pages[k]; }).map(function (k) { var b = S.builtin[k], ic = (b.icon || '').match(/src="([^"]+)"/); return { slug: b.slug, title: b.title, category: b.category, icon_url: ic ? ic[1] : (b.icon && b.icon.charAt(0) !== '<' ? b.icon : null), body_md: (b.body_md || '') + (b.stats && b.stats.length ? '\n\n' + b.stats.map(function (a) { return '- **' + a[0] + ':** ' + a[1]; }).join('\n') : ''), body_html: null, updated_by: S.me.id }; });
-    if (!rows.length) { alert('Everything is already imported.'); return; } if (!confirm('Import ' + rows.length + ' built-in entries as editable wiki pages?')) return;
+    var rows = Object.keys(S.builtin).filter(function (k) { return !S.pages[k]; }).map(function (k) { var b = S.builtin[k]; return { slug: b.slug, title: b.title, category: b.category, subcat: b.subcat || null, icon_url: /^icons\//.test(b.icon || '') ? b.icon : (b.icon && b.icon.charAt(0) !== '<' ? b.icon : ((b.icon || '').match(/src="([^"]+)"/) || [])[1] || null), body_md: b.body_md || '', stats: b.stats || [], skills: b.skills || null, spawn: b.spawn || null, cats: b.cats || [b.category], recipes: b.recipes || null, is_new: false, updated_by: S.me.id }; });
+    if (!rows.length) { alert('Everything is already imported.'); return; } if (!confirm('Import ' + rows.length + ' built-in entries as editable wiki pages? (They will not appear in NEW.)')) return;
     var chunks = [], i; for (i = 0; i < rows.length; i += 100) chunks.push(rows.slice(i, i + 100));
     chunks.reduce(function (pr, ch) { return pr.then(function () { return sb.from('wiki_pages').upsert(ch, { onConflict: 'slug', ignoreDuplicates: true }).then(function (r) { if (r.error) throw r.error; }); }); }, Promise.resolve()).then(load).then(route, function (e) { alert(e.message); });
   }
@@ -190,16 +338,16 @@ table.st{border-collapse:collapse;margin:10px 0}table.st td{border:1px solid var
   }
   function pollAdmin() { var n = 0, t = setInterval(function () { if (++n > 60) { clearInterval(t); return; } checkStaff().then(function () { if (S.admin) { clearInterval(t); route(); } }); }, 5000); }
   /* ---------- router ---------- */
-  function route() {
+  function route(keep) {
     chrome(); var h = location.hash || '#/c/home', m, q = $('#q').value.trim().toLowerCase();
-    if (q) { S.cat = 'home'; listView('home', q); return; }
-    if ((m = /^#\/p\/([^?]+)(?:\?from=(.*))?$/.exec(h))) { var sl = decodeURIComponent(m[1]); S.cat = (all()[sl] || {}).category || S.cat; chrome(); pageView(sl, m[2] ? decodeURIComponent(m[2]) : ''); }
-    else { m = /^#\/c\/(\w+)/.exec(h); S.cat = m ? m[1] : 'home'; chrome(); listView(S.cat, ''); }
-    window.scrollTo(0, 0);
+    if (q) { listView(S.cat === 'new' || CATNAME[S.cat] && S.cat !== 'home' && /^#\/c\//.test(h) ? S.cat : 'home', q); return; }
+    if ((m = /^#\/p\/([^?]+)(?:\?from=(.*))?$/.exec(h))) { var sl = decodeURIComponent(m[1]); S.cat = (merged()[sl] || {}).category || S.cat; chrome(); pageView(sl, m[2] ? decodeURIComponent(m[2]) : ''); }
+    else { m = /^#\/c\/(\w+)/.exec(h); S.cat = m ? m[1] : 'home'; chrome(); if (S.cat === 'home') homeView(); else if (S.cat === 'drafts' && S.admin) draftsView(); else listView(S.cat, ''); }
+    if (keep !== true) window.scrollTo(0, 0);
   }
-  $('#q').oninput = route; $('#bAuth').onclick = authClick; window.addEventListener('hashchange', route);
-  window.WZW = { md2html: md2html, html2md: html2md, sanitize: sanitize };
+  $('#q').oninput = function () { route(true); }; $('#bAuth').onclick = authClick; window.addEventListener('hashchange', function () { route(); });
+  window.WZW = { S: S, editor: editor, md2html: md2html, html2md: html2md, sanitize: sanitize, merged: merged };
   buildBuiltin(); route();
-  initAuth().then(load).then(route, route);
+  initAuth().then(load).then(loadDrafts).then(route, route);
 })();
 </script></body></html>

@@ -116,6 +116,7 @@ button { font: inherit; cursor: pointer; }
 body.touch #altHint { display: none !important; }
 body.touch #hotbar { pointer-events: auto; bottom: 8px; }
 body.touch #hotbar .slot { pointer-events: auto; }
+.ico.sp{display:inline-block;width:1.35em;height:1.35em;background-size:2000% 2000%;background-repeat:no-repeat;vertical-align:-.3em;pointer-events:none}.sp0{background-image:url(icons/atlas0.webp)}.sp1{background-image:url(icons/atlas1.webp)}.sp2{background-image:url(icons/atlas2.webp)}.sp3{background-image:url(icons/atlas3.webp)}
 img.ico{width:1.35em;height:1.35em;object-fit:contain;vertical-align:-.3em;pointer-events:none}
 </style>
 </head>
@@ -178,11 +179,11 @@ img.ico{width:1.35em;height:1.35em;object-fit:contain;vertical-align:-.3em;point
 <script>
 (function () {
   function loadFiles() {
-    var files = ['vendor/supabase.js', 'config.js', 'data.js', 'sound.js', 'world.js', 'net.js', 'game.js'];
+    var files = ['vendor/supabase.js', 'config.js', 'icons/atlas.js', 'data.js', 'sound.js', 'world.js', 'net.js', 'game.js'];
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=21';
+      s.src = files[i] + '?v=26';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }

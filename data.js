@@ -564,6 +564,8 @@ window.WZ = window.WZ || {};
     /* [MOB TAG] id=miner | Miner Zombie Walker | rarity=special | spawns only inside the mineshaft | coin=none */
     miner:   { name: 'Miner Zombie Walker', hp: 90, spd: 0.8, dmg: 12, def: 3, tier: 2, rarity: 'common', scale: 1.05, color: 0x7a6a3a, cd: 1.0, w: 0, nospawn: true },
     /* [MOB TAG] id=zfish | Zombie Fish | rarity=special (fishing only) | tier=T-Flexible | coin=1 kill -> 1 coin | attack gives Water Poison */
+    /* [MOB TAG] id=floater | Floater Zombie | T1 | biome=sea (surface only) | HP 70 SPD 0.9 DLY 1 DMG 5 | counts as a Walker kill */
+    floater: { name: 'Floater Zombie', hp: 70, spd: 0.9, dmg: 5, def: 0, tier: 1, rarity: 'common', scale: 1.0, color: 0x6d7a5a, cd: 1.0, w: 0, nospawn: true, coin: [3, 1] },
     drowned: { name: 'Drowned Zombie', hp: 60, spd: 0.75, dmg: 6, def: 0, tier: 1, rarity: 'common', scale: 1.0, color: 0x3f7f86, cd: 1.1, w: 0, nospawn: true, coin: [1, 2] },
     zfish:   { name: 'Zombie Fish', hp: 30, spd: 0.9, dmg: 4, def: -1, tier: 1, rarity: 'common', scale: 0.55, color: 0x3a8f87, cd: 1.0, w: 0, nospawn: true, wpoison: true, coin: [1, 1] },
     /* [MOB TAG] id=gigantus | Gigantus Zombie | rarity=BOSS (tier 1 -> 2) | spawns ONCE at day 10 | coin=1 kill -> 25 coins | SPLASH 1 | weakness: attacks 3x slower than normal zombies (cd 1.0 x3) */
@@ -603,12 +605,117 @@ window.WZ = window.WZ || {};
   }); });
   [['palm', 'Palm', 'palm_wood_stick', 'palm_plank'], ['pine', 'Pine', 'pine_stick', 'pine_plank']].forEach(function (w, wi) { var c = {}; c[w[2]] = 10; c[w[3]] = 14; c.cotton = 12; item('bed_' + w[0], '🛏️', w[1] + ' Bed', 'A comfy bed. Sleep with [E] and dismantle it again anytime. Size 2x1x1.', { type: 'block', vox: 70 + wi, hp: 55, size: [2, 1, 1] }); R.push({ id: 'bed_' + w[0], st: 'sawmill', out: ['bed_' + w[0], 1], cost: c, puz: { k: 'saw', d: 2 } }); });
   R.push({ id: 'pine_sticks', st: 'sawmill', out: ['pine_stick', 4], cost: { pine_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Pine Log into Pine Sticks' }, { id: 'palm_planks', st: 'sawmill', out: ['palm_plank', 2], cost: { palm_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Palm Log into Palm Planks' }, { id: 'pine_planks', st: 'sawmill', out: ['pine_plank', 2], cost: { pine_log: 1 }, puz: { k: 'saw', d: 1 }, label: 'Cut Pine Log into Pine Planks' });
+
+  /* [BENCH+LIQUID TAG] Generic station blocks (vox 72-78): [stationKey, name, listName, colour, emoji, label, size]. Pools = liquids found in the world. */
+  WZ.GST = {
+    72: ['wfilter', 'Water Filtering Machine', 'wfilters', '#2f6f8a', '🚰', 'FILTER', [2, 1, 1]],
+    73: ['distill', 'Distillation Machine', 'distills', '#6a6a7a', '⚗️', 'DISTILL', [2, 1, 1]],
+    74: ['cwork', 'Computer Workbench', 'cworks', '#2e3a52', '🖥️', 'COMP WB', [2, 1, 2]],
+    75: ['seng', 'Simple Engineering Bench', 'sengs', '#6a5a2e', '🔌', 'SIMPLE ENG', [2, 1, 2]],
+    76: ['eng', 'Engineering Bench', 'engs', '#3a4a6a', '⚡', 'ENGINEER', [2, 1, 2]],
+    77: ['drive', 'Drivetrain Workbench', 'drives', '#4a4a4a', '⚙️', 'DRIVETRAIN', [3, 1, 2]],
+    78: ['vbench', 'Vehicle Bench', 'vbenchs', '#5a2a2a', '🚗', 'VEHICLE', [3, 1, 2]],
+    85: ['gunb', 'Gun Bench', 'gunbs', '#2e2e32', '🔫', 'GUNS', [2, 1, 2]],
+    86: ['cpot', 'Cooking Pot', 'cpots', '#4a3a2a', '🍲', 'COOK', [2, 2, 3]]
+  };
+  Object.keys(WZ.GST).forEach(function (t) { var g = WZ.GST[t], id = { wfilter: 'water_filter', distill: 'distiller', cwork: 'computer_workbench', seng: 'simple_eng_bench', eng: 'eng_bench', drive: 'drivetrain_bench', vbench: 'vehicle_bench', gunb: 'gun_bench', cpot: 'cooking_pot' }[g[0]]; g.id = id;
+    item(id, g[4], g[1], g[1] + '. Place it, then press [E] near it. Size ' + g[6].join('x') + '.', { type: 'block', vox: +t, hp: 90, size: g[6] }); });
+  /* Liquids carried in an Iron Bucket (the empty bucket comes back after use). */
+  WZ.LIQ = { contaminated: ['Contaminated Water', '🟢', { t: 3, th: 10, wp: 0.9 }], dirty: ['Dirty Water', '🟤', { t: 3, th: 15, wp: 0.5 }], slightly: ['Slightly Dirty Water', '💧', { t: 3, th: 20, wp: 0.2 }], acceptable: ['Acceptable Water', '💧', { t: 3, th: 28, wp: 0.03 }], purify: ['Purify Water', '💦', { t: 3, th: 45, heal: 5 }],
+    lava: ['Lava', '🌋', { t: 2, th: 0, burn: 60 }], honey: ['Honey', '🍯', { t: 4, th: 5, h: 25, energy: 10 }], acid: ['Acid', '🧪', { t: 2, th: 0, corr: 1 }], oil: ['Crude Oil', '🛢️', { t: 3, th: -10, wp: 1 }] };
+  Object.keys(WZ.LIQ).forEach(function (k) { var L = WZ.LIQ[k], e = {}; for (var f in L[2]) e[f] = L[2][f]; e.ret = 'iron_bucket';
+    item('ib_' + k, L[1], 'Bucket of ' + L[0], 'An Iron Bucket filled with ' + L[0] + '. Hold it and drink with Left Click; you get the empty bucket back.' + (k === 'contaminated' ? ' Sea water: high Water Poison chance.' : k === 'lava' ? ' Do NOT drink this.' : k === 'acid' ? ' Gives Corrosive (1 HP every 0.2 s for 20 s).' : ''), { type: 'drink', eat: e }); });
+  item('low_end_cpu', '🧠', 'Low-End CPU', 'A slow processor.'); item('low_end_ram', '🧩', 'Low-End RAM', 'A small memory stick.'); item('low_end_psu', '🔋', 'Low-End PSU', 'A weak power supply unit.'); item('low_end_motherboard', '🟩', 'Low-End Motherboard', 'A basic motherboard.'); item('low_end_gpu', '🎞️', 'Low-End GPU', 'A basic graphics chip.');
+  item('iron_casing', '🔲', 'Iron Casing', 'A small iron shell for machines and electronics.'); item('electric_power_provider', '⚡', 'Electric Power Provider', 'Supplies electricity to engineering machines.');
+  item('manual_crank_charger', '🔄', 'Manual Crank-Charger', 'A hand-cranked charger. Made at Handmade.');
+  item('small_iron_cogwheel', '⚙️', 'Iron Cogwheel', 'A small iron gear.'); item('large_iron_cogwheel', '⚙️', 'Large Iron Cogwheel', 'A large iron gear.'); item('iron_spiral', '🌀', 'Iron Spiral', 'A coiled iron spring.');
+  item('fiber_glass', '🧵', 'Fiber Glass', 'Glass fibres used for brake linings.'); item('cast_iron_plate', '▭', 'Cast Iron Plate', 'A thick cast iron plate.');
+  item('drum_brake_casing', '🛞', 'Drum Brake Casing', 'The iron housing of a drum brake.', { note: 'Vehicle part.' });
+  item('drum_brake', '🛑', 'Drum Brake', 'Usually attached to almost every normal vehicle. Brake Power 20.', { note: 'Brake Power: 20. Vehicle part (cannot be installed yet).' });
+  item('stock_car_suspension', '🔩', 'Stock Car Suspension', 'Commonly attached to cars. Softness 20, Shock Absorbant 50.', { note: 'Softness 20 (higher = the car bounces more). Shock Absorbant 50 (higher = the drivetrain takes less damage from bumps). Vehicle part.' });
+  item('rwd_car_drivetrain', '🚙', 'RWD Car Drivetrain', 'Commonly attached to SUVs. The wheel movement is at the rear.', { note: 'Rear-wheel drive: the driven wheels are at the back. Vehicle part.' });
+  item('scout_ii_car_casing', '🚘', 'Scout II Car Casing', 'The body of the Scout II SUV. Place it on a large flat area to start assembling.', { note: 'Vehicle part.' });
+  item('amc_i4_engine', '🔧', 'AMC i4 Car Engine', 'A 4-cylinder car engine.', { note: 'Vehicle part.' }); item('amc_3sp_gearbox', '🕹️', 'AMC 3-Speed Manual Gearbox', 'Goes under the engine.', { note: 'Vehicle part.' });
+  item('amc_i4_gauge', '⏲️', 'AMC i4-Car Gauge', 'Dashboard gauges.', { note: 'Vehicle part.' }); item('stock_water_coolant', '🌡️', 'Stock Water Coolant', 'Engine coolant system.', { note: 'Vehicle part.' });
+  item('leather_seat', '💺', 'Leather Seat', 'A vehicle seat.', { note: 'Vehicle part.' }); item('stock_wheel', '🛞', 'Stock Wheel', 'Wheel and tire for the Scout II.', { note: 'Vehicle part.' });
+  /* Sprite-sheet icons (icons/atlas0.webp + icons/atlas.json, 20x20 cells). WZ.spr(key) returns an <i> that shows one cell, or null. */
+  WZ.spr = function (key, style) { var A = window.WZ_ATLAS, p = A && A.icons[key]; if (!p) return null; return '<i class="ico sp sp' + p[0] + '" style="background-position:' + (p[1] * 100 / (A.cols - 1)) + '% ' + (p[2] * 100 / (A.rows - 1)) + '%;' + (style || '') + '"></i>'; };
+
+  /* [FARM TAG] Farming: Hoe / Shovel in every tool set, Wooden Bucket, seeds, farmland blocks (vox 79-84). */
+  [['rusty', 'Rusty', 1.0, 2, '🧱'], ['crude', 'Crude', 1.3, 4, ''], ['copper', 'Copper', 1.7, 6, ''], ['iron', 'Iron', 2.0, 8, ''], ['golden', 'Golden', 2.6, 10, ''], ['titanium', 'Titanium', 3.0, 12, ''], ['permafrost', 'Permafrost', 2.8, 11, '']].forEach(function (s) {
+    item(s[0] + '_hoe', '⛏️', s[1] + ' Hoe', 'Hold Left Click on farmland to till it for planting. Hoe Power ' + s[2] + ' (tilling takes about ' + (4 / s[2]).toFixed(1) + ' s).', { type: 'tool', tool: 'hoe', bd: s[3], dmg: Math.round(s[3] * 0.7), hoeP: s[2], note: 'Hoe Power: ' + s[2] + '. Tills a farmland in ' + (4 / s[2]).toFixed(1) + ' s.' });
+    item(s[0] + '_shovel', '🥄', s[1] + ' Shovel', 'Digs soft tiles: soil, sand and snow.', { type: 'tool', tool: 'shovel', bd: s[3], dmg: Math.round(s[3] * 0.8), note: 'Works on soft tiles (Soil, Sand, Snow) like a pickaxe works on rocks.' }); });
+  item('wooden_bucket', '🪣', 'Wooden Bucket', 'Holds water only. Hold a water bucket and press [E] on tilled farmland to water it. Crafted at a Furniture Table.', { note: 'Can only hold water (any quality). Works as a watering can.' });
+  WZ.WOOD_WATER = {}; ['contaminated', 'dirty', 'slightly', 'acceptable', 'purify'].forEach(function (q) { var L = WZ.LIQ[q], e = {}; for (var f in L[2]) e[f] = L[2][f]; e.ret = 'wooden_bucket'; WZ.WOOD_WATER[q] = 1; item('wb_' + q, L[1], 'Wooden Bucket of ' + L[0], 'A Wooden Bucket filled with ' + L[0] + '.', { type: 'drink', eat: e }); });
+  item('any_water', '💧', '1 Bucket of Water (any)', 'Any bucket filled with water. The empty bucket is returned.', { type: 'material', hidden: true });
+  item('wheat', '🌾', 'Wheat', 'Grown from Wheat Seeds.'); item('rice_raw', '🍚', 'Rice (Raw)', 'Needs cooking in a Cooking Pot with a Wooden Bowl.');
+  item('wheat_seeds', '🟢', 'Wheat Seeds', 'Plant on tilled, wet farmland. Grows in 120 s (pauses when the soil dries).', { type: 'material', note: 'Grows in 120 s. Needs tilled, wet soil farmland.' });
+  item('pumpkin_seeds', '🟠', 'Pumpkin Seeds', 'Plant on tilled, wet farmland. Grows in 180 s; the pumpkin ripens on the plant.', { type: 'material', note: 'Grows in 180 s. Needs tilled, wet soil farmland.' });
+  item('watermelon_seeds', '⚫', 'Watermelon Seeds', 'Plant on tilled, wet farmland. Grows in 180 s; the watermelon ripens on the plant.', { type: 'material', note: 'Grows in 180 s. Needs tilled, wet soil farmland.' });
+  item('rice_seeds', '🟡', 'Rice Seeds', 'Plant on Shallow Water Farmland. Grows by itself in 200 s, but pests will pause it until you remove them.', { type: 'material', note: 'Grows in 200 s on Shallow Water Farmland. Pests pause it ([E] removes them).' });
+  WZ.FARM = { 79: ['farmland_s', 'Farmland (Small)', 1, false, '#6b4a2b'], 80: ['farmland_m', 'Farmland (Medium)', 2, false, '#6b4a2b'], 81: ['farmland_l', 'Farmland (Large)', 3, false, '#6b4a2b'], 82: ['swfarm_s', 'Shallow Water Farmland (Small)', 1, true, '#3f6f86'], 83: ['swfarm_m', 'Shallow Water Farmland (Medium)', 2, true, '#3f6f86'], 84: ['swfarm_l', 'Shallow Water Farmland (Large)', 3, true, '#3f6f86'] };
+  Object.keys(WZ.FARM).forEach(function (t) { var f = WZ.FARM[t]; item(f[0], f[3] ? '🌊' : '🟫', f[1], (f[3] ? 'A shallow pool for rice. ' : 'Soil bed: till it with a Hoe, then water it. ') + 'Area ' + f[2] + 'x' + f[2] + '.', { type: 'block', vox: +t, hp: 40, size: [f[2], 1, f[2]], note: f[3] ? 'Rice grows here automatically.' : 'Needs a Hoe before planting.' }); });
+  WZ.CROPS = { wheat_seeds: { crop: 'wheat', time: 120, water: false, y: [2, 3], vis: 'stalk', col: 0xd8b94a }, pumpkin_seeds: { crop: 'pumpkin', time: 180, water: false, y: [1, 1], vis: 'ball', col: 0xd9731a }, watermelon_seeds: { crop: 'watermelon', time: 180, water: false, y: [1, 1], vis: 'ball', col: 0x2f8a3a }, rice_seeds: { crop: 'rice_raw', time: 200, water: true, y: [2, 3], vis: 'stalk', col: 0xe3c24a } };
+  WZ.WATER_BUCKETS = [['ib_contaminated', 'iron_bucket'], ['ib_dirty', 'iron_bucket'], ['ib_slightly', 'iron_bucket'], ['ib_acceptable', 'iron_bucket'], ['ib_purify', 'iron_bucket'], ['wb_contaminated', 'wooden_bucket'], ['wb_dirty', 'wooden_bucket'], ['wb_slightly', 'wooden_bucket'], ['wb_acceptable', 'wooden_bucket'], ['wb_purify', 'wooden_bucket']];
   /* [ICON TAG] XKing Studio logos: only items whose logo clearly matches. ':d' = dirty tint, ':c' = contaminated tint. Others keep their emoji. */
-  (function () { var M = {"stone": "4_0", "diamond": "4_3", "emerald": "4_4", "amethyst": "4_17", "soil": "1_15", "golden_nugget": "4_7", "iron_ingot": "4_9", "titanium_ingot": "4_8", "copper_ingot": "4_10", "golden_ingot": "4_6", "coal": "4_1", "charcoal": "4_2", "feather": "4_13", "rope": "4_12", "gunpowder": "4_14", "red_brick": "4_18", "cactus": "1_9", "potato": "1_2", "dirty_potato": "1_2:d", "contaminated_potato": "1_2:c", "watermelon": "1_4", "dirty_watermelon": "1_4:d", "contaminated_watermelon": "1_4:c", "pumpkin": "1_5", "dirty_pumpkin": "1_5:d", "contaminated_pumpkin": "1_5:c", "fresh_fish": "2_9", "contaminated_fish": "2_9:c", "cooked_fish": "2_10", "iron_bucket": "3_9", "arrow": "3_15", "wood_bow": "3_29", "simple_bomb": "3_21", "wooden_chest": "3_2", "signal_chip": "3_27", "gpu_chip": "4_20", "broken_leather_cloth": "4_15:d", "leaf": "6_16", "clay_ore": "4_18:d"};
-    Object.keys(M).forEach(function (id) { var it = I[id]; if (!it) return; var a = M[id].split(':'), f = a[1] === 'd' ? ' style="filter:sepia(.7) brightness(.75)"' : a[1] === 'c' ? ' style="filter:hue-rotate(70deg) saturate(.9) brightness(.7)"' : ''; it.emoji = it.ic; it.ic = '<img class="ico" src="icons/s' + a[0] + '.png" alt=""' + f + '>'; }); })();
+  (function () { var M = {"diamond": "4_3", "emerald": "4_4", "amethyst": "4_17", "soil": "1_15", "golden_nugget": "4_7", "iron_ingot": "4_8", "titanium_ingot": "4_9", "copper_ingot": "4_10", "golden_ingot": "4_6", "coal": "4_1", "charcoal": "4_2", "feather": "4_13", "rope": "4_12", "gunpowder": "4_14", "red_brick": "4_18", "cactus": "1_9", "potato": "1_2", "dirty_potato": "1_2:d", "contaminated_potato": "1_2:c", "watermelon": "1_4", "dirty_watermelon": "1_4:d", "contaminated_watermelon": "1_4:c", "pumpkin": "1_5", "dirty_pumpkin": "1_5:d", "contaminated_pumpkin": "1_5:c", "fresh_fish": "2_9", "contaminated_fish": "2_9:c", "cooked_fish": "2_10", "iron_bucket": "3_5", "titanium_bucket": "3_9", "revolver": "3_16", "arrow": "3_15", "wood_bow": "3_29", "simple_bomb": "3_21", "signal_chip": "3_27", "gpu_chip": "4_20", "broken_leather_cloth": "4_15:d", "leaf": "6_16", "clay_ore": "4_0", "ib_contaminated": "3_6:c", "ib_dirty": "3_6:d", "ib_slightly": "3_6", "ib_acceptable": "3_6", "ib_purify": "3_6", "ib_lava": "3_12", "ib_honey": "3_7"};
+    Object.keys(M).forEach(function (id) { var it = I[id]; if (!it) return; var a = M[id].split(':'), f = a[1] === 'd' ? ' style="filter:sepia(.7) brightness(.75)"' : a[1] === 'c' ? ' style="filter:hue-rotate(70deg) saturate(.9) brightness(.7)"' : ''; var sp = WZ.spr('s' + a[0], a[1] === 'd' ? 'filter:sepia(.7) brightness(.75)' : a[1] === 'c' ? 'filter:hue-rotate(70deg) saturate(.9) brightness(.7)' : ''); if (!sp) return; it.emoji = it.ic; it.ic = sp; }); })();
   WZ.ITEMS = I;
   FRUITS.concat(VEGS).forEach(function (f) { R.push({ id: 'wash_' + f[0], st: 'sink', out: [f[0], 1], cost: (function () { var o = {}; o['dirty_' + f[0]] = 1; return o; })(), label: 'Wash Dirty ' + f[1] + ' → ' + f[1] }); });
   /* Press Machine is coming soon */
+  [{ id: 'manual_crank_charger', st: 'hand', out: ['manual_crank_charger', 1], cost: { wood_cogwheel: 1, wood_sticks: 4, copper_wire: 6 } },
+    { id: 'computer_workbench', st: 'sawmill', out: ['computer_workbench', 1], cost: { low_end_cpu: 1, low_end_ram: 1, low_end_psu: 1, low_end_motherboard: 1, low_end_gpu: 1, iron_casing: 16, wood_plank: 12 }, puz: { k: 'saw', d: 3 } },
+    { id: 'simple_eng_bench', st: 'tablecraft', out: ['simple_eng_bench', 1], cost: { wood_plank: 12, copper_wire: 8, manual_crank_charger: 1 } },
+    { id: 'eng_bench', st: 'tablecraft', out: ['eng_bench', 1], cost: { simple_eng_bench: 1, electric_power_provider: 1, iron_plate: 6, copper_wire: 20 } },
+    { id: 'water_filter', st: 'liquiders', out: ['water_filter', 1], cost: { iron_pipe: 6, iron_plate: 4, cotton: 6 }, puz: { k: 'crank', n: 5 } },
+    { id: 'distiller', st: 'liquiders', out: ['distiller', 1], cost: { iron_pipe: 8, iron_plate: 6, copper_ingot: 4, coal: 4 }, puz: { k: 'crank', n: 6 } },
+    { id: 'stock_car_suspension', st: 'drive', out: ['stock_car_suspension', 1], cost: { iron_spiral: 16, iron_plate: 4 } },
+    { id: 'rwd_car_drivetrain', st: 'drive', out: ['rwd_car_drivetrain', 1], cost: { iron_plate: 8, iron_ingot: 20, iron_stick: 40, small_iron_cogwheel: 4, large_iron_cogwheel: 2, iron_chain: 4 } },
+    { id: 'drum_brake', st: 'drive', out: ['drum_brake', 1], cost: { drum_brake_casing: 1, fiber_glass: 20 } },
+    { id: 'drum_brake_casing', st: 'drive', out: ['drum_brake_casing', 1], cost: { cast_iron_plate: 12 } },
+    { id: 'scout_ii_car_casing', st: 'vbench', out: ['scout_ii_car_casing', 1], cost: { coated_iron_plate: 50, glass: 10, iron_stick: 20 } },
+    { id: 'filt_c', st: 'wfilter', out: ['ib_dirty', 1], cost: { ib_contaminated: 1, cotton: 1 }, label: 'Filter Contaminated -> Dirty' },
+    { id: 'filt_d', st: 'wfilter', out: ['ib_slightly', 1], cost: { ib_dirty: 1, cotton: 1 }, label: 'Filter Dirty -> Slightly Dirty' },
+    { id: 'dist_s', st: 'distill', out: ['ib_acceptable', 1], cost: { ib_slightly: 1, coal: 1 }, label: 'Distill Slightly Dirty -> Acceptable' },
+    { id: 'dist_a', st: 'distill', out: ['ib_purify', 1], cost: { ib_acceptable: 1, coal: 1 }, label: 'Distill Acceptable -> Purify' }].forEach(function (r) { R.push(r); });
+  [{ id: 'rusty_hoe', st: 'hand', out: ['rusty_hoe', 1], cost: { wood_sticks: 3, gravel: 2 } }, { id: 'crude_hoe', st: 'hand', out: ['crude_hoe', 1], cost: { wood_sticks: 4, gravel: 3 } }, { id: 'copper_hoe', st: 'hand', out: ['copper_hoe', 1], cost: { copper_ingot: 2, wood_sticks: 2 } }, { id: 'iron_hoe', st: 'hand', out: ['iron_hoe', 1], cost: { iron_ingot: 2, wood_sticks: 2 } }, { id: 'golden_hoe', st: 'hand', out: ['golden_hoe', 1], cost: { golden_ingot: 2, wood_sticks: 2 } }, { id: 'titanium_hoe', st: 'anvil', out: ['titanium_hoe', 1], cost: { titanium_ingot: 2, wood_sticks: 2 } }, { id: 'permafrost_hoe', st: 'anvil', out: ['permafrost_hoe', 1], cost: { permafrost_ingot: 2, wood_sticks: 2 } },
+    { id: 'rusty_shovel', st: 'hand', out: ['rusty_shovel', 1], cost: { wood_sticks: 3, gravel: 2 } }, { id: 'crude_shovel', st: 'hand', out: ['crude_shovel', 1], cost: { wood_sticks: 4, gravel: 3 } }, { id: 'copper_shovel', st: 'hand', out: ['copper_shovel', 1], cost: { copper_ingot: 1, wood_sticks: 2 } }, { id: 'iron_shovel', st: 'hand', out: ['iron_shovel', 1], cost: { iron_ingot: 1, wood_sticks: 2 } }, { id: 'golden_shovel', st: 'hand', out: ['golden_shovel', 1], cost: { golden_ingot: 1, wood_sticks: 2 } }, { id: 'titanium_shovel', st: 'anvil', out: ['titanium_shovel', 1], cost: { titanium_ingot: 1, wood_sticks: 2 } }, { id: 'permafrost_shovel', st: 'anvil', out: ['permafrost_shovel', 1], cost: { permafrost_ingot: 1, wood_sticks: 2 } },
+    { id: 'wooden_bucket', st: 'tablecraft', out: ['wooden_bucket', 1], cost: { wood_plank: 4, copper_ingot: 2, copper_stick: 1 } },
+    { id: 'farmland_s', st: 'hand', out: ['farmland_s', 1], cost: { soil: 4, wood_plank: 2 } }, { id: 'farmland_m', st: 'hand', out: ['farmland_m', 1], cost: { soil: 15, wood_plank: 4 } }, { id: 'farmland_l', st: 'hand', out: ['farmland_l', 1], cost: { soil: 60, wood_plank: 8 } },
+    { id: 'swfarm_s', st: 'hand', out: ['swfarm_s', 1], cost: { any_water: 1, gravel: 4 } }, { id: 'swfarm_m', st: 'hand', out: ['swfarm_m', 1], cost: { any_water: 3, gravel: 10 } }, { id: 'swfarm_l', st: 'hand', out: ['swfarm_l', 1], cost: { any_water: 7, gravel: 18 } }].forEach(function (r) { R.push(r); });
+  item('scuba_tank', '🤿', 'Scuba Tank', 'Compressed air on your back. Oxygen lasts 5x longer underwater.', { type: 'acc', note: 'Accessory. Underwater oxygen drains 5x slower.' });
+  R.push({ id: 'scuba_tank', st: 'craft', out: ['scuba_tank', 1], cost: { iron_plate: 4, iron_stick: 2, rope: 2, glass: 1 }, puz: { k: 'img', n: 3 }, tier: 1 });
+  /* [GUN TAG] Gun Bench + Revolver. Every gun is a picture puzzle with 3x the normal shuffle (puz.mult). */
+  item('iron_coil', '🌀', 'Iron Coil', 'A tight coil of iron wire for springs and triggers. Forged at the Iron Anvil.');
+  R.push({ id: 'iron_coil', st: 'anvil', out: ['iron_coil', 2], cost: { iron_ingot: 1 } });
+  R.push({ id: 'gun_bench', st: 'craft', out: ['gun_bench', 1], cost: { wood_plank: 16, iron_stick: 4, iron_ingot: 8, titanium_ingot: 1, copper_plate: 4 }, puz: { k: 'saw', d: 2 } });
+  item('revolver_bullet', '🔸', 'Revolver Bullet', 'Ammo for the Revolver. Made at the Gun Bench.', { note: 'Ammo for the Revolver.' });
+  R.push({ id: 'revolver_bullet', st: 'gunb', out: ['revolver_bullet', 12], cost: { gunpowder: 2, copper_ingot: 1, iron_stick: 1 } });
+  item('revolver', '🔫', 'Revolver', 'A six-shooter. Hold Left Click to fire, press [R] to reload. Needs Revolver Bullets in your bag.', { type: 'tool', tool: 'gun', dmg: 16, dly: 0.6, rng: 36, clip: 6, reload: 1.6, ammo: 'revolver_bullet', tier: 3, note: 'Ammunition Clip 6 · Reload Time 1.6 s · Range 36 m. Crafted at the Gun Bench (picture puzzle at 3x difficulty).' });
+  R.push({ id: 'revolver', st: 'gunb', out: ['revolver', 1], cost: { iron_coil: 4, wood_plank: 4, iron_stick: 6, iron_ingot: 4, copper_ingot: 2 }, puz: { k: 'img', n: 4, mult: 3 }, tier: 2 });
+  /* [COOK TAG] Cooking Pot: heat jobs like a campfire (needs fuel in the bag). Containers (Wooden Bowl) are consumed into the meal. */
+  R.push({ id: 'cooking_pot', st: 'craft', out: ['cooking_pot', 1], cost: { campfire: 1, iron_stick: 2, iron_ingot: 6, coal: 2 }, puz: { k: 'saw', d: 2 } });
+  item('wooden_bowl', '🥣', 'Wooden Bowl', 'A container for soups and rice. Used up when you cook a meal in it.'); R.push({ id: 'wooden_bowl', st: 'hand', out: ['wooden_bowl', 2], cost: { wood_plank: 2 } });
+  item('cooked_rice', '🍚', 'Cooked Rice', 'Rice cooked in a Cooking Pot, served in a Wooden Bowl. Fills you up.', { type: 'food', eat: { t: 5, h: 38, th: -2, energy: 25, comfort: 20 }, note: 'Restores 38 Hunger, 25 Energy.' });
+  R.push({ id: 'cook_rice', st: 'cpot', out: ['cooked_rice', 1], cost: { rice_raw: 3, wooden_bowl: 1 }, heat: 45, pot: true, label: 'Cook Rice (Raw) into Cooked Rice' });
+  item('pumpkin_soup', '🍲', 'Pumpkin Soup', 'Warm soup, served in a Wooden Bowl.', { type: 'food', eat: { t: 5, h: 30, th: 8, energy: 18, comfort: 25 }, note: 'Restores 30 Hunger, 8 Thirst.' });
+  R.push({ id: 'cook_pumpkin_soup', st: 'cpot', out: ['pumpkin_soup', 1], cost: { pumpkin: 2, wooden_bowl: 1 }, heat: 40, pot: true, label: 'Cook Pumpkin Soup' });
+  item('wheat_porridge', '🥣', 'Wheat Porridge', 'Boiled wheat, served in a Wooden Bowl.', { type: 'food', eat: { t: 5, h: 28, th: 0, energy: 16, comfort: 15 }, note: 'Restores 28 Hunger.' });
+  R.push({ id: 'cook_porridge', st: 'cpot', out: ['wheat_porridge', 1], cost: { wheat: 3, wooden_bowl: 1 }, heat: 35, pot: true, label: 'Cook Wheat Porridge' });
+  R.push({ id: 'cook_fish_stew', st: 'cpot', out: ['fish_stew', 1], cost: { fresh_fish: 2, potato: 1, wooden_bowl: 1 }, heat: 40, pot: true, label: 'Cook Fish Stew' });
+  item('fish_stew', '🍲', 'Fish Stew', 'Fish and potato stew, served in a Wooden Bowl.', { type: 'food', eat: { t: 5, h: 42, th: 4, energy: 28, comfort: 25 }, note: 'Restores 42 Hunger, 28 Energy.' });
+  /* Cooking Pot dishes: ingredients go in the 6 slots, a Wooden Bowl in the container slot; the meal appears in the ready slot. time = seconds. */
+  WZ.POT = R.filter(function (r) { return r.pot; }).map(function (r) { var ing = {}; Object.keys(r.cost).forEach(function (k) { if (k !== 'wooden_bowl') ing[k] = r.cost[k]; }); return { id: r.id, ing: ing, cont: 'wooden_bowl', out: r.out, time: Math.round(r.heat / 2), label: r.label }; });
+  (function () { var sp = WZ.spr('s3_16'); if (sp && I.revolver) { I.revolver.emoji = I.revolver.ic; I.revolver.ic = sp; } })();
+  /* [SHAPE TAG] Stairs (3/4 HP), Slabs (1/2 HP) and Layer Slabs (1/4 HP) for every building block: vox 87..125. Materials match the volume. */
+  WZ.SHAPES = [['stair', 'Stair', 0.75, 4, 3], ['slab', 'Slab', 0.5, 2, 1], ['layer', 'Layer Slab', 0.25, 4, 1]];
+  WZ.VARIANT = {}; WZ.SHAPE_BASES = ['wood_block', 'stone_block', 'wood_plank_block', 'smooth_granite_block', 'smooth_andesite_block', 'smooth_diorite_block', 'smooth_calcite_block', 'stone_bricks_block', 'red_bricks_block', 'granite_bricks_block', 'andesite_bricks_block', 'diorite_bricks_block', 'calcite_bricks_block'];
+  WZ.SHAPE_BASES.forEach(function (bid, bi) { var b = WZ.ITEMS[bid]; if (!b) return; var nm = b.name.replace(/ Block$/, ''), wood = /^wood/.test(bid);
+    WZ.SHAPES.forEach(function (sh, si) { var vid = 87 + bi * 3 + si, id = bid.replace(/_block$/, '') + '_' + sh[0], hp = Math.max(1, Math.round(b.hp * sh[2]));
+      WZ.VARIANT[vid] = [b.vox, si, bid, id];
+      item(id, b.ic || '⬜', nm + ' ' + sh[1], nm + ' ' + sh[1] + '. ' + Math.round(sh[2] * 100) + '% of a ' + b.name + ': HP ' + hp + '. ' + (si === 0 ? 'Rises toward the direction you face.' : si === 1 ? 'Half-height block you can step onto.' : 'Quarter-height layer.') + ' Right click to place.', { type: 'block', vox: vid, hp: hp, shape: sh[0], baseItem: bid });
+      var c = {}; c[bid] = sh[4]; R.push({ id: id, st: wood ? 'sawmill' : 'mason', out: [id, sh[3]], cost: c, puz: wood ? { k: 'saw', d: 1 } : undefined, label: 'Cut ' + sh[4] + ' ' + b.name + (sh[4] > 1 ? 's' : '') + ' into ' + nm + ' ' + sh[1] + 's' });
+    }); });
   WZ.RECIPES = R;
   /* Recipe reveal rule: 'all' = shown only when the player has at least 1 of EVERY ingredient (and is at the station). Set to 'any' to show it when at least one ingredient is owned. */
   WZ.REVEAL = 'all';
@@ -616,12 +723,39 @@ window.WZ = window.WZ || {};
   WZ.FUEL = { coal: { t: 15, p: 10 }, wood: { t: 5, p: 4 }, charcoal: { t: 10, p: 10 } };
   /* Bag rules: 24 slots; stacks of 50; tools, armor and accessories do not stack. */
   WZ.BAG_SLOTS = 36;
-  WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (id === 'band_aid_box') return 20; if (id === 'life_fruit' || id === 'aegis_fruit' || id === 'magic_purify_water') return 10; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
+  WZ.maxStack = function (id) { var it = I[id]; if (!it) return 50; if (id === 'band_aid_box') return 20; if (id.indexOf('ib_') === 0) return 5; if (id === 'life_fruit' || id === 'aegis_fruit' || id === 'magic_purify_water') return 10; if (it.type === 'tool' || it.type === 'armor' || it.type === 'acc' || it.pack || it.type === 'block' && it.turret) return 1; return 50; };
   /* Turret blocks: a destroyed turret (by zombies) drops 20% of its crafting materials */
   WZ.TURRET_VOX = { 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon' };
   WZ.LOOT = LOOT;
+  /* [WIKI TAG] Per-mob wiki facts: where it spawns, special skills, rewards. 'No special skills' when none. */
+  WZ.GUIDES = [{ slug: 'scout-ii-assembly', title: 'Assembling the Scout II', md: '1. Place the **Scout II Car Casing** on a large, flat area.\n2. Attach the **gauge** to the dashboard.\n3. Attach the **AMC i4 Car Engine**.\n4. Attach the **gearbox** under the engine.\n5. Install the **coolant**.\n6. Install the **battery**.\n7. Install the **seat** inside the cabin.\n8. Install the **drivetrain** under the vehicle.\n9. Install a **suspension** on each driven wheel.\n10. Install the **brakes** on each wheel.\n11. Install the **wheels and tires**.\n12. Close all doors, the hood and the trunk.\n13. The car is ready to drive!\n\nNote: the parts exist in the game data but cannot be crafted or collected yet.' }, { slug: 'liquids-and-water', title: 'Liquids and water quality', md: 'Scoop liquids with an **Iron Bucket** (hold it and press [E] while looking at the liquid).\n\n- **Contaminated Water** (sea): high Water Poison chance.\n- **Dirty Water** (lakes): 50%.\n- **Slightly Dirty Water** (rivers, or filtered): 20%.\n- **Acceptable Water**: almost safe. Made by the Distillation Machine.\n- **Purify Water**: safe and heals.\n- **Lava** (Undershaft): burns badly.\n- **Acid** (Deeper Underground): Corrosive, 1 HP every 0.2 s for 20 s.\n- **Crude Oil** (Deeper Underground and desert), **Honey** (jungle).\n\nThe Water Filtering Machine turns Contaminated into Dirty and Dirty into Slightly Dirty. The Distillation Machine turns Slightly Dirty into Acceptable and Acceptable into Purify.' }];
+  WZ.MOBINFO = {
+    walker: { spawn: 'Any biome', skills: 'No special skills', reward: '3 kills = 1 coin' },
+    runner: { spawn: 'Any biome', skills: 'No special skills', reward: '2 kills = 1 coin' },
+    big: { spawn: 'Any biome', skills: 'No special skills', reward: '1 kill = 1 coin' },
+    bomber: { spawn: 'Any biome', skills: 'Explodes next to the player (60 damage, area).', reward: '1 kill = 2 coins; 5% Gunpowder' },
+    brute: { spawn: 'Any biome', skills: 'No special skills', reward: '1 kill = 2 coins' },
+    soldier: { spawn: 'Any biome', skills: 'No special skills', reward: '1 kill = 3 coins' },
+    spider: { spawn: 'Any biome', skills: 'No special skills', reward: 'No coins; 33.33% String / 60% Cobweb' },
+    jacket: { spawn: 'Mountain', skills: 'No special skills (a Walker with +1 DEF)', reward: 'Coins like a Walker' },
+    pfwalker: { spawn: 'Mountain', skills: 'Frost attack: ignores armor DEF.', reward: '1 kill = 5 coins; 10% Permafrost Ore' },
+    berserk: { spawn: 'Desert', skills: 'Rush Hour: SPD 3 until its first successful hit, then SPD 1.5. Attack delay 3 s.', reward: '3 coins; 5% Berserker\'s Boots' },
+    mutanoider: { spawn: 'Boss: appears once the world reaches Tier 4', skills: 'Guard mode: tentacles and wings give DEF 10 and it cannot attack while guarding (SPD 0.1). Attack delay 0.4 s.', reward: '60 coins' },
+    hardzombie: { spawn: 'Summoned at the Statue next to the surface Mineshaft (100 coins, 2 h real-time cooldown)', skills: 'Splash attack (8 diameter), attack delay 4 s.', reward: '120 coins' },
+    mutant: { spawn: 'Any biome', skills: 'Tentacle guard: DEF 4 and SPD 0.8 while guarding. Attacks 4 blocks at once (range 2x), attack delay 2x slower.', reward: 'Coins like an uncommon zombie' },
+    tough: { spawn: 'Any biome', skills: 'Growl: radius 10, gives zombies +10% damage for 5 s (cooldown 10 s, a new growl replaces the running buff).', reward: 'Coins like an uncommon zombie' },
+    antlion: { spawn: 'Desert', skills: 'Moves 2x faster when HP is below 20%.', reward: '1 kill = 4 coins' },
+    zcorpion: { spawn: 'Desert', skills: 'Acidic Poison: each hit makes the poison 3x deadlier (stacks up to 3). Reach x1.2.', reward: '1 kill = 6 coins' },
+    programmer: { spawn: 'Any biome', skills: 'Shoots the Keybind Error Virus.', reward: '1 kill = 7 coins; 10% Signal Finder Chip' },
+    miner: { spawn: 'Only inside the Mineshaft / Underground', skills: 'No special skills', reward: 'No coins' },
+    drowned: { spawn: 'Sea (underwater)', skills: 'No special skills', reward: 'No drops' },
+    zfish: { spawn: 'Fishing only (pulled out of the water)', skills: 'Its attack gives Water Poison.', reward: '1 kill = 1 coin' },
+    gigantus: { spawn: 'Boss: spawns once at day 10 (Tier 2 boss)', skills: 'Splash attack. Weakness: attacks 3x slower than normal zombies.', reward: '25 coins' },
+    armored: { spawn: 'Boss: spawns once at day 30 (Tier 3 boss)', skills: 'Heavy armor (DEF 7). Weakness: attacks 4x slower than normal zombies.', reward: '100 coins' },
+    floater: { spawn: 'Sea (surface only)', skills: 'Attacks only on the sea surface (swims with a ring float). Counts as a Walker kill.', reward: 'Counts as Walker kills' }
+  };
   WZ.ZOMBIES = Z;
-  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored', 'mutant', 'tough', 'jacket', 'pfwalker', 'berserk', 'mutanoider', 'hardzombie', 'drowned'];
+  WZ.ZTYPE_LIST = ['walker', 'runner', 'big', 'bomber', 'brute', 'soldier', 'spider', 'programmer', 'miner', 'zfish', 'antlion', 'zcorpion', 'gigantus', 'armored', 'mutant', 'tough', 'jacket', 'pfwalker', 'berserk', 'mutanoider', 'hardzombie', 'drowned', 'floater'];
   /* Loot entries may carry a minimum world tier as the 3rd value. Group tokens ('@dirty_fruit', ...) pick a random member; ctx.village=false hides watermelon/pumpkin. Luck (0..1) rerolls toward rarer items. */
   WZ.getTier = function () { return 5; };
   WZ.luck = function () { return 0; };
@@ -638,8 +772,8 @@ window.WZ = window.WZ || {};
     var id = pickEntry[0]; return id.charAt(0) === '@' ? pickGroup(id, rnd, ctx) : id;
   };
   /* Bush loot (percent). plain: luck-free defaults. */
-  LOOT.bush_plain = { name: 'Bush', rolls: 1, enabled: true, t: [['cotton', 8], ['wood_sticks', 40], ['leaf', 10], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 1], ['clover_leaf', 1]] };
-  LOOT.bush_jungle = { name: 'Jungle Bush', rolls: 1, enabled: true, t: [['cotton', 12], ['wood_sticks', 30], ['leaf', 15], ['#contaminated_berry', 25], ['#clean_berry', 20], ['mysterious_box', 3], ['golden_berry', 2], ['clover_leaf', 1]] };
+  LOOT.bush_plain = { name: 'Bush', rolls: 1, enabled: true, t: [['cotton', 8], ['wood_sticks', 38], ['leaf', 10], ['#contaminated_berry', 21], ['#clean_berry', 17], ['mysterious_box', 3], ['golden_berry', 1], ['clover_leaf', 1], ['wheat_seeds', 3], ['pumpkin_seeds', 2], ['watermelon_seeds', 2], ['rice_seeds', 2]] };
+  LOOT.bush_jungle = { name: 'Jungle Bush', rolls: 1, enabled: true, t: [['cotton', 12], ['wood_sticks', 28], ['leaf', 15], ['#contaminated_berry', 21], ['#clean_berry', 17], ['mysterious_box', 3], ['golden_berry', 2], ['clover_leaf', 1], ['wheat_seeds', 3], ['pumpkin_seeds', 2], ['watermelon_seeds', 2], ['rice_seeds', 3]] };
   WZ.rollBush = function (key, rnd) {
     var r = WZ.rollLoot(key, rnd); if (r === '#contaminated_berry') return ['contaminated_blueberry', 'contaminated_redberry', 'contaminated_sweetberry'][Math.floor(rnd() * 3)];
     if (r === '#clean_berry') return ['blueberry', 'redberry', 'sweetberry'][Math.floor(rnd() * 3)]; return r;
