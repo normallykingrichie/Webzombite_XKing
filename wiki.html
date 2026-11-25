@@ -47,7 +47,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
   'use strict';
   var C = window.WZ_CONFIG || {}, W = window.WZ || {}, $ = function (s, r) { return (r || document).querySelector(s); }, sb = null;
   /* Categories shown on Home. 'new' is the sync list (admin clears it after the game is updated). */
-  var CATS = [['zombie', 'Zombie', '🧟'], ['boss', 'Boss', '👹'], ['material', 'Material', '🪵'], ['tools', 'Tools', '⛏️'], ['weapons', 'Weapons', '⚔️'], ['armor', 'Armor', '🛡️'], ['accessory', 'Accessory', '⌚'], ['block', 'Block', '🧱'], ['food', 'Food & Medical', '🍖'], ['guides', 'Guides', '📖']];
+  var CATS = [['zombie', 'Zombie', '🧟'], ['boss', 'Boss', '👹'], ['material', 'Material', '🪵'], ['tools', 'Tools', '⛏️'], ['weapons', 'Weapons', '⚔️'], ['armor', 'Armor', '🛡️'], ['accessory', 'Accessory', '⌚'], ['block', 'Block', '🧱'], ['vehicle', 'Vehicle Parts', '🚗'], ['food', 'Food & Medical', '🍖'], ['guides', 'Guides', '📖']];
   var CATNAME = {}; CATS.forEach(function (c) { CATNAME[c[0]] = c[1]; }); CATNAME.new = 'NEW'; CATNAME.home = 'Home';
   var LEGACY = { items: 'food', mobs: 'zombie', materials: 'material', accessories: 'accessory' };
   var S = { pages: {}, builtin: {}, me: null, staff: false, admin: false, cat: 'home', f: { sub: '', tier: '', src: '', sort: 'az' } };
@@ -58,12 +58,16 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
   var STN = { tablecraft: 'Furniture Table', liquiders: 'Liquiders Workbench', hand: 'Handmade', sink: 'Sink', furnace: 'Furnace', sawmill: 'Sawmill', mason: 'Mason Workbench', anvil: 'Iron Anvil', cutting: 'Cutting Board (on a Table)', camp: 'Campfire', workbench: 'Workbench' };
   var LBL = { rng: 'RNG (m)', clip: 'Ammunition Clip', reload: 'Reload Time (s)', tier: 'Tier', slot: 'Slot', def: 'Defense', dmg: 'Damage', bd: 'Block damage', cd: 'Attack delay (s)', range: 'Range', reach: 'Reach', dly: 'Delay (s)', hp: 'Durability / HP', size: 'Size (x y z)', chest: 'Storage slots', eat: 'Restores', splash: 'Splash', thorn: 'Thorns', luck: 'Luck', wtype: 'Weapon type', power: 'Power', bdef: 'Block defense', tool: 'Tool kind', type: 'Type', vox: 'Block id' };
   function wcat(it) {
+    if (it.tag === 'bucket' || /^(ib|wb)_/.test(it.id || '') || it.id === 'any_water') return 'material';
+    if (it.tag === 'vehicle') return 'vehicle';
     if (it.type === 'material') return 'material'; if (it.type === 'armor') return 'armor'; if (it.type === 'acc') return 'accessory'; if (it.type === 'block') return 'block';
     if (it.type === 'tool') { if (it.tool === 'axe' || it.tool === 'pick' || it.tool === 'rod') return 'tools'; if (it.tool === 'fist') return 'weapons'; return it.dmg != null || /sword|club|weapon|bow|bomb|dart|hammer|spear/.test(it.tool || '') ? 'weapons' : 'tools'; }
     return 'food';
   }
   function wsub(it, k, cat) {
+    if (/^(ib|wb)_/.test(k) || k === 'any_water') return 'Special-Material';
     var n = (k + ' ' + (it.name || '')).toLowerCase();
+    if (cat === 'vehicle') return /engine|gearbox|coolant|battery/.test(n) ? 'Engine & Gearbox' : /suspension|drivetrain|brake|wheel/.test(n) ? 'Chassis & Wheels' : /seat|tank|gauge/.test(n) ? 'Interior & Tanks' : /casing/.test(n) ? 'Body' : 'Other';
     if (cat === 'block') { if (it.shape) return 'Stairs & Slabs'; if (/chair|table|sofa|couch|lamp|bed\b|bed_|bulb/.test(n)) return 'Furniture'; if (/workbench|bench|anvil|furnace|sawmill|mason|sink|stove|campfire|crafting/.test(n)) return 'Workbench'; if (/chest|crate|barrel|locker|safe/.test(n)) return 'Storage'; if (/turret|cannon|barbed|spike|trap|wire/.test(n)) return 'Defense'; if (/block|brick|plank|wall|door|window|glass|fence|stair|slab|floor|roof/.test(n)) return 'Building'; return 'Utility'; }
     if (cat === 'tools') return it.tool === 'axe' ? 'Axe' : it.tool === 'pick' ? 'Pickaxe' : it.tool === 'rod' ? 'Fishing Rod' : 'Other';
     if (cat === 'weapons') return it.tool === 'sword' ? 'Sword' : /club|weapon|hammer|fist/.test(it.tool || '') ? 'Melee' : /bow|dart/.test(it.tool || '') ? 'Ranged' : it.tool === 'bomb' ? 'Explosive' : 'Other';
@@ -82,6 +86,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     for (k in Z) { var z = Z[k], mi = MI[k] || {}, boss = z.rarity === 'boss';
       S.builtin['mob-' + k] = { cats: [boss ? 'boss' : 'zombie'], slug: 'mob-' + k, title: z.name || k, category: boss ? 'boss' : 'zombie', subcat: z.rarity ? cap(z.rarity) : '', icon: W.spr('z_' + k) || '🧟', mob: k, body_md: z.desc || '', skills: mi.skills || 'No special skills', spawn: mi.spawn || 'Any biome', builtin: true, tierv: z.tier,
         stats: [['HP', z.hp], ['Damage', z.dmg], ['Speed', z.spd], ['Defense', z.def], ['Attack delay (s)', z.cd], ['World tier', 'T' + z.tier], ['Rarity', cap(z.rarity)], ['Reward', mi.reward]].filter(function (a) { return a[1] != null && a[1] !== ''; }) }; }
+    (W.GUIDES || []).forEach(function (g) { S.builtin[g.slug] = { slug: g.slug, title: g.title, category: 'guides', subcat: '', icon: '📖', body_md: g.md || '', stats: [], skills: '', builtin: true }; });
   }
   /* DB page + built-in = one merged entry, so editing a built-in changes that same entry (not a new page). */
   function merged() {
@@ -217,9 +222,11 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     h += '<div class="body">' + body + '</div>';
     var ob = obtainHtml(p); h += '<h3>Obtain through</h3>' + (ob || '<div class="msg muted">Not obtainable yet.</div>');
     if (used.length) h += '<h3>Used to craft</h3><div>' + used.slice(0, 40).map(function (id) { var t = I[id]; return t ? '<a href="#/p/' + id + '" style="margin-right:12px;white-space:nowrap">' + t.ic + ' ' + esc(t.name) + '</a>' : ''; }).join('') + '</div>';
-    if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit' + (p.builtin ? ' (changes this built-in entry)' : '') + '</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : p.edited ? '<button id="rb" class="dng">Reset to game data</button>' : '') + '</div>';
+    if (p.slug === 'iron_bucket' || p.slug === 'wooden_bucket') { var pre = p.slug === 'iron_bucket' ? 'ib_' : 'wb_', all = merged(), tg = Object.keys(all).filter(function (k) { return k.indexOf(pre) === 0; }); if (tg.length) h += '<h3>Special-Material tags</h3><p class="muted">When this bucket is filled it becomes <b>' + esc(p.title) + ' (Liquid)</b>. When it is used up it turns back into the empty bucket.</p><div class="tiles">' + tg.map(function (k) { return tile(all[k]); }).join('') + '</div>'; }
+    if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit' + (p.builtin ? ' (changes this built-in entry)' : '') + '</button><button id="dupb">Duplicate as new draft</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : p.edited ? '<button id="rb" class="dng">Reset to game data</button>' : '') + '</div>';
     $('#view').innerHTML = h + '</div>';
     if ($('#eb')) $('#eb').onclick = function () { editor(p); };
+    if ($('#dupb')) $('#dupb').onclick = function () { editor(null, dupRow(p)); };
     if ($('#db')) $('#db').onclick = function () { if (confirm('Delete this page?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(function () { location.hash = '#/c/home'; route(); }); }); };
     if ($('#rb')) $('#rb').onclick = function () { if (confirm('Remove the admin edits and use the game data again?')) sb.from('wiki_pages').delete().eq('slug', p.slug).then(function (r) { if (r.error) alert(r.error.message); else load().then(route); }); };
   }
@@ -238,10 +245,22 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
   var draftTimer = 0, cloudTimer = 0, curCollect = null;
   function draftKey(slug) { return 'wzw_draft_' + (slug || 'new'); }
   function saveDraftLocal(row) { try { localStorage.setItem(draftKey(row.slug), JSON.stringify({ at: Date.now(), row: row })); } catch (e) {} }
-  function saveDraftCloud(row) { if (!sb || !S.admin || !S.me) return Promise.resolve(); return sb.from('wiki_drafts').upsert({ slug: row.slug || 'new', admin_id: S.me.id, payload: row, updated_at: new Date().toISOString() }, { onConflict: 'slug,admin_id' }).then(function () {}, function () {}); }
-  function flushDraft() { if (curCollect) { var r = curCollect(); if (r && (r.title || r.slug)) { saveDraftLocal(r); saveDraftCloud(r); } } }
-  document.addEventListener('visibilitychange', function () { if (document.hidden) flushDraft(); }); window.addEventListener('pagehide', flushDraft);
+  function saveDraftCloud(row) { if (!sb || !S.admin || !S.me) return Promise.resolve(); return sb.from('wiki_drafts').upsert({ slug: row.slug || 'new', admin_id: S.me.id, payload: row, updated_at: new Date().toISOString() }, { onConflict: 'slug,admin_id' }).then(function () { loadDrafts().then(function () { var b = document.querySelector('#nav [data-c="drafts"] .n'); if (b) b.textContent = (S.drafts || []).length; }); }, function () {}); }
+  function flushDraft() { if (curCollect && !document.getElementById('eT')) curCollect = null; if (curCollect) { var r = curCollect(); if (r && (r.title || r.slug)) { saveDraftLocal(r); saveDraftCloud(r); } } }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) flushDraft(); }); window.addEventListener('pagehide', flushDraft); window.addEventListener('beforeunload', flushDraft); window.addEventListener('blur', flushDraft); window.addEventListener('hashchange', function () { if (curCollect && !/^#\/(edit|new)/.test(location.hash)) { flushDraft(); } });
   function loadDrafts() { if (!sb || !S.admin) { S.drafts = []; return Promise.resolve(); } return sb.from('wiki_drafts').select('*').eq('admin_id', S.me.id).then(function (r) { S.drafts = r.error ? [] : (r.data || []); }); }
+  /* duplicate / template helpers: a copy never inherits NEW, redirect or builtin flags */
+  function dupRow(p) { var r = JSON.parse(JSON.stringify({ title: p.title, category: p.category, cats: p.cats, subcat: p.subcat, icon_url: p.icon_url || (/^</.test(p.icon || '') ? '' : p.icon) || null, body_md: p.body_md, body_html: p.body_html, stats: p.stats, skills: p.skills, spawn: p.spawn, obtain: p.obtain, recipes: p.recipes })); r.title = (p.title || 'Copy') + ' (copy)'; r.slug = slug(r.title); r.redirect_to = null; r.__tpl = true; return r; }
+  var TEMPLATES = {
+    weapon: { title: 'New Weapon', category: 'weapons', subcat: null, stats: [['DMG', ''], ['DLY', ''], ['RNG', ''], ['Ammunition Clip', ''], ['Reload Time', ''], ['Tier', '']], recipes: [{ st: 'gunb', cost: {}, out: 1 }], body_md: 'Describe the weapon here.' },
+    tool: { title: 'New Tool', category: 'tools', stats: [['Durability', ''], ['Power', ''], ['Tier', '']], recipes: [{ st: 'craft', cost: {}, out: 1 }], body_md: 'Describe the tool here.' },
+    armor: { title: 'New Armor', category: 'armor', subcat: 'Head', stats: [['Slot', 'Head'], ['Defense', ''], ['Tier', '']], recipes: [{ st: 'craft', cost: {}, out: 1 }], body_md: 'Describe the armor here.' },
+    block: { title: 'New Block', category: 'block', subcat: 'Building', stats: [['Size', '1x1x1'], ['HP', '']], recipes: [{ st: 'craft', cost: {}, out: 1 }], body_md: 'Describe the block here.' },
+    food: { title: 'New Food', category: 'food', stats: [['Restores', ''], ['Hunger', '']], recipes: [{ st: 'cpot', cost: {}, out: 1 }], body_md: 'Describe the food here.' },
+    material: { title: 'New Material', category: 'material', stats: [['Tier', ''], ['Stack', '']], body_md: 'Describe the material here.' },
+    liquid: { title: 'New Special-Material', category: 'material', subcat: 'Special-Material', stats: [['Type', 'Liquid tag']], body_md: 'Describe the liquid / tag here.' },
+    mob: { title: 'New Zombie', category: 'zombie', stats: [['HP', ''], ['Damage', ''], ['Speed', ''], ['DLY', ''], ['World tier', '']], spawn: '', skills: 'No special skills', body_md: 'Describe the zombie here.' }
+  };
   function editor(p, draftRow) {
     var exists = !!(p && (p.builtin || S.pages[p.slug])), cur = draftRow || p || { slug: '', title: '', category: 'guides', body_md: '' };
     var md = cur.body_md || '', html = cur.body_html || md2html(md), mode = 'wys', icon = cur.icon_url || (/^</.test(cur.icon || '') ? '' : cur.icon) || '', stats = (cur.stats || []).map(function (a) { return [a[0], a[1]]; }), cats = (cur.cats && cur.cats.length ? cur.cats : [normCat(cur.category) || 'guides']).slice();
@@ -298,12 +317,15 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
         stats: stats.filter(function (a) { return String(a[0]).trim(); }), skills: $('#eSk').value.trim() || null, spawn: $('#eSp').value.trim() || null, obtain: $('#eOb').value.trim() || null, recipes: recs.filter(function (r) { return Object.keys(r.cost).length; }) };
     }
     curCollect = collect;
-    function touch() { clearTimeout(draftTimer); draftTimer = setTimeout(function () { var r = collect(); if (r.title || r.slug) { saveDraftLocal(r); $('#drSt') && ($('#drSt').textContent = 'Draft saved ' + new Date().toLocaleTimeString()); } }, 700); clearTimeout(cloudTimer); cloudTimer = setTimeout(flushDraft, 5000); }
-    ['eT', 'eS', 'eC', 'eSub', 'eI', 'eR', 'eOb', 'eSp', 'eSk'].forEach(function (id) { $('#' + id).addEventListener('input', touch); }); wys.addEventListener('input', touch);
+    function touch() { clearTimeout(draftTimer); draftTimer = setTimeout(function () { var r = collect(); if (r.title || r.slug) { saveDraftLocal(r); $('#drSt') && ($('#drSt').textContent = 'Draft saved ' + new Date().toLocaleTimeString()); } }, 700); clearTimeout(cloudTimer); cloudTimer = setTimeout(flushDraft, 1500); }
+    ['input', 'change', 'click', 'keyup'].forEach(function (ev) { $('#view').addEventListener(ev, function (e) { if (curCollect === collect && e.target && e.target.id !== 'eSave' && e.target.id !== 'eCancel') touch(); }); }); /* every field, recipe, stat and category change is auto-saved as a draft */
     /* restore banner */
     var lk = null; try { lk = JSON.parse(localStorage.getItem(draftKey(cur.slug)) || 'null'); } catch (e) {}
+    if (!exists && !draftRow) { var tb = '<div class="msg"><b>Start faster:</b> <select id="tplS"><option value="">Template...</option>' + Object.keys(TEMPLATES).map(function (k) { return '<option value="' + k + '">' + k.charAt(0).toUpperCase() + k.slice(1) + '</option>'; }).join('') + '</select> <input id="tplC" list="tplL" placeholder="...or copy an existing page (type its name)" style="min-width:260px"><datalist id="tplL">' + Object.keys(merged()).map(function (k) { return '<option value="' + esc(merged()[k].title) + '">'; }).join('') + '</datalist></div>'; $('#drBox').innerHTML += tb;
+      $('#tplS').onchange = function () { var t = TEMPLATES[this.value]; if (t) editor(null, JSON.parse(JSON.stringify(Object.assign({ slug: '', __tpl: true }, t)))); };
+      $('#tplC').onchange = function () { var v = this.value.trim().toLowerCase(), a = merged(), k = Object.keys(a).filter(function (x) { return a[x].title.toLowerCase() === v; })[0]; if (k) editor(null, dupRow(a[k])); }; }
     if (lk && !draftRow && lk.row && (lk.row.title || lk.row.slug)) { $('#drBox').innerHTML = '<div class="msg">An unsaved draft from ' + new Date(lk.at).toLocaleString() + ' exists. <button id="drR" class="pri">Restore draft</button> <button id="drD">Discard</button></div>'; $('#drR').onclick = function () { editor(p, lk.row); }; $('#drD').onclick = function () { try { localStorage.removeItem(draftKey(cur.slug)); } catch (e) {} $('#drBox').innerHTML = ''; }; }
-    if (draftRow) $('#drBox').innerHTML = '<div class="msg">Editing a recovered draft. Press Save to publish it.</div>';
+    if (draftRow && !draftRow.__tpl) $('#drBox').innerHTML = '<div class="msg">Editing a recovered draft. Press Save to publish it.</div>';
     $('#eCancel').onclick = function () { flushDraft(); curCollect = null; history.back(); };
     $('#eSave').onclick = function () {
       if (!S.admin) { $('#eMsg').textContent = 'Only an active admin can edit.'; return; }
@@ -339,6 +361,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
   function pollAdmin() { var n = 0, t = setInterval(function () { if (++n > 60) { clearInterval(t); return; } checkStaff().then(function () { if (S.admin) { clearInterval(t); route(); } }); }, 5000); }
   /* ---------- router ---------- */
   function route(keep) {
+    if (keep !== true) $('#q').value = ''; /* navigating (clicking a result or category) always leaves the search box */
     chrome(); var h = location.hash || '#/c/home', m, q = $('#q').value.trim().toLowerCase();
     if (q) { listView(S.cat === 'new' || CATNAME[S.cat] && S.cat !== 'home' && /^#\/c\//.test(h) ? S.cat : 'home', q); return; }
     if ((m = /^#\/p\/([^?]+)(?:\?from=(.*))?$/.exec(h))) { var sl = decodeURIComponent(m[1]); S.cat = (merged()[sl] || {}).category || S.cat; chrome(); pageView(sl, m[2] ? decodeURIComponent(m[2]) : ''); }

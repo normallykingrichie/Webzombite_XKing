@@ -91,7 +91,7 @@
   function GFXD() {
     return {
       preset: 'high', shaderPack: 'cinematic', texPack: 'realism',
-      rd: 14, ed: 10, renderScale: 1.0, aniso: 8, shadowRes: 2048, exposure: 1.05,
+      rd: 14, ed: 10, sd: 70, renderScale: 1.0, aniso: 8, shadowRes: 2048, exposure: 1.05,
       fog: true, shadow: true, smap: true, bloom: true, godray: false, vignette: true,
       water: true, cull: true, dynLeaves: false, extraLeaves: false, fallLeaves: false,
       illum: true, ripples: true, flow: true, skyCloud: true, volCloud: false,
@@ -108,6 +108,7 @@
         if (typeof q.renderScale === 'number') g.renderScale = clamp(q.renderScale, 0.5, 1.5);
         if (typeof q.aniso === 'number') g.aniso = clamp(Math.round(q.aniso), 1, 16);
         if (typeof q.shadowRes === 'number' && [1024, 2048, 3072, 4096].indexOf(q.shadowRes) >= 0) g.shadowRes = q.shadowRes;
+        if (typeof q.sd === 'number') g.sd = clamp(Math.round(q.sd), 24, 160);
         if (typeof q.exposure === 'number') g.exposure = clamp(q.exposure, 0.65, 1.55);
         if (typeof q.preset === 'string') g.preset = q.preset;
         if (typeof q.shaderPack === 'string') g.shaderPack = q.shaderPack;
@@ -220,7 +221,7 @@
   function newPlayerState(slotIdx) {
     inv = { rusty_axe: 1, rusty_pickaxe: 1, plastic_bottled_water: 1 };
     hot = [null, 'rusty_axe', 'rusty_pickaxe', 'plastic_bottled_water', null, null, null, null]; sel = 1;
-    equip = { head: null, chest: null, legs: null, boots: null }; acc = [null, null, null, null]; clearCorpses(); cooking = []; heatQ = []; burn.left = 0; heatGot = 0; manning = null; mg = null; endFish();
+    equip = { head: null, chest: null, legs: null, boots: null }; acc = [null, null, null, null]; clearCorpses(); cooking = []; heatQ = []; burn.left = 0; heatGot = 0; manning = null; if (drive) { drive = null; if (driveEl) driveEl.style.display = 'none'; } mg = null; endFish();
     P.hp = P.hunger = P.thirst = P.energy = P.comfort = 100; status = freshStatus(); kills = 0; dead = false; rest = null;
     $('#dark').style.opacity = 0; placeAtSpawn(slotIdx || 0);
   }
@@ -232,7 +233,7 @@
   function slotsUsed() { var n = 0; Object.keys(inv).forEach(function (id) { if (inv[id] > 0 && ITEMS[id] && !ITEMS[id].pack) n += Math.ceil(inv[id] / WZ.maxStack(id)); }); return n; }
   function dropBag(id, n, name) {
     var near = null; corpses.forEach(function (c) { if (c.name === (name || 'Dropped Items') && Math.hypot(c.x - P.x, c.z - P.z) < 1.5) near = c; });
-    if (near) { near.loot.inv[id] = (near.loot.inv[id] || 0) + n; return; }
+    if (near) { near.loot.inv[id] = (near.loot.inv[id] || 0) + n; bagVisual(near); return; }
     var L = { inv: {}, eq: [], ac: [] }; L.inv[id] = n; addCorpse(P.x, P.z, L, true, name || 'Dropped Items');
   }
   function give(id, n) {
@@ -616,10 +617,10 @@
 
   /* ---------------- Graphics settings ---------------- */
   var PRESETS = {
-    low:    { rd: 8,  ed: 6,  renderScale: 0.75, aniso: 2,  shadowRes: 1024, shadow: true, smap: false, bloom: false, godray: false, vignette: false, water: false, skyCloud: true, volCloud: false, aurora: false, stars: true, discs: true, haze: false, dirty: false, uwDist: false, wet: false, blurFx: false, dynLeaves: false, extraLeaves: false, fallLeaves: false, illum: false, ripples: false, flow: false, grass: true },
-    medium: { rd: 12, ed: 8,  renderScale: 1.0,  aniso: 4,  shadowRes: 2048, shadow: true, smap: true,  bloom: true,  godray: false, vignette: true,  water: true,  skyCloud: true, volCloud: false, aurora: true,  stars: true, discs: true, haze: false, dirty: false, uwDist: true,  wet: true,  blurFx: true,  dynLeaves: false, extraLeaves: false, fallLeaves: false, illum: false, ripples: true,  flow: true, grass: true },
-    high:   { rd: 16, ed: 10, renderScale: 1.0,  aniso: 8,  shadowRes: 2048, shadow: true, smap: true,  bloom: true,  godray: false, vignette: true,  water: true,  skyCloud: true, volCloud: false, aurora: true,  stars: true, discs: true, haze: true,  dirty: false, uwDist: true,  wet: true,  blurFx: true,  dynLeaves: true,  extraLeaves: false, fallLeaves: true,  illum: true,  ripples: true,  flow: true, grass: true },
-    ultra:  { rd: 24, ed: 14, renderScale: 1.2,  aniso: 16, shadowRes: 3072, shadow: true, smap: true,  bloom: true,  godray: true,  vignette: true,  water: true,  skyCloud: true, volCloud: true,  aurora: true,  stars: true, discs: true, haze: true,  dirty: true,  uwDist: true,  wet: true,  blurFx: true,  dynLeaves: true,  extraLeaves: true,  fallLeaves: true,  illum: true,  ripples: true,  flow: true, grass: true }
+    low:    { sd: 36, rd: 8,  ed: 6,  renderScale: 0.75, aniso: 2,  shadowRes: 1024, shadow: true, smap: false, bloom: false, godray: false, vignette: false, water: false, skyCloud: true, volCloud: false, aurora: false, stars: true, discs: true, haze: false, dirty: false, uwDist: false, wet: false, blurFx: false, dynLeaves: false, extraLeaves: false, fallLeaves: false, illum: false, ripples: false, flow: false, grass: true },
+    medium: { sd: 56, rd: 12, ed: 8,  renderScale: 1.0,  aniso: 4,  shadowRes: 2048, shadow: true, smap: true,  bloom: true,  godray: false, vignette: true,  water: true,  skyCloud: true, volCloud: false, aurora: true,  stars: true, discs: true, haze: false, dirty: false, uwDist: true,  wet: true,  blurFx: true,  dynLeaves: false, extraLeaves: false, fallLeaves: false, illum: false, ripples: true,  flow: true, grass: true },
+    high:   { sd: 80, rd: 16, ed: 10, renderScale: 1.0,  aniso: 8,  shadowRes: 2048, shadow: true, smap: true,  bloom: true,  godray: false, vignette: true,  water: true,  skyCloud: true, volCloud: false, aurora: true,  stars: true, discs: true, haze: true,  dirty: false, uwDist: true,  wet: true,  blurFx: true,  dynLeaves: true,  extraLeaves: false, fallLeaves: true,  illum: true,  ripples: true,  flow: true, grass: true },
+    ultra:  { sd: 120, rd: 24, ed: 14, renderScale: 1.2,  aniso: 16, shadowRes: 3072, shadow: true, smap: true,  bloom: true,  godray: true,  vignette: true,  water: true,  skyCloud: true, volCloud: true,  aurora: true,  stars: true, discs: true, haze: true,  dirty: true,  uwDist: true,  wet: true,  blurFx: true,  dynLeaves: true,  extraLeaves: true,  fallLeaves: true,  illum: true,  ripples: true,  flow: true, grass: true }
   };
   function applyPreset(name) {
     var p = PRESETS[name]; if (!p) return;
@@ -655,6 +656,7 @@
       if (W.sun.shadow.map) { W.sun.shadow.map.dispose(); W.sun.shadow.map = null; }
     }
     renderer.shadowMap.enabled = smOn; renderer.shadowMap.autoUpdate = false; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    if (W.setShadowDist) W.setShadowDist(gfx.sd || 70);
     W.shadowsOn = smOn; W.sun.castShadow = smOn; setShadowFlags(smOn); smT = 0;
     chunkT = 0; if (W.updateChunks) W.updateChunks(P.x, P.z, -Math.sin(P.yaw), -Math.cos(P.yaw), gfx.rd, gfx.cull);
   }
@@ -996,6 +998,7 @@
         '<div class="set-grid">' +
           dist('gRd', 'Render Distance', gfx.rd, 'Chunks visible around the survivor (1 chunk = 20 m).') +
           dist('gEd', 'Entity Simulation Distance', gfx.ed, 'Zombies beyond this switch to lightweight simulation records.') +
+          rng('gSd', 'Render Shader Distance', gfx.sd || 70, 24, 160, 4, function (v) { return v + ' m'; }, 'How far around you shadows and shader detail are drawn. Lower = smoother and uses far less GPU memory; shaders beyond it fall back to plain shading.') +
           rng('gScale', 'Internal Render Scale', gfx.renderScale || 1.0, 0.5, 1.5, 0.05, function (v) { return Math.round(v * 100) + '%'; }, 'Adjusts WebGL resolution scaling without blurring HUD text.') +
           rng('gExp', 'Exposure / Tone Mapping', gfx.exposure || 1.05, 0.65, 1.55, 0.05, function (v) { return Number(v).toFixed(2) + ' EV'; }, 'ACES Filmic exposure calibration preserving true base material hues.') +
           '<div class="set-card"><div class="set-row"><span class="set-title">Texture Filtering (Anisotropy)</span><span class="set-val" id="gAnisoVal">' + (gfx.aniso || 8) + 'x</span></div>' +
@@ -1101,6 +1104,7 @@
     }
     bindDist('gRd', 'rd'); bindDist('gEd', 'ed'); labDist();
 
+    if ($('#gSd')) $('#gSd').oninput = function () { gfx.sd = parseInt(this.value, 10); gfx.preset = 'custom'; $('#gSdVal').textContent = gfx.sd + ' m'; saveGfx(); applyGfx(); };
     if ($('#gScale')) $('#gScale').oninput = function () { gfx.renderScale = parseFloat(this.value); gfx.preset = 'custom'; $('#gScaleVal').textContent = Math.round(gfx.renderScale * 100) + '%'; saveGfx(); applyGfx(); };
     if ($('#gExp')) $('#gExp').oninput = function () { gfx.exposure = parseFloat(this.value); $('#gExpVal').textContent = gfx.exposure.toFixed(2) + ' EV'; saveGfx(); applyGfx(); };
     if ($('#gAniso')) $('#gAniso').onchange = function () { gfx.aniso = parseInt(this.value, 10); $('#gAnisoVal').textContent = gfx.aniso + 'x'; gfx.preset = 'custom'; saveGfx(); applyGfx(); };
@@ -1256,10 +1260,10 @@
     var steelDark = vmMat(0x2f333a, { roughness: 0.36, metalness: 0.78 }), steelMid = vmMat(0x565c66, { roughness: 0.32, metalness: 0.82 });
     if (tl === 'axe') {
       B(0.044, 0.46, 0.046, wood, 0, 0.09, 0); B(0.054, 0.13, 0.054, grip, 0, -0.08, 0);
-      B(0.068, 0.085, 0.064, steelDark, -0.02, 0.27, 0);
-      B(0.14, 0.13, 0.042, shade(0.95), 0.065, 0.27, 0);
-      B(0.055, 0.17, 0.028, shade(1.12), 0.145, 0.27, 0);
-      B(0.024, 0.19, 0.014, shade(1.32), 0.18, 0.27, 0);
+      B(0.064, 0.085, 0.068, steelDark, 0, 0.27, 0.02);
+      B(0.042, 0.13, 0.14, shade(0.95), 0, 0.27, -0.065);
+      B(0.028, 0.17, 0.055, shade(1.12), 0, 0.27, -0.145);
+      B(0.014, 0.19, 0.024, shade(1.32), 0, 0.27, -0.18);
     } else if (tl === 'hoe') {
       B(0.045, 0.44, 0.045, wood, 0, 0.1, 0); B(0.06, 0.06, 0.22, shade(1), 0, 0.32, -0.08); B(0.05, 0.13, 0.03, shade(1.18), 0, 0.26, -0.18);
     } else if (tl === 'shovel') {
@@ -1267,7 +1271,7 @@
       B(0.18, 0.19, 0.025, shade(1), 0, 0.36, 0); B(0.12, 0.07, 0.022, shade(1.2), 0, 0.49, 0);
     } else if (tl === 'pick') {
       B(0.048, 0.44, 0.048, wood, 0, 0.1, 0); B(0.07, 0.08, 0.07, steelDark, 0, 0.3, 0);
-      B(0.32, 0.055, 0.055, shade(1), 0, 0.3, 0); B(0.06, 0.11, 0.04, shade(1.18), -0.17, 0.26, 0); B(0.06, 0.11, 0.04, shade(1.18), 0.17, 0.26, 0);
+      B(0.055, 0.055, 0.32, shade(1), 0, 0.3, 0); B(0.04, 0.11, 0.06, shade(1.18), 0, 0.26, -0.17); B(0.04, 0.11, 0.06, shade(1.18), 0, 0.26, 0.17);
     } else if (it.wtype === 'spear') {
       B(0.035, 0.78, 0.035, wood, 0, 0.24, 0); B(0.05, 0.1, 0.05, grip, 0, 0.56, 0);
       B(0.07, 0.22, 0.02, shade(1.15), 0, 0.74, 0); B(0.11, 0.04, 0.04, shade(0.7), 0, 0.61, 0);
@@ -1289,13 +1293,15 @@
     } else if (tl === 'rod') {
       B(0.03, 0.56, 0.03, wood, 0, 0.2, 0); B(0.06, 0.06, 0.06, steelMid, 0, 0.06, 0.04); B(0.016, 0.24, 0.016, vmMat(0xeeeeee), 0.06, 0.5, 0);
     } else if (tl === 'hammer' || id.indexOf('hammer') >= 0) {
-      B(0.05, 0.42, 0.05, wood, 0, 0.1, 0); B(0.23, 0.13, 0.13, shade(1), 0, 0.31, 0);
+      B(0.05, 0.42, 0.05, wood, 0, 0.1, 0); B(0.13, 0.13, 0.23, shade(1), 0, 0.31, 0);
     } else if (tl) {
       B(0.05, 0.42, 0.05, wood, 0, 0.1, 0); B(0.14, 0.14, 0.14, shade(1), 0, 0.3, 0);
     } else if (id.indexOf('bow') >= 0) {
       B(0.03, 0.46, 0.03, shade(1), 0, 0.15, 0); B(0.14, 0.03, 0.03, shade(1), 0.07, 0.38, 0); B(0.14, 0.03, 0.03, shade(1), 0.07, -0.08, 0); B(0.012, 0.46, 0.012, vmMat(0xf4f0e8), 0.13, 0.15, 0);
     } else if (id.indexOf('staff') >= 0) {
       B(0.04, 0.62, 0.04, wood, 0, 0.2, 0); B(0.12, 0.12, 0.12, shade(1.2, 0.2, 0.2), 0, 0.56, 0);
+    } else if (ty === 'block' && it.vox && W.blockMesh && W.blockMesh(it.vox)) {
+      var bm = W.blockMesh(it.vox), bs = W.VSIZE[it.vox] || [1, 1, 1], mx = Math.max(bs[0], bs[1], bs[2]), sc = 0.7 / mx; bm.scale.set(bs[0] * sc, bs[2] * sc, bs[1] * sc); bm.position.set(0, 0.55, 0); if (it.vox >= 87) bm.scale.setScalar(0.6); g.add(bm);
     } else if (ty === 'block') {
       B(0.3, 0.3, 0.3, shade(1), 0, 0.15, 0); B(0.28, 0.04, 0.28, shade(1.18), 0, 0.31, 0);
     } else if (ty === 'armor') {
@@ -1673,13 +1679,60 @@
     coins -= 100; try { localStorage.setItem(HZ, String(Date.now())); } catch (e) { }
     var a = rnd() * 6.28; placeZombie('hardzombie', W.statue.x + Math.cos(a) * 5, W.statue.z + Math.sin(a) * 5); ann('The statue cracks... HARD ZOMBIE has been summoned!'); SFX.play('boom');
   }
+
+  /* ---------------- Driving (all abandoned cars: Scout II SUV, sedans, trucks) ---------------- */
+  var drive = null, driveEl = null;
+  var DRV = { suv: { top: 24, acc: 9, turn: 1.55, seat: [0.42, 0.1], ey: -0.3, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]] }, sedan: { top: 28, acc: 10, turn: 1.7, seat: [0.42, -0.1], ey: -0.4, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]] }, truck: { top: 17, acc: 5.5, turn: 1.1, seat: [0.55, 2.5], ey: 0.75, hit: [[1.3, 3.7], [-1.3, 3.7], [1.3, -3.7], [-1.3, -3.7], [0, 3.8], [0, -3.8], [1.3, 0], [-1.3, 0]] } };
+  function driveSpec(c) { return c.truck ? DRV.truck : c.suv ? DRV.suv : DRV.sedan; }
+  function carAng(c) { return c.ang != null ? c.ang : (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0); }
+  function enterCar(c) {
+    if (mp.role === 'client') { say('Driving is only available for the host / solo play for now.', true); return; }
+    if (!c.alive || drive) return;
+    var a = carAng(c); drive = { c: c, v: 0, st: 0, ang: a, bump: 0 };  c.ang = a; c.box.on = false; endRest && rest && endRest(); P.vx = P.vz = 0; P.vy = 0; manning = null;
+    if (!driveEl) { driveEl = document.createElement('div'); driveEl.style.cssText = 'position:fixed;right:18px;bottom:96px;z-index:30;background:rgba(10,12,16,.72);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;font:600 15px system-ui,sans-serif;text-align:right;pointer-events:none'; document.body.appendChild(driveEl); }
+    driveEl.style.display = 'block'; say('You are driving. W/S accelerate & brake, A/D steer, Space handbrake, [E] leave the car.'); SFX.play('click');
+  }
+  function exitCar(why) {
+    if (!drive) return; var c = drive.c, k = ((Math.round(drive.ang / (Math.PI / 2)) % 4) + 4) % 4;
+    c.ang = undefined; c.horiz = k === 1 || k === 3; c.dir = (k === 0 || k === 1) ? 1 : -1; var sp = driveSpec(c);
+    c.lx = c.truck ? (c.horiz ? 7.6 : 2.7) : (c.horiz ? 4.4 : 1.9); c.lz = c.truck ? (c.horiz ? 2.7 : 7.6) : (c.horiz ? 1.9 : 4.4);
+    var ry = (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry), side = c.truck ? 2.4 : 2.0, found = false, i, s2;
+    for (i = 0; i < 2 && !found; i++) { s2 = i ? -side : side; var ex = c.x + cs * s2, ez = c.z - sn * s2; if (!W.hit(ex - 0.35, ex + 0.35, (c.y || 0) + 0.1, (c.y || 0) + 1.9, ez - 0.35, ez + 0.35) || true) { P.x = ex; P.z = ez; found = true; } }
+    P.y = (c.y || 0) + 0.1; P.vx = P.vz = P.vy = 0; if (W.relocCar) W.relocCar(c); W.setCar(c, true); drive = null; if (driveEl) driveEl.style.display = 'none';
+    if (why) say(why, true); else SFX.play('click');
+  }
+  function driveTick(dt) {
+    var d = drive, c = d.c, sp = driveSpec(c); if (!c.alive) { exitCar(); return; }
+    var up = keys.KeyW ? 1 : 0, dn = keys.KeyS ? 1 : 0;
+    if (up && !dn) { d.v += (d.v < 0 ? 22 : sp.acc * (1 - Math.max(0, d.v) / (sp.top * 1.15))) * dt; }
+    else if (dn && !up) { d.v -= (d.v > 0.4 ? 20 : 7) * dt; }
+    else { var dr = (keys.Space ? 22 : 2.2) * dt; d.v = Math.abs(d.v) <= dr ? 0 : d.v - Math.sign(d.v) * dr; }
+    if (keys.Space && !up && !dn) { var db = 14 * dt; d.v = Math.abs(d.v) <= db ? 0 : d.v - Math.sign(d.v) * db; }
+    d.v = clamp(d.v, -6.5, sp.top);
+    var tgt = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0); d.st += (tgt - d.st) * Math.min(1, 5 * dt);
+    var dA = d.st * sp.turn * clamp(d.v / 5, -1, 1) * dt; d.ang += dA; P.yaw += dA;
+    var sn = Math.sin(d.ang), cs = Math.cos(d.ang), y0 = (c.y || 0), nx = c.x + sn * d.v * dt, nz = c.z + cs * d.v * dt, blocked = false, i, p, qx, qz;
+    if (Math.abs(d.v) > 0.05) {
+      for (i = 0; i < sp.hit.length && !blocked; i++) { p = sp.hit[i]; qx = nx + cs * p[0] + sn * p[1]; qz = nz - sn * p[0] + cs * p[1]; var gq = W.gh ? W.gh(qx, qz) : 0; if (gq - y0 > 0.95 || Math.abs(qx) > W.half - 2 || Math.abs(qz) > W.half - 2 || W.hit(qx - 0.25, qx + 0.25, y0 + 0.6, y0 + 1.3, qz - 0.25, qz + 0.25)) blocked = true; if (!blocked && W.waterAt) { var wa = W.waterAt(qx, qz); if (wa === 'sea' || wa === 'lake') blocked = true; } }
+    }
+    if (blocked) { var imp = Math.abs(d.v); if (imp > 7 && d.bump <= 0) { d.bump = 0.6; c.hp -= Math.floor(imp / 7); SFX.play('block'); say('Crash! Break Points ' + Math.max(0, Math.round(c.hp)) + '/' + c.max, true); if (c.hp <= 0) { exitCar('The car broke down in the crash!'); W.setCar(c, false); return; } } d.v = -d.v * 0.25; if (Math.abs(d.v) < 0.6) d.v = 0; }
+    else { c.x = nx; c.z = nz; }
+    d.bump -= dt; if (W.gh) { var gh = W.gh(c.x, c.z); c.y = (c.y || 0) + (gh - (c.y || 0)) * Math.min(1, 8 * dt); }
+    if (Math.abs(d.v) > 4) for (i = 0; i < zombies.length; i++) { var z = zombies[i]; if (!z || z.dead || z.hp <= 0 || (z.runT > 0 && z.runT > nowT())) continue; var rx = z.x - c.x, rz = z.z - c.z, fl = rx * sn + rz * cs, sd = rx * cs - rz * sn; if (Math.abs(fl) < (c.truck ? 3.8 : 2.4) && Math.abs(sd) < (c.truck ? 1.6 : 1.2) && Math.abs((z.y || 0) - (c.y || 0)) < 2.5) { z.runT = nowT() + 0.6; hitZombie(z, Math.round(Math.abs(d.v) * 2.5), 'car'); z.vx = sn * d.v * 0.3; z.vz = cs * d.v * 0.3; } }
+    W.setCar(c, true);
+    var sx = c.x + cs * sp.seat[0] + sn * sp.seat[1], sz = c.z - sn * sp.seat[0] + cs * sp.seat[1]; P.x = sx; P.z = sz; P.y = (c.y || 0) + sp.ey; P.vx = P.vz = P.vy = 0; P.onGround = true;
+    if (driveEl) driveEl.innerHTML = Math.round(Math.abs(d.v) * 3.6) + ' km/h' + (d.v < -0.3 ? ' · R' : '') + '<br><span style="font-weight:500;font-size:12px;opacity:.8">W/S gas·brake · A/D steer · Space handbrake · E exit</span>';
+  }
+  function nowT() { return performance.now() / 1000; }
   function interact() {
+    if (drive) { exitCar(); return; }
     var cpx = nearCorpse(2.6); if (cpx) { lootCorpse(cpx); return; }
     if (W.statue && !ugOn && Math.hypot(P.x - W.statue.x, P.z - W.statue.z) < 3.6) { useStatue(); return; }
     var bid0 = hot[sel]; if (bid0 === 'wooden_bucket' && count(bid0) > 0) { var wsc = scoopTarget(); if (wsc && WZ.WOOD_WATER[wsc]) { take(bid0, 1); give('wb_' + wsc, 1); say('Filled the Wooden Bucket with ' + WZ.LIQ[wsc][0] + '.'); SFX.play('click'); return; } if (wsc) { say('A Wooden Bucket can only hold water.', true); return; } }
     var bid = hot[sel]; if ((bid === 'iron_bucket' || bid === 'titanium_bucket') && count(bid) > 0) { var sc = scoopTarget(); if (sc) { take(bid, 1); give('ib_' + sc, 1); say('Filled the bucket with ' + WZ.LIQ[sc][0] + '.'); SFX.play('click'); return; } }
     var h = aim(3.6); if (!h || h.kind !== 'ent') return; var e = h.e;
     if (e.k === 'farm') { farmUse(e); return; }
+    if (e.k === 'car') { enterCar(e); return; }
     if (e.k === 'pile' || e.k === 'crate') { SFX.play('loot'); if (mp.role === 'client') { if (e.searched) { say('Already searched.'); return; } Net.send({ t: 'search', k: e.k, idx: e.idx }); } else applySearchEnt(e, 'self'); }
     else if (e.k === 'bed') { rest = { k: 'sleep', clean: !!e.clean }; P.vx = P.vz = 0; $('#dark').style.opacity = 0.75; say(e.clean ? 'Sleeping in a clean bed: time passes 3x faster. Comfort & Energy recover.' : 'Sleeping in a shabby bed: time passes 2x faster. Energy recovers, but Comfort does not.'); }
     else if (e.k === 'sofa') sitOn(e);
@@ -1719,11 +1772,21 @@
     bx(0.2, 0.18, 0.56, pant, 0.13, 0.11, 0.6);
     bx(0.21, 0.18, 0.16, boot, -0.13, 0.11, 0.94);
     bx(0.21, 0.18, 0.16, boot, 0.13, 0.11, 0.94);
-    var gy = (x <= W.half + 50 && W.gh) ? W.gh(x, z) : 0;
+    var gy = (x <= W.half + 50 && W.gh) ? W.gh(x, z) : 0, isBag = name === 'Dropped Items' || name === 'Turret Scraps';
+    if (isBag) { while (g.children.length) g.remove(g.children[0]); }
     g.position.set(x, gy, z); g.rotation.y = rnd() * 6; scene.add(g);
     var c = { id: id || ('c' + Math.random().toString(36).slice(2, 8)), x: x, z: z, g: g, mine: mine, loot: loot, name: name || 'Survivor' };
-    corpses.push(c); return c;
+    corpses.push(c); if (isBag) bagVisual(c); return c;
   }
+  /* Intentionally dropped items lie on the ground as the real items (up to 4 kinds), never as a corpse */
+  function bagVisual(c) {
+    var g = c.g; while (g.children.length) g.remove(g.children[0]);
+    var ids = Object.keys((c.loot && c.loot.inv) || {}).filter(function (id) { return c.loot.inv[id] > 0 && ITEMS[id]; }).slice(0, 4), n = ids.length;
+    ids.forEach(function (id, i) { var it = ITEMS[id], m = vmModel(it, 'one', true), a = n > 1 ? i / n * 6.283 : 0, r = n > 1 ? 0.28 : 0, tool = !!it.tool || it.wtype || /bow|staff/.test(id), big = it.type === 'block';
+      m.scale.multiplyScalar(big ? 0.55 : 0.8); if (tool) { m.rotation.z = Math.PI / 2; m.position.set(Math.cos(a) * r, 0.05, Math.sin(a) * r); m.rotation.y = a; } else m.position.set(Math.cos(a) * r, 0.0, Math.sin(a) * r); g.add(m); });
+    var ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.5, 20), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.55, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02; g.add(ring);
+  }
+  function addCorpseDummy() {}
   function removeCorpse(c) { scene.remove(c.g); var i = corpses.indexOf(c); if (i >= 0) corpses.splice(i, 1); }
   function clearCorpses() { corpses.slice().forEach(removeCorpse); }
   function nearCorpse(r) { for (var i = 0; i < corpses.length; i++) if (Math.hypot(corpses[i].x - P.x, corpses[i].z - P.z) < r) return corpses[i]; return null; }
@@ -2525,10 +2588,12 @@
     if (!W.turrets.length) return;
     for (var i = 0; i < W.turrets.length; i++) {
       var e = W.turrets[i]; if (!e.alive) continue; e.cd = Math.max(0, (e.cd || 0) - dt);
-      if (e.vt !== 15 && e.ammo > 0 && e.cd <= 0) {
+      if (e.vt !== 15) {
         var c = tcfg(e), best = null, bd = c.rng;
         for (var k = 0; k < zombies.length; k++) { var z = zombies[k], d = Math.hypot(z.x - e.x, z.z - e.z); if (d <= bd && Math.abs(z.y - e.y) < 5) { bd = d; best = z; } }
-        if (best) {
+        var aligned = true;
+        if (best) { var want = Math.atan2(best.x - e.x, best.z - e.z), cur = e.yaw || 0, df = Math.atan2(Math.sin(want - cur), Math.cos(want - cur)), stp = Math.min(Math.abs(df), dt * 7) * (df < 0 ? -1 : 1); if (Math.abs(df) > 0.01) W.setTurretYaw(e, cur + stp); aligned = Math.abs(df) < 0.3; }
+        if (best && aligned && e.ammo > 0 && e.cd <= 0) {
           e.ammo--; e.cd = c.dly; addShot(e.x, e.y + 0.9, e.z, best.x, best.y + 1, best.z);
           if (mp.role === 'host') Net.send({ t: 'shot', x1: r2(e.x), y1: r2(e.y + 0.9), z1: r2(e.z), x2: r2(best.x), y2: r2(best.y + 1), z2: r2(best.z), tx: e.vx, ty: e.vy, tz: e.vz, a: e.ammo });
           hitZombie(best, c.dmg, 'turret');
@@ -2540,7 +2605,7 @@
   function manualTick(dt) {
     var e = manning; if (!e) return;
     if (!e.alive || Math.hypot(e.x - P.x, e.z - P.z) > 4) { manning = null; say('You left the cannon.'); return; }
-    var c = tcfg(e); e.cd = Math.max(0, (e.cd || 0) - dt);
+    var c = tcfg(e); e.cd = Math.max(0, (e.cd || 0) - dt); camera.getWorldDirection(DIR); var myaw = Math.atan2(DIR.x, DIR.z); if (Math.abs(Math.atan2(Math.sin(myaw - (e.yaw || 0)), Math.cos(myaw - (e.yaw || 0)))) > 0.02) W.setTurretYaw(e, myaw);
     if (e.ammo < 1) { if (count('cannon_ball') > 0) { e.rl = (e.rl || 0) + dt; setBar('Reloading cannon...', e.rl / c.reload); if (e.rl >= c.reload) { e.rl = 0; take('cannon_ball', 1); e.ammo = 1; say('Manual Cannon loaded.'); } } else { e.rl = 0; setBar('No cannon balls!', 0); } }
     else if (e.cd > 0) setBar('Cannon cooling down', 1 - e.cd / c.dly); else setBar('Cannon READY - Left Click to fire', 1);
     if (lmb && e.ammo >= 1 && e.cd <= 0) {
@@ -2873,7 +2938,7 @@
     W.crates.forEach(function (p) { if (p.searched && T >= p.respawn) { W.setCrate(p, true); if (mp.role === 'host') Net.send({ t: 'ent', k: 'crate', idx: p.idx, searched: false }); } });
   }
   function update(dt, nowMs, clk) {
-    drain(); T += dt * (rest && rest.k === 'sleep' ? (rest.clean ? 3 : 2) : 1); /* sleeping: clean bed = time x3, shabby bed = time x2 */ swingCd -= dt; gunTick(dt); potTick(dt); stepPlayer(dt); stats(dt); if (dead) return;
+    drain(); T += dt * (rest && rest.k === 'sleep' ? (rest.clean ? 3 : 2) : 1); /* sleeping: clean bed = time x3, shabby bed = time x2 */ swingCd -= dt; gunTick(dt); potTick(dt); if (drive && dead) { exitCar(); } if (drive) driveTick(dt); else stepPlayer(dt); stats(dt); if (dead) return;
     if (lmb && !manning) { var it = curItem(); if (it.type === 'tool' && swingCd <= 0) swing(); }
     godTick(dt); seaTick(dt); poolTick(dt); farmTick(dt); hoeTick(dt); tableTick(); lampTick(); ugCd -= dt; if (W.ug) { if (!inUG(P.x)) { if (ugCd <= 0 && Math.hypot(P.x - W.mine.door.x, P.z - W.mine.door.z) < 1.5 && P.y < 1.5) enterUG(); else if (ugCd <= 0 && W.caves) { for (var cvi = 0; cvi < W.caves.length; cvi++) { var cv = W.caves[cvi]; if (Math.hypot(P.x - cv.door.x, P.z - cv.door.z) < 1.6 && Math.abs(P.y - cv.y) < 2.5) { enterUG(cv); break; } } } } else if (ugCd <= 0) { var uli = ugLayer(P.x), UL = W.ugL[uli]; if (Math.hypot(P.x - UL.exit.x, P.z - UL.exit.z) < 1.8) { if (uli === 0) exitUG(); else ugMove(uli - 1, true); } else if (UL.down && Math.hypot(P.x - UL.down.x, P.z - UL.down.z) < 1.8) { if (ugMax >= LAYER_NEED[uli + 1]) ugMove(uli + 1, false); else { ugCd = 3; say('The shaft is blocked by rubble. Only the Mineshaft or Mountain Cave lead deeper.'); } } } trapTick(dt); }
     var nd = clk.hour < 5.5 ? clk.day - 1 : clk.day, bo = clk.night && bloodFlag(nd);
@@ -2884,9 +2949,9 @@
   }
   function hud() {
     renderStats(); drawMini();
-    var h = mode === 'play' ? aim(3.6) : null, txt = '', cross = $('#cross'); cross.className = '';
+    var h = mode === 'play' && !drive ? aim(3.6) : null, txt = '', cross = $('#cross'); cross.className = '';
     var cp = mode === 'play' ? nearCorpse(2.6) : null;
-    if (cp) txt = cp.mine ? '[E] Loot your corpse' : cp.name + '\'s corpse';
+    if (cp) txt = (cp.name === 'Dropped Items' || cp.name === 'Turret Scraps') ? '[E] Pick up ' + cp.name : cp.mine ? '[E] Loot your corpse' : cp.name + '\'s corpse';
     else if (h) {
       if (h.kind === 'zombie') { cross.className = 'on-zombie'; txt = h.z.def.name + '  HP ' + Math.max(0, Math.round(h.z.hp)) + '/' + h.z.mhp + (h.z.def.def ? '  DEF ' + h.z.def.def : ''); }
       else if (h.kind === 'vox') { var c = unkey(h.key), v = W.getVox(c[0], c[1], c[2]); if (v) txt = VNAME[v.t] + '  Durability ' + Math.max(0, Math.round(v.hp)); }
@@ -2916,7 +2981,7 @@
         else if (e.k === 'crate') { var effC = Math.max(1, Math.min(e.tier || 1, worldTier(clockInfo(T).day), 5)); txt = e.searched ? 'Empty crate' : '[E] Open ' + (effC < 2 ? 'wooden' : 'iron') + ' crate (Tier ' + effC + ')'; }
         else if (e.k === 'bed') txt = e.clean ? '[E] Sleep in the clean bed' : '[E] Sleep in the shabby bed';
         else if (e.k === 'couch') txt = e.clean ? '[E] Sit on the clean couch' : 'Dirty couch (does not restore Comfort)';
-        else if (e.k === 'car') txt = e.alive ? (e.truck ? 'Abandoned Truck · Break Points ' : 'Abandoned Car · Break Points ') + Math.max(0, Math.round(e.hp)) + '/' + e.max + (e.truck ? ' · Left Click: Break open the cargo' : ' · Left Click: Break open the trunk') : '';
+        else if (e.k === 'car') txt = e.alive ? (e.truck ? 'Abandoned Truck · Break Points ' : 'Abandoned Car · Break Points ') + Math.max(0, Math.round(e.hp)) + '/' + e.max + ' · [E] Drive · ' + (e.truck ? 'Left Click: Break open the cargo' : 'Left Click: Break open the trunk') : '';
         else if (e.k === 'tree') txt = 'Tree  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'axe' ? '' : '  (needs an axe)');
         else if (e.k === 'rock') txt = (ROCKNAME[e.kind] || (e.ore ? 'Iron Ore' : e.gold ? 'Gold Ore' : e.zinc ? 'Zinc Ore' : e.copper ? 'Copper Ore' : e.coal ? 'Coal' : 'Stone')) + '  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'pick' ? '' : '  (needs a pickaxe)');
       }

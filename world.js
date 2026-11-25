@@ -153,7 +153,7 @@
       m.instanceMatrix.needsUpdate = true; return i;
     }
     W.put = put;
-    var box1 = new THREE.BoxGeometry(1, 1, 1), boxB = new THREE.BoxGeometry(1, 1, 1); boxB.translate(0, 0.5, 0); var boxLow = new THREE.BoxGeometry(1, 0.22, 1); boxLow.translate(0, -0.39, 0);
+    var box1 = new THREE.BoxGeometry(1, 1, 1), boxB = new THREE.BoxGeometry(1, 1, 1); boxB.translate(0, 0.5, 0);
     function setTexCol(t, isSRGB) {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = ANISO;
@@ -171,16 +171,17 @@
     }
     function canvasTex(w, h, draw, noSRGB) {
       var c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-      return setTexCol(new THREE.CanvasTexture(c), !noSRGB);
+      var t = setTexCol(new THREE.CanvasTexture(c), !noSRGB);
+      return t;
     }
-    /* High-res seamless procedural Texture Pack engine (512-1024px, never touches /icons/) */
+    /* Compressed seamless procedural Texture Pack engine (128-256px pooled, never touches /icons/) */
     var TEX_PACKS = {
       realism:    { name: 'Enhanced Realism PBR', sat: 1.0, contrast: 1.08, grime: 0.22, crack: 0.28, bump: 1.0 },
       urban:      { name: 'Clean Modern Urban',   sat: 0.94, contrast: 0.92, grime: 0.06, crack: 0.08, bump: 0.65 },
       stylized:   { name: 'Crisp Stylized',       sat: 1.24, contrast: 1.18, grime: 0.10, crack: 0.12, bump: 0.85 },
       apocalypse: { name: 'Gritty Apocalypse',    sat: 0.78, contrast: 1.24, grime: 0.45, crack: 0.55, bump: 1.35 }
     };
-    var curTexPack = 'realism', packMats = [], sharedBump = null, sharedRough = null;
+    var curTexPack = 'realism', packMats = [], sharedBump = null;
     function getPackSpec() { return TEX_PACKS[curTexPack] || TEX_PACKS.realism; }
     function lam(c, o) {
       var p = { color: c, roughness: 0.86, metalness: 0.04, envMapIntensity: 0.65 };
@@ -220,8 +221,7 @@
         g.putImageData(img, 0, 0);
       }, true);
     }
-    sharedBump = buildMicroNoise(901, 512, 1.5);
-    sharedRough = buildMicroNoise(907, 512, 1.1);
+    sharedBump = buildMicroNoise(901, 128, 1.5);
 
     function paintNoiseOverlay(g, w, h, seed, alpha, count, minS, maxS) {
       var r = mulberry(seed);
@@ -231,42 +231,55 @@
         g.fillRect(r() * w, r() * h, minS + r() * maxS, minS + r() * maxS);
       }
     }
-    function facadeTex(base, seed) {
-      var sp = getPackSpec(), r = mulberry(seed), colBase = tintHex(base, sp.sat, 1.0);
-      return canvasTex(512, 512, function (g, w, h) {
-        g.fillStyle = colBase; g.fillRect(0, 0, w, h);
-        for (var y = 0; y < h; y += 32) {
-          g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(0, y, w, 2);
-          g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(0, y + 2, w, 2);
+    function facadeStyleTex(styleIdx, seed) {
+      var sp = getPackSpec(), r = mulberry(seed);
+      return canvasTex(256, 256, function (g, w, h) {
+        g.fillStyle = '#dad8d4'; g.fillRect(0, 0, w, h);
+        for (var y = 0; y < h; y += 16) {
+          g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, y, w, 1);
+          g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(0, y + 1, w, 1);
         }
-        paintNoiseOverlay(g, w, h, seed + 5, 0.08 + sp.grime * 0.14, 1800, 3, 14);
+        paintNoiseOverlay(g, w, h, seed + 5, 0.08 + sp.grime * 0.14, 700, 2, 7);
         for (var fy = 0; fy < 2; fy++) for (var fx = 0; fx < 2; fx++) {
-          var x = fx * 256 + 48, wy = fy * 256 + 34, k = r();
-          g.fillStyle = '#2c2924'; g.fillRect(x - 6, wy - 6, 160, 196);
-          g.fillStyle = k < 0.16 ? '#5e4531' : k < 0.34 ? '#1d2833' : '#2d4b62';
-          g.fillRect(x, wy, 148, 184);
-          if (k < 0.16) {
-            g.strokeStyle = '#362314'; g.lineWidth = 8;
-            for (var j = 0; j < 4; j++) { g.beginPath(); g.moveTo(x, wy + j * 44 + 16); g.lineTo(x + 148, wy + j * 44 + 34); g.stroke(); }
+          var x = fx * 128 + 24, wy = fy * 128 + 17, k = r();
+          g.fillStyle = '#2c2924'; g.fillRect(x - 3, wy - 3, 80, 98);
+          var boarded = styleIdx === 3 ? k < 0.28 : k < 0.14;
+          var darkWin = k < 0.34;
+          g.fillStyle = boarded ? '#634832' : darkWin ? '#1e2b38' : '#355c78';
+          g.fillRect(x, wy, 74, 92);
+          if (boarded) {
+            g.strokeStyle = '#362314'; g.lineWidth = 4;
+            for (var j = 0; j < 4; j++) { g.beginPath(); g.moveTo(x, wy + j * 22 + 8); g.lineTo(x + 74, wy + j * 22 + 17); g.stroke(); }
           } else {
-            var gr = g.createLinearGradient(x, wy, x + 148, wy + 184);
-            gr.addColorStop(0, 'rgba(185,225,255,0.34)'); gr.addColorStop(0.55, 'rgba(70,120,165,0.14)'); gr.addColorStop(1, 'rgba(25,40,55,0.35)');
-            g.fillStyle = gr; g.fillRect(x + 6, wy + 6, 136, 172);
-            g.fillStyle = '#23262a'; g.fillRect(x + 70, wy, 8, 184); g.fillRect(x, wy + 88, 148, 8);
+            var gr = g.createLinearGradient(x, wy, x + 74, wy + 92);
+            gr.addColorStop(0, 'rgba(185,225,255,0.36)'); gr.addColorStop(0.55, 'rgba(70,120,165,0.14)'); gr.addColorStop(1, 'rgba(25,40,55,0.35)');
+            g.fillStyle = gr; g.fillRect(x + 3, wy + 3, 68, 86);
+            g.fillStyle = '#23262a'; g.fillRect(x + 35, wy, 4, 92); g.fillRect(x, wy + 44, 74, 4);
           }
-          g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(x - 8, wy + 184, 164, 10);
+          g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(x - 4, wy + 92, 82, 5);
         }
       });
     }
-    var FACADE_DEFS = [['#a8a49b', 11], ['#b3a89a', 12], ['#929aa3', 13], ['#ab9687', 14], ['#899399', 15], ['#bdb29f', 16], ['#d8bb85', 21], ['#c9a46a', 22], ['#e4cf9f', 23], ['#dfe6ec', 31], ['#b9c7d6', 32], ['#cfd8e0', 33], ['#7d8f5e', 41], ['#6e7d52', 42], ['#8a7a58', 43]];
+    var FACADE_STYLES = [
+      facadeStyleTex(0, 11),
+      facadeStyleTex(1, 21),
+      facadeStyleTex(2, 31),
+      facadeStyleTex(3, 41)
+    ];
+    var FACADE_DEFS = [['#a8a49b', 0], ['#b3a89a', 0], ['#929aa3', 0], ['#ab9687', 0], ['#899399', 0], ['#bdb29f', 0], ['#d8bb85', 1], ['#c9a46a', 1], ['#e4cf9f', 1], ['#dfe6ec', 2], ['#b9c7d6', 2], ['#cfd8e0', 2], ['#7d8f5e', 3], ['#6e7d52', 3], ['#8a7a58', 3]];
     var FACADE_MATS = FACADE_DEFS.map(function (a) {
-      var m = lam(0xffffff, { map: facadeTex(a[0], a[1]), bumpMap: sharedBump, bumpScale: 0.03, roughnessMap: sharedRough, roughness: 0.84 });
-      packMats.push({ mat: m, gen: function () { return facadeTex(a[0], a[1]); } });
-      return m;
+      return lam(a[0], { map: FACADE_STYLES[a[1]], bumpMap: sharedBump, bumpScale: 0.028, roughness: 0.84 });
+    });
+    FACADE_STYLES.forEach(function (tex, si) {
+      var groupMats = FACADE_MATS.filter(function (_, fi) { return FACADE_DEFS[fi][1] === si; });
+      packMats.push({
+        mats: groupMats,
+        gen: function () { return facadeStyleTex(si, 11 + si * 10); }
+      });
     });
     function groundTexMake(base, c1, c2, seed, rep) {
       var sp = getPackSpec();
-      var t = canvasTex(512, 512, function (g, w, h) {
+      var t = canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed);
         var baseC = new THREE.Color(tintHex(base, sp.sat, 1.0));
         var darkC = new THREE.Color(tintHex(base, sp.sat, 0.72));
@@ -287,10 +300,10 @@
           d[idx + 3] = 255;
         }
         g.putImageData(img, 0, 0);
-        for (var i = 0; i < 6500; i++) {
+        for (var i = 0; i < 2200; i++) {
           g.fillStyle = r() < 0.42 ? c1 : c2;
           g.globalAlpha = 0.25 + r() * 0.32;
-          g.fillRect(r() * w, r() * h, 1 + r() * 1.4, 2 + r() * 4.5);
+          g.fillRect(r() * w, r() * h, 1 + r() * 1.2, 1.5 + r() * 3.0);
         }
         g.globalAlpha = 1;
       });
@@ -298,192 +311,167 @@
     }
     function buildRoadTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#3b3e43', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        paintNoiseOverlay(g, w, h, seed + 17, 0.14 * sp.contrast, 5600, 1, 3);
+        paintNoiseOverlay(g, w, h, seed + 17, 0.14 * sp.contrast, 2200, 1, 2);
         g.fillStyle = 'rgba(20,22,25,' + (0.14 + sp.grime * 0.25) + ')';
-        g.fillRect(68, 0, 56, h); g.fillRect(w - 124, 0, 56, h);
-        g.strokeStyle = 'rgba(12,13,16,' + (0.45 + sp.crack * 0.45) + ')'; g.lineWidth = 2.2;
-        var crCount = Math.round(4 + sp.crack * 14);
+        g.fillRect(34, 0, 28, h); g.fillRect(w - 62, 0, 28, h);
+        g.strokeStyle = 'rgba(12,13,16,' + (0.45 + sp.crack * 0.45) + ')'; g.lineWidth = 1.6;
+        var crCount = Math.round(4 + sp.crack * 12);
         for (var k = 0; k < crCount; k++) {
           g.beginPath(); var sx = r() * w, sy = r() * h; g.moveTo(sx, sy);
-          for (var s = 0; s < 5; s++) { sx += (r() - 0.5) * 60; sy += 24 + r() * 40; g.lineTo(sx, sy); }
+          for (var s = 0; s < 5; s++) { sx += (r() - 0.5) * 30; sy += 12 + r() * 20; g.lineTo(sx, sy); }
           g.stroke();
         }
       });
     }
     var roadTex = buildRoadTex(6);
-    var junTex = buildRoadTex(61);
     var junMaskM = null;
     (function () {
-      var jm = inst(boxB, lam(0xffffff, { map: junTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 1000, false, false);
+      var jm = inst(boxB, lam(0xffffff, { map: roadTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 1000, false, false);
+      jm.userData.noCast = true;
       ROADS.forEach(function (cx) { ROADS.forEach(function (cz) { if (Math.hypot(cx - RBX, cz - RBZ) < 16) return; put(jm, cx, 0.046, cz, RW + 0.04, 0.008, RW + 0.04, 0, null); }); });
-      packMats.push({ mat: jm.material, gen: function () { return buildRoadTex(61); } });
       junMaskM = jm;
     })();
     function buildPlankTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#9c6e3b', sp.sat, 1.0); g.fillRect(0, 0, w, h);
         for (var p = 0; p < 8; p++) {
-          var py = p * 64;
+          var py = p * 32;
           g.fillStyle = tintHex(p % 2 ? '#916332' : '#a47541', sp.sat, 1.0);
-          g.fillRect(0, py + 3, w, 58);
-          g.fillStyle = 'rgba(255,222,178,0.16)'; g.fillRect(0, py + 3, w, 3);
-          for (var i = 0; i < 48; i++) {
+          g.fillRect(0, py + 2, w, 29);
+          g.fillStyle = 'rgba(255,222,178,0.16)'; g.fillRect(0, py + 2, w, 2);
+          for (var i = 0; i < 32; i++) {
             g.fillStyle = 'rgba(52,30,12,' + (0.08 + r() * 0.16 * sp.contrast) + ')';
-            g.fillRect(r() * w, py + 6 + r() * 50, 28 + r() * 110, 1.5 + r() * 2.5);
+            g.fillRect(r() * w, py + 3 + r() * 25, 16 + r() * 58, 1 + r() * 1.6);
           }
-          g.fillStyle = '#3d2610'; g.fillRect(0, py, w, 3); g.fillRect(0, py + 61, w, 3);
+          g.fillStyle = '#3d2610'; g.fillRect(0, py, w, 2); g.fillRect(0, py + 30, w, 2);
         }
         g.fillStyle = '#3d2610';
-        for (var j = 0; j < 8; j++) g.fillRect(((j * 173 + 90) % (w - 16)) + 8, j * 64, 3, 64);
+        for (var j = 0; j < 8; j++) g.fillRect(((j * 89 + 45) % (w - 8)) + 4, j * 32, 2, 32);
       });
     }
     var plankTex = buildPlankTex(7);
     function buildStoneTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#595d64', sp.sat, 1.0); g.fillRect(0, 0, w, h);
         for (var row = 0; row < 8; row++) {
-          var y = row * 64, off = (row % 2) * 64;
+          var y = row * 32, off = (row % 2) * 32;
           for (var col = -1; col < 5; col++) {
-            var x = col * 128 + off, sh = 122 + ((r() * 38) | 0);
+            var x = col * 64 + off, sh = 122 + ((r() * 38) | 0);
             g.fillStyle = 'rgb(' + sh + ',' + (sh + 2) + ',' + (sh + 6) + ')';
-            g.fillRect(x + 3, y + 3, 122, 58);
-            g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(x + 3, y + 3, 122, 4);
-            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 3, y + 57, 122, 4);
+            g.fillRect(x + 2, y + 2, 60, 28);
+            g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(x + 2, y + 2, 60, 2);
+            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 2, y + 28, 60, 2);
           }
         }
-        paintNoiseOverlay(g, w, h, seed + 22, 0.12 * sp.contrast, 1800, 2, 6);
+        paintNoiseOverlay(g, w, h, seed + 22, 0.12 * sp.contrast, 900, 1, 4);
       });
     }
     var stoneTex = buildStoneTex(8);
-    var furnTex = canvasTex(512, 512, function (g, w, h) {
-      g.fillStyle = '#4a4642'; g.fillRect(0, 0, w, h); g.strokeStyle = '#24211e'; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14);
-      paintNoiseOverlay(g, w, h, 311, 0.1, 1400, 2, 7);
-      g.fillStyle = '#24211e'; g.fillRect(108, 204, 296, 236); g.fillStyle = '#ff6a14'; g.fillRect(136, 236, 240, 176); g.fillStyle = '#ffe078'; g.fillRect(184, 290, 144, 96);
-    });
-    var bedTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#855832'; g.fillRect(0, 0, w, h); g.fillStyle = '#ece6d8'; g.fillRect(16, 16, w - 32, 84);
-      g.fillStyle = '#4a7a5c'; g.fillRect(16, 104, w - 32, 136); g.fillStyle = '#6b9e7e'; g.fillRect(28, 116, w - 56, 24);
-      g.strokeStyle = '#4f3219'; g.lineWidth = 8; g.strokeRect(8, 8, w - 16, h - 16);
-    });
-    var couchTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#5a7852'; g.fillRect(0, 0, w, h); g.fillStyle = '#76996c'; g.fillRect(20, 24, w - 40, 104); g.fillRect(20, 136, w - 40, 96);
-      g.strokeStyle = '#3a5234'; g.lineWidth = 8; g.strokeRect(20, 24, w - 40, 104); g.strokeRect(20, 136, w - 40, 96);
-    });
-    var sinkTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#c4cbd1'; g.fillRect(0, 0, w, h); g.strokeStyle = '#6c757d'; g.lineWidth = 8; g.strokeRect(6, 6, w - 12, h - 12);
-      g.fillStyle = '#7c868e'; g.fillRect(36, 44, w - 72, 140); g.fillStyle = '#49a6e8'; g.fillRect(48, 60, w - 96, 108);
-    });
-    var campTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#3b2a1a'; g.fillRect(0, 0, w, h); g.fillStyle = '#6b4a2a'; g.fillRect(16, 156, 224, 36);
-      g.fillStyle = '#ff6a14'; g.beginPath(); g.moveTo(128, 16); g.lineTo(196, 156); g.lineTo(60, 156); g.closePath(); g.fill();
-    });
-    var anvilTex = canvasTex(256, 256, function (g, w, h) { g.fillStyle = '#2f3237'; g.fillRect(0, 0, w, h); paintNoiseOverlay(g, w, h, 312, 0.14, 900, 2, 5); });
-    var compTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#6d5532'; g.fillRect(0, 0, w, h); g.fillStyle = '#14202b'; g.fillRect(32, 28, 192, 116); g.fillStyle = '#3ad0a0'; g.fillRect(48, 44, 160, 84);
-    });
-    var sawTex = canvasTex(256, 256, function (g, w, h) { g.fillStyle = '#a9794a'; g.fillRect(0, 0, w, h); g.fillStyle = '#7a532f'; g.fillRect(0, 176, w, 80); });
-    var tbenchTex = canvasTex(256, 256, function (g, w, h) { g.fillStyle = '#4b5560'; g.fillRect(0, 0, w, h); g.fillStyle = '#d28a2a'; g.fillRect(20, 20, 216, 40); });
-    var planksTex = buildPlankTex(17);
-    function cannonTex(base, accent) {
-      return canvasTex(256, 256, function (g, w, h) {
-        g.fillStyle = base; g.fillRect(0, 0, w, h); g.fillStyle = accent; g.fillRect(0, 200, w, 56);
-        paintNoiseOverlay(g, w, h, 313, 0.12, 700, 2, 5);
-      });
-    }
-    function glyphTex(base, glyph, txt) {
-      return canvasTex(256, 256, function (g, w, h) {
-        g.fillStyle = base; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
-        paintNoiseOverlay(g, w, h, 314, 0.08, 600, 2, 6);
-        g.font = '112px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, w / 2, h / 2 - (txt ? 16 : 0));
-        if (txt) { g.font = 'bold 34px sans-serif'; g.fillStyle = '#fff'; g.fillText(txt, w / 2, h - 32); }
-      });
-    }
-    var glassTex = canvasTex(256, 256, function (g, w, h) {
+    var glassTex = canvasTex(128, 128, function (g, w, h) {
       g.fillStyle = 'rgba(150,205,255,0.22)'; g.fillRect(0, 0, w, h);
-      g.strokeStyle = '#3a86e8'; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14);
-      g.fillStyle = 'rgba(255,255,255,0.42)'; g.beginPath(); g.moveTo(28, 28); g.lineTo(100, 28); g.lineTo(28, 120); g.closePath(); g.fill();
+      g.strokeStyle = '#3a86e8'; g.lineWidth = 7; g.strokeRect(4, 4, w - 8, h - 8);
+      g.fillStyle = 'rgba(255,255,255,0.42)'; g.beginPath(); g.moveTo(14, 14); g.lineTo(50, 14); g.lineTo(14, 60); g.closePath(); g.fill();
     });
-    var cactBlockTex = canvasTex(256, 256, function (g, w, h) {
+    var cactBlockTex = canvasTex(128, 128, function (g, w, h) {
       var r = mulberry(77); g.fillStyle = '#4f9a46'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#2f6a2c'; for (var x = 12; x < w; x += 32) g.fillRect(x, 0, 8, h);
-      g.fillStyle = '#f2f2c0'; for (var i = 0; i < 160; i++) g.fillRect(r() * w, r() * h, 4, 4);
+      g.fillStyle = '#2f6a2c'; for (var x = 6; x < w; x += 16) g.fillRect(x, 0, 4, h);
+      g.fillStyle = '#f2f2c0'; for (var i = 0; i < 80; i++) g.fillRect(r() * w, r() * h, 2, 2);
     });
     function buildHouseWallTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         g.fillStyle = tintHex('#efeae0', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        for (var y = 0; y < h; y += 32) {
-          g.fillStyle = 'rgba(0,0,0,0.08)'; g.fillRect(0, y, w, 3);
-          g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, y + 3, w, 3);
+        for (var y = 0; y < h; y += 16) {
+          g.fillStyle = 'rgba(0,0,0,0.08)'; g.fillRect(0, y, w, 2);
+          g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, y + 2, w, 2);
         }
-        paintNoiseOverlay(g, w, h, seed, 0.08 + sp.grime * 0.1, 2000, 2, 10);
+        paintNoiseOverlay(g, w, h, seed, 0.08 + sp.grime * 0.1, 900, 1, 5);
       });
     }
     var houseWallTex = buildHouseWallTex(9);
-    var winTex = canvasTex(256, 256, function (g, w, h) {
-      g.fillStyle = '#ded7c9'; g.fillRect(0, 0, w, h); g.clearRect(24, 24, w - 48, h - 48);
-      g.fillStyle = 'rgba(145,205,245,0.34)'; g.fillRect(24, 24, w - 48, h - 48);
-      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.moveTo(32, 32); g.lineTo(100, 32); g.lineTo(32, 128); g.closePath(); g.fill();
-      g.fillStyle = '#ded7c9'; g.fillRect(w / 2 - 6, 18, 12, h - 36); g.fillRect(18, h / 2 - 6, w - 36, 12);
+    var winTex = canvasTex(128, 128, function (g, w, h) {
+      g.fillStyle = '#ded7c9'; g.fillRect(0, 0, w, h); g.clearRect(12, 12, w - 24, h - 24);
+      g.fillStyle = 'rgba(145,205,245,0.34)'; g.fillRect(12, 12, w - 24, h - 24);
+      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.moveTo(16, 16); g.lineTo(50, 16); g.lineTo(16, 64); g.closePath(); g.fill();
+      g.fillStyle = '#ded7c9'; g.fillRect(w / 2 - 3, 9, 6, h - 18); g.fillRect(9, h / 2 - 3, w - 18, 6);
     });
     function buildBarkTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#694b2f', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        for (var i = 0; i < 620; i++) {
+        for (var i = 0; i < 320; i++) {
           g.fillStyle = r() < 0.52 ? 'rgba(24,14,6,0.44)' : 'rgba(165,126,82,0.28)';
-          g.fillRect(r() * w, r() * h, 3 + r() * 7, 24 + r() * 92);
+          g.fillRect(r() * w, r() * h, 2 + r() * 4, 12 + r() * 48);
         }
       });
     }
     var barkTex = buildBarkTex(10);
     function buildLeafTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#b8c3af', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        for (var i = 0; i < 1600; i++) {
+        for (var i = 0; i < 650; i++) {
           g.fillStyle = r() < 0.45 ? 'rgba(26,52,22,0.36)' : 'rgba(225,244,205,0.3)';
-          g.beginPath(); g.ellipse(r() * w, r() * h, 4 + r() * 9, 7 + r() * 14, r() * 3.14, 0, 6.283); g.fill();
+          g.beginPath(); g.ellipse(r() * w, r() * h, 2 + r() * 5, 4 + r() * 7, r() * 3.14, 0, 6.283); g.fill();
         }
       });
     }
     var leafTex = buildLeafTex(12);
     function buildRockTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         g.fillStyle = tintHex('#b4b9c0', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        paintNoiseOverlay(g, w, h, seed, 0.16 * sp.contrast, 2600, 2, 12);
+        paintNoiseOverlay(g, w, h, seed, 0.16 * sp.contrast, 1100, 1, 6);
       });
     }
     var rockTex = buildRockTex(13);
     function buildCrateTex(seed) {
       var sp = getPackSpec();
-      return canvasTex(512, 512, function (g, w, h) {
+      return canvasTex(256, 256, function (g, w, h) {
         var r = mulberry(seed); g.fillStyle = tintHex('#b58852', sp.sat, 1.0); g.fillRect(0, 0, w, h);
-        for (var y = 0; y < h; y += 64) { g.fillStyle = 'rgba(55,34,14,0.32)'; g.fillRect(0, y, w, 6); }
-        for (var i = 0; i < 120; i++) { g.fillStyle = 'rgba(65,38,16,0.16)'; g.fillRect(r() * w, r() * h, 24 + r() * 80, 2); }
-        g.strokeStyle = '#472f16'; g.lineWidth = 26; g.strokeRect(13, 13, w - 26, h - 26);
-        g.beginPath(); g.moveTo(22, 22); g.lineTo(w - 22, h - 22); g.stroke();
+        for (var y = 0; y < h; y += 32) { g.fillStyle = 'rgba(55,34,14,0.32)'; g.fillRect(0, y, w, 3); }
+        for (var i = 0; i < 80; i++) { g.fillStyle = 'rgba(65,38,16,0.16)'; g.fillRect(r() * w, r() * h, 14 + r() * 44, 1.5); }
+        g.strokeStyle = '#472f16'; g.lineWidth = 14; g.strokeRect(7, 7, w - 14, h - 14);
+        g.beginPath(); g.moveTo(12, 12); g.lineTo(w - 12, h - 12); g.stroke();
       });
     }
     var crateTex = buildCrateTex(14);
     W.TEXTURE_PACKS = Object.keys(TEX_PACKS).map(function (id) { return { id: id, name: TEX_PACKS[id].name }; });
+    function applyAnisoTex(t) {
+      if (!t) return;
+      if (t.anisotropy !== ANISO) { t.anisotropy = ANISO; t.needsUpdate = true; }
+    }
+    W.setAnisotropy = function (newAniso) {
+      if (newAniso == null) return;
+      ANISO = Math.max(1, Math.min(maxAniso || 16, newAniso));
+      applyAnisoTex(sharedBump);
+      packMats.forEach(function (entry) {
+        if (!entry) return;
+        var list = entry.mats || (entry.mat ? [entry.mat] : []);
+        list.forEach(function (m) { if (m && m.map) applyAnisoTex(m.map); });
+      });
+    };
     W.setTexturePack = function (packId, newAniso) {
       if (packId && TEX_PACKS[packId]) curTexPack = packId;
       if (newAniso != null) ANISO = Math.max(1, Math.min(maxAniso || 16, newAniso));
       var sp = getPackSpec();
       packMats.forEach(function (entry) {
-        if (!entry || !entry.mat) return;
+        if (!entry) return;
+        var list = entry.mats || (entry.mat ? [entry.mat] : []);
+        if (!list.length) return;
         var nt = entry.gen();
         if (entry.rep) nt.repeat.set(entry.rep[0], entry.rep[1]);
-        if (entry.mat.map && entry.mat.map.dispose) entry.mat.map.dispose();
-        entry.mat.map = nt;
-        if (entry.mat.bumpScale != null) entry.mat.bumpScale = 0.03 * sp.bump;
-        entry.mat.needsUpdate = true;
+        var oldMap = list[0].map;
+        list.forEach(function (m) {
+          m.map = nt;
+          if (m.bumpScale != null) m.bumpScale = 0.03 * sp.bump;
+          m.needsUpdate = true;
+        });
+        if (oldMap && oldMap !== nt && oldMap.dispose) oldMap.dispose();
       });
     };
 
@@ -550,8 +538,7 @@
         }
       });
       var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-      var rt = roadTex.clone(); rt.needsUpdate = true; rt.wrapS = rt.wrapT = THREE.RepeatWrapping;
-      var mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: rt, side: THREE.DoubleSide })); mesh.frustumCulled = false; scene.add(mesh); W.mtRoadMesh = mesh;
+      var mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: roadTex, side: THREE.DoubleSide })); mesh.frustumCulled = false; scene.add(mesh); W.mtRoadMesh = mesh;
       W.mtPeaks = peaks; W.onMtRoad = function (x, z) { return !!keys[mk(x, z)]; };
     })();
     (function () {
@@ -584,10 +571,11 @@
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere();
       var roadMat = lam(0xffffff, { map: roadTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.88, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-      packMats.push({ mat: roadMat, gen: function () { return buildRoadTex(6); } });
+      packMats.push({ mats: [roadMat, junMaskM.material, W.mtRoadMesh.material], gen: function () { return buildRoadTex(6); } });
       scene.add(new THREE.Mesh(g, roadMat));
     })();
     var dashes = inst(boxB, lam(0xe8c448, { roughness: 0.65, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 18500, false, false);
+    dashes.userData.noCast = true;
     var RBX = -32, RBZ = 32; /* spawn roundabout (replaces the crossroad) */
     function nearRoad(t) { for (var q = 0; q < ROADS.length; q++) if (Math.abs(t - ROADS[q]) < RW / 2 + 1.6) return true; return false; }
     ROADS.forEach(function (c) { for (var t = -HALF - 5; t < HALF + 5; t += 7) { if (Math.hypot(c - RBX, t - RBZ) > 15 && !nearRoad(t)) put(dashes, c, 0.056, t, 0.18, 0.012, 3.2, 0, null); if (Math.hypot(t - RBX, c - RBZ) > 15 && !nearRoad(t)) put(dashes, t, 0.058, c, 3.2, 0.012, 0.18, 0, null); } });
@@ -624,10 +612,11 @@
     var wallMat = lam(0xffffff, { map: houseWallTex, bumpMap: sharedBump, bumpScale: 0.028, roughness: 0.86 });
     packMats.push({ mat: wallMat, gen: function () { return buildHouseWallTex(9); } });
     var walls = inst(box1, wallMat, 130000, false, true), winM = inst(box1, (W.winMat = lam(0xffffff, { map: winTex, transparent: true, depthWrite: false, roughness: 0.14, metalness: 0.25 })), 20000, false, false), roofCols = [0x5c5751, 0x69625a, 0x51575e];
+    winM.userData.noCast = true;
     rbBuild();
     var CH = 20; W.CH = CH; W.chunks = new Map();
     W.chunkOf = function (x, y, z) { return [Math.floor(x / CH), Math.floor(y / CH), Math.floor(z / CH)]; };
-    function chunkAt(cx, cz) { var k = ck(cx, cz), c = W.chunks.get(k); if (!c) { c = { cx: cx, cz: cz, g: new THREE.Group(), vis: true }; c.g.userData.c = c; scene.add(c.g); W.chunks.set(k, c); } return c; }
+    function chunkAt(cx, cz) { var k = ck(cx, cz), c = W.chunks.get(k); if (!c) { c = { cx: cx, cz: cz, g: new THREE.Group(), vis: true, shVis: null }; c.g.userData.c = c; scene.add(c.g); W.chunks.set(k, c); } return c; }
     var fbMap = new Map(), rbMap = new Map();
     function getFB(fi, x, z) { var k = fi + ':' + ck(Math.floor(x / CH), Math.floor(z / CH)), b = fbMap.get(k); if (!b) { b = { fi: fi, cx: Math.floor(x / CH), cz: Math.floor(z / CH), pos: [], norm: [], uv: [], idx: [] }; fbMap.set(k, b); } return b; }
     var roofBucket = { pos: [], norm: [], col: [], idx: [] };
@@ -1074,27 +1063,30 @@
       return g;
     })();
     var whRimG = mergeGeos([
-      cyl(0.22, 0.27, 0, 0.35, 0, 0xb8bec6, 12),
-      cyl(0.09, 0.29, 0, 0.35, 0, 0x6c737d, 10)
+      cyl(0.22, 0.27, 0, 0.35, 0, 0x868c95, 12),
+      cyl(0.15, 0.285, 0, 0.35, 0, 0x7d838c, 8),
+      cyl(0.07, 0.3, 0, 0.35, 0, 0x4a4f57, 8)
     ]);
+    /* side-profile prism: pts = [[z,y],...] extruded across X (width w, centred at x) */
+    function prism(pts, w, x, c) {
+      var sh = new THREE.Shape(); pts.forEach(function (p, i) { if (i) sh.lineTo(p[0], p[1]); else sh.moveTo(p[0], p[1]); });
+      var g = new THREE.ExtrudeGeometry(sh, { depth: w, bevelEnabled: false }); g.rotateY(-Math.PI / 2); g.translate(x + w / 2, 0, 0); g.computeVertexNormals(); return [g, c];
+    }
+    function strut(z1, y1, z2, y2, t, w, x, c) { var dz = z2 - z1, dy = y2 - y1, L = Math.sqrt(dz * dz + dy * dy), nz = -dy / L * t / 2, ny = dz / L * t / 2; return prism([[z1 + nz, y1 + ny], [z2 + nz, y2 + ny], [z2 - nz, y2 - ny], [z1 - nz, y1 - ny]], w, x, c); }
     var whFullG = mergeGeos([
       [wheelTireG, 0x1a1c1f],
       [whRimG, 0xffffff]
     ]);
-    var carWh = inst(whFullG, lam(0xffffff, { vertexColors: true, roughness: 0.65, metalness: 0.25 }), 6400, true, false);
+    var carWh = inst(whFullG, lam(0xffffff, { vertexColors: true, roughness: 0.65, metalness: 0.25 }), 9000, true, false);
 
     /* Sedan (+Z forward, bottom y=0, 1.9 x 4.4 footprint) */
     var SEDAN_BODY = [
       bx(1.86, 0.56, 4.32, 0, 0.52, 0, 0xffffff),
       bx(1.74, 0.14, 1.48, 0, 0.85, 1.24, 0xffffff),
-      bx(1.74, 0.14, 0.94, 0, 0.85, -1.58, 0xffffff),
-      bx(1.52, 0.08, 1.62, 0, 1.54, -0.18, 0xffffff),
-      bx(0.09, 0.58, 0.12, -0.76, 1.22, 0.56, 0xffffff), bx(0.09, 0.58, 0.12, 0.76, 1.22, 0.56, 0xffffff),
-      bx(0.09, 0.58, 0.12, -0.76, 1.22, -0.22, 0xffffff), bx(0.09, 0.58, 0.12, 0.76, 1.22, -0.22, 0xffffff),
-      bx(0.09, 0.58, 0.14, -0.76, 1.22, -0.96, 0xffffff), bx(0.09, 0.58, 0.14, 0.76, 1.22, -0.96, 0xffffff)
+      bx(1.74, 0.14, 0.94, 0, 0.85, -1.58, 0xffffff)
     ];
     var SEDAN_DET = [
-      bx(1.50, 0.54, 1.54, 0, 1.20, -0.18, 0x263e52),
+      prism([[-1.18, 0.9], [-0.62, 1.52], [0.34, 1.52], [1.02, 0.9]], 1.5, 0, 0x263e52),
       bx(1.94, 0.16, 0.22, 0, 0.28, 2.15, 0x2a2d32), bx(1.94, 0.16, 0.22, 0, 0.28, -2.15, 0x2a2d32),
       bx(1.88, 0.08, 2.40, 0, 0.22, 0, 0x191b1e),
       bx(0.92, 0.22, 0.06, 0, 0.54, 2.17, 0x141619),
@@ -1106,17 +1098,27 @@
       bx(0.06, 0.32, 0.84, -0.94, 0.36, 1.38, 0x141619), bx(0.06, 0.32, 0.84, 0.94, 0.36, 1.38, 0x141619),
       bx(0.06, 0.32, 0.84, -0.94, 0.36, -1.38, 0x141619), bx(0.06, 0.32, 0.84, 0.94, 0.36, -1.38, 0x141619)
     ];
+    (function () { var P = [[-1.18, 0.9], [-0.62, 1.52], [0.34, 1.52], [1.02, 0.9]];
+      SEDAN_BODY.push(prism([[-0.66, 1.46], [-0.62, 1.52], [0.34, 1.52], [0.38, 1.46]], 1.62, 0, 0xffffff));
+      [-0.76, 0.76].forEach(function (X) { SEDAN_BODY.push(strut(P[0][0], P[0][1], P[1][0], P[1][1], 0.1, 0.1, X - 0.05, 0xffffff), strut(P[2][0], P[2][1], P[3][0], P[3][1], 0.1, 0.1, X - 0.05, 0xffffff), strut(-0.12, 0.9, -0.12, 1.5, 0.1, 0.1, X - 0.05, 0xffffff)); });
+      SEDAN_BODY.push(prism([[-1.3, 0.88], [-1.18, 0.9], [-0.7, 1.46], [-0.6, 1.46], [-1.1, 0.88]], 1.62, 0, 0xffffff)); })();
     for (var sgi = 0; sgi < 5; sgi++) SEDAN_DET.push(bx(0.84, 0.025, 0.03, 0, 0.46 + sgi * 0.04, 2.19, 0x9aa2ab));
     var sedanBody = inst(mergeGeos(SEDAN_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.34, metalness: 0.35 }), 1300, true, true);
     var sedanDet  = inst(mergeGeos(SEDAN_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.42, metalness: 0.28 }), 1300, true, false);
 
     /* Scout II SUV (+Z forward, bottom y=0, 1.9 x 4.4 footprint) */
-    var SUV_BODY = [bx(1.85, 0.68, 4.2, 0, 0.56, 0, 0xffffff), bx(1.8, 0.12, 1.35, 0, 0.98, 1.4, 0xffffff), bx(1.82, 0.1, 2.5, 0, 1.64, -0.75, 0xffffff), bx(1.9, 0.08, 0.9, 0, 0.93, 1.42, 0xffffff)], SUV_DET = [];
-    [[-0.86, 0.45], [0.86, 0.45], [-0.86, -1.95], [0.86, -1.95], [-0.86, -0.75], [0.86, -0.75]].forEach(function (p) { SUV_BODY.push(bx(0.1, 0.72, 0.1, p[0], 1.26, p[1], 0xffffff)); });
-    SUV_DET.push(bx(1.74, 0.62, 2.4, 0, 1.27, -0.75, 0x38525e), bx(1.0, 0.34, 0.06, 0, 0.7, 2.12, 0x1a1b1e), bx(0.34, 0.3, 0.06, -0.78, 0.74, 2.12, 0xf4ead0), bx(0.34, 0.3, 0.06, 0.78, 0.74, 2.12, 0xf4ead0), bx(0.16, 0.1, 0.06, -0.78, 0.5, 2.13, 0xe8892a), bx(0.16, 0.1, 0.06, 0.78, 0.5, 2.13, 0xe8892a),
+    var SUV_BODY = [bx(1.85, 0.68, 4.2, 0, 0.56, 0, 0xffffff), bx(1.8, 0.12, 1.35, 0, 0.98, 1.4, 0xffffff), bx(1.9, 0.08, 0.9, 0, 0.93, 1.42, 0xffffff)], SUV_DET = [];
+    /* right-trapezoid cabin: vertical rear (right angle at the rear), roof flat, windshield slopes down toward the hood */
+    (function () { var T = [[-1.95, 0.92], [-1.95, 1.72], [-0.1, 1.72], [0.78, 0.92]];
+      SUV_BODY.push(prism([[-1.95, 1.66], [-1.95, 1.74], [-0.08, 1.74], [-0.04, 1.66]], 1.86, 0, 0xffffff));
+      [-0.9, 0.9].forEach(function (X) { SUV_BODY.push(strut(T[1][0] + 0.05, T[1][1], T[1][0] + 0.05, T[0][1], 0.1, 0.1, X - 0.05, 0xffffff), strut(T[2][0], T[2][1], T[3][0], T[3][1], 0.11, 0.1, X - 0.05, 0xffffff), strut(-0.9, 0.92, -0.9, 1.72, 0.1, 0.1, X - 0.05, 0xffffff)); }); })();
+    SUV_DET.push(prism([[-1.93, 0.92], [-1.93, 1.7], [-0.1, 1.7], [0.74, 0.92]], 1.76, 0, 0x38525e), bx(1.0, 0.34, 0.06, 0, 0.7, 2.12, 0x1a1b1e), bx(0.34, 0.3, 0.06, -0.78, 0.74, 2.12, 0xf4ead0), bx(0.34, 0.3, 0.06, 0.78, 0.74, 2.12, 0xf4ead0), bx(0.16, 0.1, 0.06, -0.78, 0.5, 2.13, 0xe8892a), bx(0.16, 0.1, 0.06, 0.78, 0.5, 2.13, 0xe8892a),
       bx(1.95, 0.18, 0.22, 0, 0.32, 2.14, 0x8a8d92), bx(1.95, 0.18, 0.22, 0, 0.32, -2.14, 0x8a8d92), bx(0.42, 0.2, 0.04, 0, 0.32, 2.26, 0xe9e6d6), bx(0.2, 0.3, 0.05, -0.78, 0.8, -2.12, 0xc41a1a), bx(0.2, 0.3, 0.05, 0.78, 0.8, -2.12, 0xc41a1a),
       bx(0.1, 0.16, 0.22, -1.0, 1.22, 0.5, 0x222226), bx(0.1, 0.16, 0.22, 1.0, 1.22, 0.5, 0x222226), bx(0.04, 0.04, 2.3, -0.7, 1.72, -0.75, 0x2a2a2e), bx(0.04, 0.04, 2.3, 0.7, 1.72, -0.75, 0x2a2a2e), bx(1.45, 0.04, 0.04, 0, 1.72, -1.6, 0x2a2a2e), bx(1.45, 0.04, 0.04, 0, 1.72, -0.75, 0x2a2a2e), bx(1.45, 0.04, 0.04, 0, 1.72, 0.1, 0x2a2a2e),
       bx(0.06, 0.4, 1.2, -0.93, 0.45, 1.35, 0x15151a), bx(0.06, 0.4, 1.2, 0.93, 0.45, 1.35, 0x15151a), bx(0.06, 0.4, 1.2, -0.93, 0.45, -1.35, 0x15151a), bx(0.06, 0.4, 1.2, 0.93, 0.45, -1.35, 0x15151a));
+    /* extra Scout II details: framed headlights, silver grille frame, fender flares, hood ridge, side steps, handles, windshield frame */
+    SUV_BODY.push(bx(0.5, 0.06, 1.15, 0, 1.06, 1.45, 0xffffff), bx(0.16, 0.1, 1.3, -0.93, 0.92, 1.35, 0xffffff), bx(0.16, 0.1, 1.3, 0.93, 0.92, 1.35, 0xffffff), bx(0.16, 0.1, 1.3, -0.93, 0.92, -1.35, 0xffffff), bx(0.16, 0.1, 1.3, 0.93, 0.92, -1.35, 0xffffff), bx(0.44, 0.4, 0.05, -0.78, 0.74, 2.09, 0xffffff), bx(0.44, 0.4, 0.05, 0.78, 0.74, 2.09, 0xffffff));
+    SUV_DET.push(bx(1.16, 0.44, 0.04, 0, 0.7, 2.1, 0x9ea3ab), bx(0.05, 0.08, 2.0, -0.94, 0.26, -0.7, 0x8a8d92), bx(0.05, 0.08, 2.0, 0.94, 0.26, -0.7, 0x8a8d92), bx(0.04, 0.05, 0.2, -0.93, 1.02, -0.2, 0xb9bdc2), bx(0.04, 0.05, 0.2, 0.93, 1.02, -0.2, 0xb9bdc2), bx(0.04, 0.05, 0.2, -0.93, 1.02, -1.4, 0xb9bdc2), bx(0.04, 0.05, 0.2, 0.93, 1.02, -1.4, 0xb9bdc2), bx(0.12, 0.1, 0.06, -0.78, 0.38, 2.14, 0xf4ead0), bx(0.12, 0.1, 0.06, 0.78, 0.38, 2.14, 0xf4ead0), bx(0.4, 0.2, 0.04, 0, 0.5, -2.26, 0xe9e6d6));
     for (var gi = 0; gi < 7; gi++) SUV_DET.push(bx(0.03, 0.3, 0.02, -0.42 + gi * 0.14, 0.7, 2.16, 0xcfd3d8));
     var suvBody = inst(mergeGeos(SUV_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.38, metalness: 0.3 }), 1300, true, true);
     var suvDet  = inst(mergeGeos(SUV_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.46, metalness: 0.25 }), 1300, true, false);
@@ -1140,8 +1142,8 @@
       bx(0.46, 0.54, 0.96, -1.18, 0.65, 0.55, 0x626870), bx(0.46, 0.54, 0.96, 1.18, 0.65, 0.55, 0x626870)
     ];
     for (var tgi = 0; tgi < 5; tgi++) TRUCK_DET.push(bx(1.24, 0.03, 0.03, 0, 0.88 + tgi * 0.08, 3.70, 0xa8aeb6));
-    var truckBody = inst(mergeGeos(TRUCK_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 300, true, true);
-    var truckDet  = inst(mergeGeos(TRUCK_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 300, true, false);
+    var truckBody = inst(mergeGeos(TRUCK_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 1400, true, true);
+    var truckDet  = inst(mergeGeos(TRUCK_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 1400, true, false);
     var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet];
     W.cars = [];
     function carHide(c) {
@@ -1153,7 +1155,7 @@
       var y0 = c.y || 0, j;
       carHide(c);
       if (!on) { c.box.on = false; c.alive = false; return; }
-      var ry = (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry);
+      var ry = c.ang != null ? c.ang : (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry);
       function at(lx, lz) { return [c.x + sn * lz + cs * lx, c.z + cs * lz - sn * lx]; }
       if (c.truck) {
         put(truckBody, c.x, y0, c.z, 1, 1, 1, ry, c.col, c.ix);
@@ -1171,7 +1173,14 @@
         var cwPos = [[-0.90, 1.38], [0.90, 1.38], [-0.90, -1.38], [0.90, -1.38]];
         for (j = 0; j < 4; j++) { var cw = at(cwPos[j][0], cwPos[j][1]); put(carWh, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, null, 6 * c.ix + j); }
       }
-      c.box.on = true; c.alive = true;
+      c.box.on = c.ang == null; c.alive = true;
+    };
+    /* re-register a car's collision box after it was driven (snapped to an axis) */
+    W.relocCar = function (c) {
+      var b = c.box, cx, cz; sgrid.forEach(function (l) { var i = l.indexOf(b); if (i >= 0) l.splice(i, 1); });
+      b.x0 = c.x - c.lx / 2; b.x1 = c.x + c.lx / 2; b.z0 = c.z - c.lz / 2; b.z1 = c.z + c.lz / 2; b.y0 = (c.y || 0) + GYO; b.y1 = (c.y || 0) + (c.truck ? 3.2 : 1.75) + GYO;
+      for (cx = Math.floor(b.x0 / CELL); cx <= Math.floor(b.x1 / CELL); cx++) for (cz = Math.floor(b.z0 / CELL); cz <= Math.floor(b.z1 / CELL); cz++) { var k = ck(cx, cz), l = sgrid.get(k); if (!l) { l = []; sgrid.set(k, l); } l.push(b); }
+      b.on = true;
     };
     function addCar(x, z, horiz, rng, truck) {
       var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, dir: rng() < 0.5 ? -1 : 1, r: truck ? 3.4 : 1.9, h: truck ? 3.2 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
@@ -1371,6 +1380,7 @@
       for (i = 0; i < n; i++) { var cx = Math.floor(a[i * 16 + 12] / CH), cz = Math.floor(a[i * 16 + 14] / CH), k = ck(cx, cz), l = bs.get(k); if (!l) { l = { cx: cx, cz: cz, ids: [] }; bs.set(k, l); } l.ids.push(i); }
       bs.forEach(function (l) {
         var im = new THREE.InstancedMesh(m.geometry, m.material, l.ids.length); im.frustumCulled = false;
+        if (m.userData && m.userData.noCast) im.userData.noCast = true;
         if (ca) im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(l.ids.length * 3), 3);
         for (var j = 0; j < l.ids.length; j++) { var s0 = l.ids[j] * 16; for (var q = 0; q < 16; q++) im.instanceMatrix.array[j * 16 + q] = a[s0 + q]; if (ca) for (var u = 0; u < 3; u++) im.instanceColor.array[j * 3 + u] = ca[l.ids[j] * 3 + u]; }
         chunkAt(l.cx, l.cz).g.add(im);
@@ -1378,14 +1388,24 @@
       scene.remove(m); m.visible = false;
     }
     [walls, winM, dashes, W.ugWalls, bedM, couchM, junMaskM].forEach(function (m) { if (m) bake(m); });
-    /* chunk visibility: render distance (in chunks), optional 180-degree back culling */
-    var cvT = 0;
-    W.updateChunks = function (px, pz, fx, fz, rd, cull) {
+    /* Chunk visibility + range-based shader/shadow culling: Render Distance (rd) & Shader Render Range (sr) */
+    W.updateChunks = function (px, pz, fx, fz, rd, cull, sr, smOn) {
       var lim = rd >= 9999 ? 1e9 : (rd + 0.9) * CH, fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl; var shown = 0;
+      var srLim = smOn ? ((sr || 5) + 0.6) * CH : -1;
       W.chunks.forEach(function (c) {
         var dx = (c.cx + 0.5) * CH - px, dz = (c.cz + 0.5) * CH - pz, d = Math.hypot(dx, dz), v = d < lim;
         if (v && cull && (dx * fx + dz * fz) < -CH) v = false; /* 180-degree back culling with 1 chunk of slack */
         if (v !== c.vis) { c.vis = v; c.g.visible = v; }
+        var sh = v && smOn && d < srLim;
+        if (sh !== c.shVis) {
+          c.shVis = sh;
+          var kids = c.g.children;
+          for (var i = 0; i < kids.length; i++) {
+            var o = kids[i];
+            if (o.userData && o.userData.noCast) { o.castShadow = false; o.receiveShadow = sh; }
+            else { o.castShadow = sh; o.receiveShadow = sh; }
+          }
+        }
         if (v) shown++;
       });
       W.shownChunks = shown;
@@ -1556,8 +1576,25 @@
     function brickBT(base, mortar, seed) { return canvasTex(64, 64, function (g, w, h) { var r = mulberry(seed); g.fillStyle = mortar; g.fillRect(0, 0, w, h); for (var y = 0; y < 4; y++) for (var x = -1; x < 3; x++) { var ox = (y % 2) * 16; g.fillStyle = base; g.fillRect(x * 32 + ox + 1, y * 16 + 1, 30, 14); for (var k = 0; k < 6; k++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.1)'; g.fillRect(x * 32 + ox + 2 + r() * 24, y * 16 + 2 + r() * 10, 3, 2); } } }); }
     var BLKTEX = { 33: stoneBT('#b98a6a', 1), 34: stoneBT('#a2a6a9', 2), 35: stoneBT('#cfcfca', 3), 36: stoneBT('#f1f1ec', 4), 37: brickBT('#8d9198', '#5c5f64', 5), 38: brickBT('#a8452f', '#cfc7bb', 6), 39: brickBT('#b98a6a', '#6a5040', 7), 40: brickBT('#a2a6a9', '#5f6264', 8), 41: brickBT('#cfcfca', '#7d7d7a', 9), 42: brickBT('#f1f1ec', '#a8a8a2', 10) };
 
-    /* Multi-part grounded PBR geometries for Craft Stations, Turrets, Storage Chests & Props (cell-centered, min.y = -0.5) */
+    /* Multi-part grounded PBR geometries for Craft Stations, Traps, Turrets, Storage Chests & Props (cell-centered, min.y = -0.5) */
     function vPart(rough, metal) { return lam(0xffffff, { vertexColors: true, roughness: rough == null ? 0.72 : rough, metalness: metal == null ? 0.15 : metal }); }
+    function rotGeoX(g, a) { g.rotateX(a); return g; }
+    function rotGeoZ(g, a) { g.rotateZ(a); return g; }
+    function rotGeoY(g, a) { g.rotateY(a); return g; }
+    function spikeC(rTop, rBot, h, px, py, pz, rx, rz, c) {
+      var g = new THREE.CylinderGeometry(rTop, rBot, h, 7);
+      if (rx) g.rotateX(rx);
+      if (rz) g.rotateZ(rz);
+      g.translate(px, py, pz);
+      return [g, c];
+    }
+    function ringTorus(r, tube, px, py, pz, rx, ry, c) {
+      var g = new THREE.TorusGeometry(r, tube, 6, 12);
+      if (rx) g.rotateX(rx);
+      if (ry) g.rotateY(ry);
+      g.translate(px, py, pz);
+      return [g, c];
+    }
     var gFurn = mergeGeos([bx(0.94, 0.94, 0.94, 0, -0.03, 0, 0x56524e), bx(0.56, 0.42, 0.08, 0, -0.22, 0.47, 0x1e1a17), bx(0.42, 0.28, 0.05, 0, -0.22, 0.49, 0xff6a14), bx(0.32, 0.18, 0.32, 0, 0.48, -0.15, 0x3b3835)]);
     var gCamp = mergeGeos([cyl(0.08, 0.72, 0, -0.42, 0, 0x6b4728, 8), bx(0.72, 0.14, 0.16, 0, -0.42, 0, 0x5c3c20), bx(0.16, 0.14, 0.72, 0, -0.42, 0, 0x5c3c20), cylY(0.02, 0.24, 0.56, 0, -0.12, 0, 0xff6a14, 8), cylY(0.01, 0.14, 0.36, 0, -0.16, 0, 0xffd24a, 6)]);
     var gAnvil = mergeGeos([bx(0.72, 0.2, 0.52, 0, -0.4, 0, 0x26292e), bx(0.36, 0.38, 0.32, 0, -0.12, 0, 0x32363d), bx(0.88, 0.24, 0.4, 0.04, 0.18, 0, 0x454a52), bx(0.34, 0.14, 0.2, 0.52, 0.22, 0, 0x545a64)]);
@@ -1565,29 +1602,177 @@
     var gSink = mergeGeos([bx(0.9, 0.88, 0.78, 0, -0.06, 0, 0xc8cfd6), bx(0.68, 0.08, 0.52, 0, 0.36, 0.04, 0x49a6e8), bx(0.1, 0.22, 0.1, 0, 0.46, -0.26, 0x8d959e), bx(0.08, 0.06, 0.2, 0, 0.54, -0.18, 0x8d959e)]);
     var gSaw = mergeGeos([bx(0.96, 0.12, 0.82, 0, 0.02, 0, 0x8c5e35), bx(0.12, 0.52, 0.12, -0.38, -0.24, -0.3, 0x5c3c20), bx(0.12, 0.52, 0.12, 0.38, -0.24, -0.3, 0x5c3c20), bx(0.12, 0.52, 0.12, -0.38, -0.24, 0.3, 0x5c3c20), bx(0.12, 0.52, 0.12, 0.38, -0.24, 0.3, 0x5c3c20), cyl(0.24, 0.04, 0, 0.16, 0, 0xc2c8d0, 14)]);
     var gTbench = mergeGeos([bx(0.96, 0.12, 0.82, 0, 0.04, 0, 0x4e5864), bx(0.12, 0.54, 0.12, -0.38, -0.23, -0.3, 0x2f353d), bx(0.12, 0.54, 0.12, 0.38, -0.23, -0.3, 0x2f353d), bx(0.12, 0.54, 0.12, -0.38, -0.23, 0.3, 0x2f353d), bx(0.12, 0.54, 0.12, 0.38, -0.23, 0.3, 0x2f353d), bx(0.32, 0.14, 0.22, -0.24, 0.17, 0.18, 0xd28a2a), bx(0.28, 0.08, 0.36, 0.24, 0.14, -0.1, 0xa2abb5)]);
-    function gTurret(baseC, barrelC) {
+    var gTnt = (function () {
+      var pts = [
+        bx(0.88, 0.12, 0.88, 0, -0.44, 0, 0x8f6234),
+        bx(0.88, 0.12, 0.88, 0, 0.38, 0, 0x8f6234),
+        bx(0.92, 0.08, 0.92, 0, -0.24, 0, 0x26292e),
+        bx(0.92, 0.08, 0.92, 0, 0.18, 0, 0x26292e)
+      ];
+      for (var ix = -1; ix <= 1; ix++) for (var iz = -1; iz <= 1; iz++) {
+        pts.push(cylY(0.12, 0.12, 0.72, ix * 0.25, -0.03, iz * 0.25, (ix + iz) % 2 ? 0xb82424 : 0xd42c2c, 8));
+      }
+      pts.push(cylY(0.03, 0.03, 0.14, 0, 0.46, 0, 0xe8dcc2, 6), sph(0.045, 0, 0.50, 0, 1, 1, 1, 0xff922a, 6));
+      return mergeGeos(pts);
+    })();
+    var gWoodSpike = (function () {
+      var pts = [bx(0.92, 0.06, 0.16, 0, -0.47, -0.28, 0x5a3b1e), bx(0.92, 0.06, 0.16, 0, -0.47, 0.28, 0x5a3b1e), bx(0.16, 0.06, 0.92, -0.28, -0.47, 0, 0x5a3b1e), bx(0.16, 0.06, 0.92, 0.28, -0.47, 0, 0x5a3b1e)];
+      [[-0.28, -0.28, 0.16, 0.16], [0, -0.28, 0.18, 0], [0.28, -0.28, 0.16, -0.16], [-0.28, 0, 0, 0.18], [0, 0, 0, 0], [0.28, 0, 0, -0.18], [-0.28, 0.28, -0.16, 0.16], [0, 0.28, -0.18, 0], [0.28, 0.28, -0.16, -0.16]].forEach(function (s) {
+        pts.push(spikeC(0.012, 0.065, 0.42, s[0], -0.28, s[1], s[2], s[3], 0x8c5e34));
+      });
+      return mergeGeos(pts);
+    })();
+    var gPalmRoot = (function () {
+      var pts = [bx(0.94, 0.05, 0.94, 0, -0.475, 0, 0x453520)];
+      for (var i = 0; i < 8; i++) {
+        var an = i * 0.785, cx = Math.cos(an) * 0.22, cz = Math.sin(an) * 0.22;
+        pts.push(spikeC(0.014, 0.065, 0.36, cx, -0.30, cz, Math.sin(an) * 0.32, -Math.cos(an) * 0.32, i % 2 ? 0x6b5628 : 0x52692c));
+      }
+      pts.push(spikeC(0.016, 0.08, 0.44, 0, -0.27, 0, 0.06, -0.05, 0x5d4a22));
+      return mergeGeos(pts);
+    })();
+    function gBarbedWire(postC, wireC) {
+      var pts = [bx(0.92, 0.06, 0.12, 0, -0.47, -0.34, postC), bx(0.92, 0.06, 0.12, 0, -0.47, 0.34, postC)];
+      [-0.36, 0.36].forEach(function (ox) {
+        pts.push(spikeC(0.035, 0.04, 0.44, ox, -0.27, -0.24, 0.28, 0, postC));
+        pts.push(spikeC(0.035, 0.04, 0.44, ox, -0.27, 0.24, -0.28, 0, postC));
+      });
+      for (var k = -2; k <= 2; k++) pts.push(ringTorus(0.22, 0.022, k * 0.16, -0.26, 0, 0.15, 1.32, wireC));
+      return mergeGeos(pts);
+    }
+    var gIvyGrass = (function () {
+      var pts = [bx(0.94, 0.06, 0.94, 0, -0.47, 0, 0x2d5a27)];
+      for (var i = 0; i < 7; i++) {
+        var x = ((i % 3) - 1) * 0.28, z = (Math.floor(i / 3) - 1) * 0.28;
+        pts.push(spikeC(0.015, 0.075, 0.26, x, -0.35, z, 0.24 * (i % 2 ? 1 : -1), 0.2 * ((i % 3) - 1), i % 2 ? 0x3f8838 : 0x2b6826));
+      }
+      return mergeGeos(pts);
+    })();
+    var gStatueGod = mergeGeos([
+      bx(0.92, 0.12, 0.92, 0, -0.44, 0, 0x5c6066),
+      bx(0.74, 0.10, 0.74, 0, -0.33, 0, 0x6c7076),
+      bx(0.56, 0.34, 0.46, 0, -0.11, 0, 0x7e838a),
+      bx(0.68, 0.16, 0.42, 0, 0.14, 0, 0x898f96),
+      bx(0.46, 0.24, 0.44, 0, 0.34, 0.02, 0x949aa2),
+      bx(0.50, 0.06, 0.12, 0, 0.42, 0.22, 0x6f747b),
+      bx(0.12, 0.04, 0.06, -0.12, 0.37, 0.23, 0xe3b02a),
+      bx(0.12, 0.04, 0.06, 0.12, 0.37, 0.23, 0xe3b02a),
+      bx(0.28, 0.05, 0.28, 0, 0.475, 0, 0xd4a432)
+    ]);
+    var gWFilter = mergeGeos([
+      bx(0.94, 0.10, 0.86, 0, -0.45, 0, 0x3b424a),
+      cylY(0.18, 0.20, 0.72, -0.24, -0.04, -0.10, 0x4b7ea2, 12),
+      cylY(0.18, 0.20, 0.72, 0.24, -0.04, -0.10, 0x3c454e, 12),
+      bx(0.60, 0.07, 0.08, 0, 0.36, -0.10, 0xc89a3a),
+      bx(0.62, 0.26, 0.32, 0, -0.27, 0.24, 0x2f88c8),
+      cylY(0.035, 0.035, 0.18, 0, 0.06, 0.22, 0xc89a3a, 8)
+    ]);
+    var gDistill = mergeGeos([
+      bx(0.48, 0.32, 0.74, -0.22, -0.34, 0, 0x423d3a),
+      cylY(0.21, 0.23, 0.56, -0.22, 0.10, 0, 0xb86834, 12),
+      bx(0.32, 0.08, 0.08, 0.02, 0.40, 0, 0xd28a46),
+      cylY(0.15, 0.15, 0.46, 0.24, 0.06, 0, 0x5c6874, 12),
+      bx(0.36, 0.22, 0.44, 0.24, -0.39, 0, 0x2b3036),
+      cylY(0.11, 0.13, 0.24, 0.24, -0.16, 0.18, 0x6ec6ff, 10)
+    ]);
+    var gCWork = mergeGeos([
+      bx(0.94, 0.07, 0.84, 0, -0.04, 0, 0x4b535e),
+      bx(0.08, 0.42, 0.08, -0.40, -0.29, -0.34, 0x2b3038), bx(0.08, 0.42, 0.08, 0.40, -0.29, -0.34, 0x2b3038),
+      bx(0.08, 0.42, 0.08, -0.40, -0.29, 0.34, 0x2b3038), bx(0.08, 0.42, 0.08, 0.40, -0.29, 0.34, 0x2b3038),
+      bx(0.36, 0.24, 0.05, -0.20, 0.14, -0.20, 0x161b20), bx(0.30, 0.18, 0.03, -0.20, 0.14, -0.17, 0x2ee6a8),
+      bx(0.32, 0.22, 0.05, 0.18, 0.13, -0.18, 0x161b20), bx(0.26, 0.16, 0.03, 0.18, 0.13, -0.15, 0x3bb8ff),
+      bx(0.16, 0.28, 0.36, 0.38, 0.13, 0.04, 0x22262c),
+      bx(0.42, 0.03, 0.16, -0.06, 0.01, 0.18, 0x20242a),
+      bx(0.05, 0.44, 0.05, -0.42, 0.22, -0.34, 0x2b3038), bx(0.05, 0.44, 0.05, 0.42, 0.22, -0.34, 0x2b3038),
+      bx(0.88, 0.05, 0.12, 0, 0.46, -0.30, 0xe8c448)
+    ]);
+    var gSEng = mergeGeos([
+      bx(0.94, 0.08, 0.84, 0, -0.05, 0, 0x8a6034),
+      bx(0.09, 0.41, 0.09, -0.38, -0.295, -0.32, 0x56391c), bx(0.09, 0.41, 0.09, 0.38, -0.295, -0.32, 0x56391c),
+      bx(0.09, 0.41, 0.09, -0.38, -0.295, 0.32, 0x56391c), bx(0.09, 0.41, 0.09, 0.38, -0.295, 0.32, 0x56391c),
+      bx(0.86, 0.42, 0.06, 0, 0.20, -0.36, 0x6e4b26),
+      bx(0.46, 0.025, 0.38, -0.14, 0.005, 0.04, 0x326ec2),
+      bx(0.18, 0.12, 0.16, 0.26, 0.05, 0.20, 0x3b424a),
+      bx(0.14, 0.14, 0.04, -0.20, 0.24, -0.31, 0xb8bec6),
+      bx(0.28, 0.06, 0.04, 0.16, 0.24, -0.31, 0xd8a034)
+    ]);
+    var gEng = mergeGeos([
+      bx(0.94, 0.08, 0.86, 0, -0.04, 0, 0x3b5876),
+      bx(0.10, 0.42, 0.10, -0.38, -0.29, -0.34, 0x243648), bx(0.10, 0.42, 0.10, 0.38, -0.29, -0.34, 0x243648),
+      bx(0.10, 0.42, 0.10, -0.38, -0.29, 0.34, 0x243648), bx(0.10, 0.42, 0.10, 0.38, -0.29, 0.34, 0x243648),
+      bx(0.48, 0.05, 0.44, 0, 0.025, 0.08, 0x626b75),
+      cylY(0.07, 0.08, 0.44, -0.24, 0.22, -0.18, 0x2c3238, 10),
+      bx(0.26, 0.14, 0.22, -0.24, 0.38, -0.08, 0xd28a2a),
+      bx(0.32, 0.22, 0.18, 0.22, 0.11, -0.18, 0x2a323a),
+      bx(0.22, 0.12, 0.04, 0.22, 0.12, -0.07, 0x4fd08a)
+    ]);
+    var gDrive = mergeGeos([
+      bx(0.94, 0.08, 0.84, 0, -0.05, 0, 0x454a52),
+      bx(0.08, 0.41, 0.08, -0.40, -0.295, -0.34, 0x282c32), bx(0.08, 0.41, 0.08, 0.40, -0.295, -0.34, 0x282c32),
+      bx(0.08, 0.41, 0.08, -0.40, -0.295, 0.34, 0x282c32), bx(0.08, 0.41, 0.08, 0.40, -0.295, 0.34, 0x282c32),
+      bx(0.07, 0.54, 0.09, -0.40, 0.18, 0, 0xc86428), bx(0.07, 0.54, 0.09, 0.40, 0.18, 0, 0xc86428),
+      bx(0.88, 0.07, 0.10, 0, 0.46, 0, 0xc86428),
+      bx(0.04, 0.18, 0.04, 0, 0.35, 0, 0x8d959e),
+      bx(0.34, 0.24, 0.34, 0, 0.14, 0, 0x767e88),
+      cyl(0.14, 0.08, -0.21, 0.12, 0, 0xa8b0b8, 12),
+      cyl(0.10, 0.16, 0.22, 0.12, 0, 0x525860, 10)
+    ]);
+    var gVBench = mergeGeos([
+      bx(0.94, 0.08, 0.84, 0, -0.05, 0, 0x7c2e2e),
+      bx(0.08, 0.41, 0.08, -0.40, -0.295, -0.34, 0x3b1818), bx(0.08, 0.41, 0.08, 0.40, -0.295, -0.34, 0x3b1818),
+      bx(0.08, 0.41, 0.08, -0.40, -0.295, 0.34, 0x3b1818), bx(0.08, 0.41, 0.08, 0.40, -0.295, 0.34, 0x3b1818),
+      bx(0.08, 0.54, 0.08, -0.40, 0.18, -0.32, 0x983636), bx(0.08, 0.54, 0.08, 0.40, 0.18, -0.32, 0x983636),
+      bx(0.88, 0.06, 0.08, 0, 0.46, -0.32, 0x983636),
+      bx(0.56, 0.06, 0.44, -0.10, 0.02, 0.04, 0x565c64),
+      cyl(0.16, 0.14, 0.28, 0.16, 0.06, 0x1c1e22, 12),
+      cyl(0.09, 0.15, 0.28, 0.16, 0.06, 0xb8bec6, 10)
+    ]);
+    var gGunB = mergeGeos([
+      bx(0.94, 0.08, 0.82, 0, -0.05, 0, 0x363b42),
+      bx(0.09, 0.41, 0.09, -0.38, -0.295, -0.32, 0x1e2228), bx(0.09, 0.41, 0.09, 0.38, -0.295, -0.32, 0x1e2228),
+      bx(0.09, 0.41, 0.09, -0.38, -0.295, 0.32, 0x1e2228), bx(0.09, 0.41, 0.09, 0.38, -0.295, 0.32, 0x1e2228),
+      bx(0.86, 0.46, 0.06, 0, 0.22, -0.34, 0x262b30),
+      bx(0.64, 0.06, 0.05, 0, 0.30, -0.29, 0x5d442a),
+      bx(0.46, 0.04, 0.04, 0.06, 0.32, -0.29, 0x8a929c),
+      bx(0.24, 0.05, 0.04, -0.18, 0.14, -0.29, 0x767e88),
+      bx(0.28, 0.16, 0.22, 0.24, 0.07, 0.10, 0x455638),
+      bx(0.16, 0.10, 0.16, -0.24, 0.04, 0.18, 0x626a74)
+    ]);
+    var gCpot = mergeGeos([
+      cylY(0.46, 0.48, 0.10, 0, -0.45, 0, 0x6c7076, 12),
+      bx(0.56, 0.07, 0.10, 0, -0.38, 0, 0x4a2f18), bx(0.10, 0.07, 0.56, 0, -0.38, 0, 0x4a2f18),
+      cylY(0.04, 0.18, 0.22, 0, -0.28, 0, 0xff6a14, 8),
+      spikeC(0.025, 0.035, 0.96, -0.22, -0.02, -0.22, 0.24, -0.24, 0x2b2e33),
+      spikeC(0.025, 0.035, 0.96, 0.22, -0.02, -0.22, 0.24, 0.24, 0x2b2e33),
+      spikeC(0.025, 0.035, 0.96, 0, -0.02, 0.26, -0.28, 0, 0x2b2e33),
+      cylY(0.02, 0.02, 0.22, 0, 0.34, 0, 0x7a8088, 6),
+      cylY(0.26, 0.21, 0.34, 0, 0.06, 0, 0x24262b, 12),
+      cylY(0.22, 0.22, 0.04, 0, 0.22, 0, 0xc87a2a, 10),
+      bx(0.04, 0.16, 0.04, 0.08, 0.28, 0.04, 0x9c6e3b)
+    ]);
+    function gFarmBed(water) {
+      var rimC = water ? 0x767a80 : 0x6f4b28, fillC = water ? 0x3488b8 : 0x4f361e;
       return mergeGeos([
-        cylY(0.42, 0.48, 0.26, 0, -0.37, 0, baseC, 12),
-        cylY(0.22, 0.26, 0.36, 0, -0.06, 0, baseC, 10),
-        bx(0.44, 0.3, 0.52, 0, 0.24, -0.04, barrelC),
-        cylY(0.08, 0.09, 0.56, 0, 0.24, 0.42, barrelC, 10)
+        bx(0.98, 0.98, 0.98, 0, -0.01, 0, fillC),
+        bx(1.00, 1.00, 0.06, 0, 0, -0.47, rimC), bx(1.00, 1.00, 0.06, 0, 0, 0.47, rimC),
+        bx(0.06, 1.00, 1.00, -0.47, 0, 0, rimC), bx(0.06, 1.00, 1.00, 0.47, 0, 0, rimC)
       ]);
     }
-    var turretG1 = (function () {
-      var pts = [bx(0.86, 0.2, 0.86, 0, -0.4, 0, 0x5c4a32), cylY(0.2, 0.24, 0.44, 0, -0.1, 0, 0x4a3822, 10), bx(0.46, 0.3, 0.54, 0, 0.26, -0.06, 0x6b5a3a)];
-      var b = new THREE.CylinderGeometry(0.08, 0.09, 0.62, 10); b.rotateX(Math.PI / 2); b.translate(0, 0.26, 0.42); pts.push([b, 0x2c3035]);
+    /* Cannons: real wheeled cannons (carriage + wheels + angled barrel). Barrel points to local +z; the instance is yawed toward the target. */
+    function cannonGeo(o) {
+      var pts = [bx(0.62, 0.14, 0.9, 0, -0.3, -0.02, o.wood), bx(0.7, 0.06, 0.16, 0, -0.2, 0.2, o.wood), bx(0.07, 0.22, 0.86, -0.28, -0.16, -0.02, o.wood), bx(0.07, 0.22, 0.86, 0.28, -0.16, -0.02, o.wood)];
+      var ax = new THREE.CylinderGeometry(0.05, 0.05, 1.04, 8); ax.rotateZ(Math.PI / 2); ax.translate(0, -0.5 + o.wr, 0.02); pts.push([ax, o.iron]);
+      [-0.46, 0.46].forEach(function (wx) { var w = new THREE.CylinderGeometry(o.wr, o.wr, 0.11, 12); w.rotateZ(Math.PI / 2); w.translate(wx, -0.5 + o.wr, 0.02); pts.push([w, o.wheel]); var hub = new THREE.CylinderGeometry(0.07, 0.07, 0.15, 8); hub.rotateZ(Math.PI / 2); hub.translate(wx, -0.5 + o.wr, 0.02); pts.push([hub, o.iron]); });
+      var br = new THREE.CylinderGeometry(o.r * 0.82, o.r, o.len, 12); br.rotateX(Math.PI / 2); br.rotateX(-0.2); br.translate(0, 0.0, o.len * 0.5 - 0.3); pts.push([br, o.barrel]);
+      var ring = new THREE.CylinderGeometry(o.r * 0.95, o.r * 0.95, 0.09, 12); ring.rotateX(Math.PI / 2); ring.rotateX(-0.2); ring.translate(0, 0.07, o.len - 0.34); pts.push([ring, o.iron]);
+      var rb = new THREE.CylinderGeometry(o.r * 1.12, o.r * 1.12, 0.08, 12); rb.rotateX(Math.PI / 2); rb.rotateX(-0.2); rb.translate(0, -0.02, o.len * 0.2 - 0.3); pts.push([rb, o.iron]);
+      var kn = new THREE.SphereGeometry(o.r * 0.6, 8, 6); kn.translate(0, -0.1, -0.33); pts.push([kn, o.barrel]);
+      (o.extra || []).forEach(function (p) { pts.push(p); });
       return mergeGeos(pts);
-    })();
-    var turretG2 = (function () {
-      var pts = [bx(0.9, 0.22, 0.9, 0, -0.39, 0, 0x3b424a), cylY(0.22, 0.28, 0.42, 0, -0.09, 0, 0x2c3238, 12), bx(0.52, 0.34, 0.58, 0, 0.26, -0.06, 0x4b535c)];
-      [-0.12, 0.12].forEach(function (ox) { var b = new THREE.CylinderGeometry(0.065, 0.075, 0.68, 10); b.rotateX(Math.PI / 2); b.translate(ox, 0.26, 0.46); pts.push([b, 0x1e2226]); });
-      return mergeGeos(pts);
-    })();
-    var turretG3 = (function () {
-      var pts = [bx(0.94, 0.24, 0.94, 0, -0.38, 0, 0x22382c), cylY(0.24, 0.32, 0.44, 0, -0.08, 0, 0x1a2820, 12), bx(0.58, 0.38, 0.62, 0, 0.28, -0.06, 0x2f4a3a), bx(0.24, 0.14, 0.24, 0, 0.48, -0.1, 0xe89c28)];
-      [-0.14, 0, 0.14].forEach(function (ox) { var b = new THREE.CylinderGeometry(0.055, 0.065, 0.74, 10); b.rotateX(Math.PI / 2); b.translate(ox, 0.28, 0.48); pts.push([b, 0xd28a2a]); });
-      return mergeGeos(pts);
-    })();
+    }
+    var turretG1 = cannonGeo({ wood: 0x6b4a28, wheel: 0x5a3c1f, iron: 0x3a3a3a, barrel: 0x4a4540, wr: 0.28, len: 0.92, r: 0.13 });
+    var turretG2 = cannonGeo({ wood: 0x3b3f46, wheel: 0x2a2d33, iron: 0x8a8d92, barrel: 0x23262b, wr: 0.3, len: 1.16, r: 0.15 });
+    var turretG3 = cannonGeo({ wood: 0x2f4a3a, wheel: 0x1f3026, iron: 0xd28a2a, barrel: 0x1c2a22, wr: 0.32, len: 1.36, r: 0.16, extra: [bx(0.5, 0.05, 0.05, 0, 0.18, -0.4, 0xd28a2a), bx(0.05, 0.3, 0.05, -0.25, 0.04, -0.4, 0xd28a2a), bx(0.05, 0.3, 0.05, 0.25, 0.04, -0.4, 0xd28a2a)] });
     function gChest(bodyC, trimC, latchC) {
       return mergeGeos([
         bx(0.92, 0.62, 0.84, 0, -0.19, 0, bodyC),
@@ -1604,60 +1789,6 @@
         bx(0.44, 0.22, 0.28, 0, 0.23, -0.16, accC)
       ]);
     }
-
-    var VM = {
-      1: inst(box1, lam(0xffffff, { map: plankTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.85 }), 2600, true, false),
-      2: inst(box1, lam(0xffffff, { map: stoneTex, bumpMap: sharedBump, bumpScale: 0.035, roughness: 0.9 }), 2600, true, false),
-      3: inst(gFurn, vPart(0.84, 0.2), 150, true, false),
-      4: inst(box1, lam(0xffffff, { map: bedTex, roughness: 0.85 }), 200, true, false),
-      5: inst(box1, lam(0xffffff, { map: couchTex, roughness: 0.85 }), 200, true, false),
-      6: inst(gSink, vPart(0.35, 0.45), 120, true, false),
-      7: inst(gCamp, vPart(0.85, 0.05), 120, true, false),
-      8: inst(gAnvil, vPart(0.32, 0.85), 80, true, false),
-      9: inst(gComp, vPart(0.45, 0.35), 80, true, false),
-      10: inst(box1, lam(0xffffff, { map: planksTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.85 }), 2600, true, false),
-      11: inst(gSaw, vPart(0.65, 0.35), 80, true, false),
-      12: inst(gTbench, vPart(0.55, 0.45), 80, true, false),
-      13: inst(turretG1, vPart(0.55, 0.55), 120, true, false),
-      14: inst(turretG2, vPart(0.4, 0.72), 120, true, false),
-      15: inst(turretG3, vPart(0.32, 0.82), 60, true, false),
-      16: inst(gBench(0x6e6a60, 0x45413a, 0xa8aeb5), vPart(0.68, 0.32), 300, true, false),
-      17: inst(gBench(0x7a3b2a, 0x452218, 0xe84838), vPart(0.62, 0.3), 200, true, false),
-      18: inst(gFurn, vPart(0.86, 0.12), 300, true, false),
-      19: inst(gBench(0x8a6842, 0x52391f, 0xc99c5a), vPart(0.76, 0.16), 300, true, false),
-      20: inst(gBench(0x5a4a70, 0x372c46, 0xd8b24c), vPart(0.6, 0.38), 200, true, false),
-      21: inst(gChest(0x9a6d3e, 0x624220, 0xd8b24c), vPart(0.76, 0.18), 200, true, false),
-      22: inst(gChest(0x7c828a, 0x4c525a, 0xd8dde4), vPart(0.42, 0.75), 200, true, false),
-      23: inst(gChest(0x585d66, 0x353940, 0xe6c35a), vPart(0.35, 0.82), 200, true, false),
-      24: inst(gChest(0xb86f3e, 0x764222, 0xf0be7a), vPart(0.4, 0.72), 200, true, false),
-      25: inst(gChest(0xc8783e, 0x82491e, 0xffe09e), vPart(0.34, 0.8), 200, true, false),
-      26: inst(box1, (W.glassMat = lam(0xffffff, { map: glassTex, transparent: true, opacity: 0.52, depthWrite: false, roughness: 0.12, metalness: 0.2 })), 600, true, false),
-      27: inst(box1, lam(0xffffff, { map: cactBlockTex, roughness: 0.88 }), 600, true, false),
-      28: inst(box1, lam(0xffffff, { map: glyphTex('#b02a2a', '🧨', 'TNT'), roughness: 0.7 }), 200, true, false),
-      29: inst(gBench(0x5d6168, 0x383c42, 0xc2c8d0), vPart(0.44, 0.7), 200, true, false),
-      30: inst(gBench(0x4c5a6a, 0x2c3642, 0xd8a840), vPart(0.48, 0.6), 200, true, false),
-      31: inst(gBench(0x6a4a2a, 0x422c16, 0x9aa2ab), vPart(0.75, 0.25), 200, true, false),
-      32: inst(gBench(0x8a8a82, 0x5a5a54, 0xbab4a8), vPart(0.86, 0.12), 200, true, false),
-      33: inst(box1, lam(0xffffff, { map: BLKTEX[33], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      34: inst(box1, lam(0xffffff, { map: BLKTEX[34], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      35: inst(box1, lam(0xffffff, { map: BLKTEX[35], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      36: inst(box1, lam(0xffffff, { map: BLKTEX[36], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      37: inst(box1, lam(0xffffff, { map: BLKTEX[37], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      38: inst(box1, lam(0xffffff, { map: BLKTEX[38], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      39: inst(box1, lam(0xffffff, { map: BLKTEX[39], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      40: inst(box1, lam(0xffffff, { map: BLKTEX[40], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      41: inst(box1, lam(0xffffff, { map: BLKTEX[41], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
-      49: inst(gBench(0x3a5a6a, 0x243a46, 0x52d6e8), vPart(0.42, 0.45), 200, true, false),
-      50: inst(gBench(0x7a4a6a, 0x4d2c42, 0xe8d8c0), vPart(0.72, 0.2), 200, true, false),
-      51: inst(mergeGeos([bx(0.72, 0.24, 0.72, 0, -0.38, 0, 0x707478), bx(0.54, 0.62, 0.46, 0, 0.05, 0, 0x8d9096), bx(0.42, 0.28, 0.42, 0, 0.48, 0, 0x9aa0a6)]), vPart(0.82, 0.15), 200, true, false),
-      44: inst(boxLow, lam(0xffffff, { map: glyphTex('#8a6a3a', '🌵', ''), roughness: 0.88 }), 600, true, false),
-      45: inst(boxLow, lam(0xffffff, { map: glyphTex('#6a8a3a', '🌴', ''), roughness: 0.88 }), 600, true, false),
-      46: inst(boxLow, lam(0xffffff, { map: glyphTex('#7a7f86', '➰', ''), roughness: 0.6 }), 600, true, false),
-      47: inst(boxLow, lam(0xffffff, { map: glyphTex('#3f8a3a', '🌿', ''), roughness: 0.88 }), 600, true, false),
-      48: inst(boxLow, lam(0xffffff, { map: glyphTex('#5a8ac0', '➰', ''), roughness: 0.55 }), 600, true, false),
-      43: inst(gFurn, vPart(0.55, 0.6), 200, true, false),
-      42: inst(box1, lam(0xffffff, { map: BLKTEX[42], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false)
-    };
     var VTYPES = []; function mergeBoxes(parts) {
       var pos = [], nor = [], col = [], idx = [], off = 0;
       parts.forEach(function (p) { var g = new THREE.BoxGeometry(p[0], p[1], p[2]); g.translate(p[3], p[4], p[5]); var c = new THREE.Color(p[6]), pa = g.attributes.position, na = g.attributes.normal, ia = g.index.array, i;
@@ -1675,9 +1806,79 @@
       else if (kind === 'bed') o.push([1, 0.3, 1, 0, -0.35, 0, w], [0.94, 0.18, 0.94, 0, -0.1, 0, 0xeadfce], [0.4, 0.1, 0.25, 0, 0.0, -0.3, 0xffffff], [0.94, 0.05, 0.5, 0, 0.0, 0.2, f]);
       return o;
     }
+    var plankVoxMat = lam(0xffffff, { map: plankTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.85 });
+    var stoneVoxMat = lam(0xffffff, { map: stoneTex, bumpMap: sharedBump, bumpScale: 0.035, roughness: 0.9 });
+    packMats.push({ mat: plankVoxMat, gen: function () { return buildPlankTex(7); } });
+    packMats.push({ mat: stoneVoxMat, gen: function () { return buildStoneTex(8); } });
+
+    var VM = {
+      1: inst(box1, plankVoxMat, 2600, true, false),
+      2: inst(box1, stoneVoxMat, 2600, true, false),
+      3: inst(gFurn, vPart(0.84, 0.2), 150, true, false),
+      4: inst(mergeBoxes(furnParts('bed', 0x855832, 0x5c3a1d, 0x4a7a5c)), vPart(0.84, 0.06), 200, true, false),
+      5: inst(mergeBoxes(furnParts('couch', 0x4b331d, 0x3a2614, 0x5a7852)), vPart(0.84, 0.06), 200, true, false),
+      6: inst(gSink, vPart(0.35, 0.45), 120, true, false),
+      7: inst(gCamp, vPart(0.85, 0.05), 120, true, false),
+      8: inst(gAnvil, vPart(0.32, 0.85), 80, true, false),
+      9: inst(gComp, vPart(0.45, 0.35), 80, true, false),
+      10: inst(box1, plankVoxMat, 2600, true, false),
+      11: inst(gSaw, vPart(0.65, 0.35), 80, true, false),
+      12: inst(gTbench, vPart(0.55, 0.45), 80, true, false),
+      13: inst(turretG1, vPart(0.55, 0.55), 120, true, false),
+      14: inst(turretG2, vPart(0.4, 0.72), 120, true, false),
+      15: inst(turretG3, vPart(0.32, 0.82), 60, true, false),
+      16: inst(gBench(0x6e6a60, 0x45413a, 0xa8aeb5), vPart(0.68, 0.32), 300, true, false),
+      17: inst(gBench(0x7a3b2a, 0x452218, 0xe84838), vPart(0.62, 0.3), 200, true, false),
+      18: inst(gFurn, vPart(0.86, 0.12), 300, true, false),
+      19: inst(gBench(0x8a6842, 0x52391f, 0xc99c5a), vPart(0.76, 0.16), 300, true, false),
+      20: inst(gBench(0x5a4a70, 0x372c46, 0xd8b24c), vPart(0.6, 0.38), 200, true, false),
+      21: inst(gChest(0x9a6d3e, 0x624220, 0xd8b24c), vPart(0.76, 0.18), 200, true, false),
+      22: inst(gChest(0x7c828a, 0x4c525a, 0xd8dde4), vPart(0.42, 0.75), 200, true, false),
+      23: inst(gChest(0x585d66, 0x353940, 0xe6c35a), vPart(0.35, 0.82), 200, true, false),
+      24: inst(gChest(0xb86f3e, 0x764222, 0xf0be7a), vPart(0.4, 0.72), 200, true, false),
+      25: inst(gChest(0xc8783e, 0x82491e, 0xffe09e), vPart(0.34, 0.8), 200, true, false),
+      26: inst(box1, (W.glassMat = lam(0xffffff, { map: glassTex, transparent: true, opacity: 0.52, depthWrite: false, roughness: 0.12, metalness: 0.2 })), 600, true, false),
+      27: inst(box1, lam(0xffffff, { map: cactBlockTex, roughness: 0.88 }), 600, true, false),
+      28: inst(gTnt, vPart(0.68, 0.15), 200, true, false),
+      29: inst(gBench(0x5d6168, 0x383c42, 0xc2c8d0), vPart(0.44, 0.7), 200, true, false),
+      30: inst(gBench(0x4c5a6a, 0x2c3642, 0xd8a840), vPart(0.48, 0.6), 200, true, false),
+      31: inst(gBench(0x6a4a2a, 0x422c16, 0x9aa2ab), vPart(0.75, 0.25), 200, true, false),
+      32: inst(gBench(0x8a8a82, 0x5a5a54, 0xbab4a8), vPart(0.86, 0.12), 200, true, false),
+      33: inst(box1, lam(0xffffff, { map: BLKTEX[33], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      34: inst(box1, lam(0xffffff, { map: BLKTEX[34], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      35: inst(box1, lam(0xffffff, { map: BLKTEX[35], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      36: inst(box1, lam(0xffffff, { map: BLKTEX[36], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      37: inst(box1, lam(0xffffff, { map: BLKTEX[37], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      38: inst(box1, lam(0xffffff, { map: BLKTEX[38], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      39: inst(box1, lam(0xffffff, { map: BLKTEX[39], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      40: inst(box1, lam(0xffffff, { map: BLKTEX[40], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      41: inst(box1, lam(0xffffff, { map: BLKTEX[41], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      49: inst(gBench(0x3a5a6a, 0x243a46, 0x52d6e8), vPart(0.42, 0.45), 200, true, false),
+      50: inst(gBench(0x7a4a6a, 0x4d2c42, 0xe8d8c0), vPart(0.72, 0.2), 200, true, false),
+      51: inst(gStatueGod, vPart(0.82, 0.15), 200, true, false),
+      44: inst(gWoodSpike, vPart(0.84, 0.04), 600, true, false),
+      45: inst(gPalmRoot, vPart(0.86, 0.04), 600, true, false),
+      46: inst(gBarbedWire(0x363a40, 0x8e959e), vPart(0.42, 0.78), 600, true, false),
+      47: inst(gIvyGrass, vPart(0.86, 0.02), 600, true, false),
+      48: inst(gBarbedWire(0x384b62, 0x9fc2e6), vPart(0.32, 0.85), 600, true, false),
+      43: inst(gFurn, vPart(0.55, 0.6), 200, true, false),
+      42: inst(box1, lam(0xffffff, { map: BLKTEX[42], bumpMap: sharedBump, bumpScale: 0.03, roughness: 0.88 }), 1500, true, false),
+      72: inst(gWFilter, vPart(0.44, 0.55), 200, true, false),
+      73: inst(gDistill, vPart(0.38, 0.68), 200, true, false),
+      74: inst(gCWork, vPart(0.46, 0.35), 200, true, false),
+      75: inst(gSEng, vPart(0.72, 0.20), 200, true, false),
+      76: inst(gEng, vPart(0.42, 0.62), 200, true, false),
+      77: inst(gDrive, vPart(0.40, 0.68), 200, true, false),
+      78: inst(gVBench, vPart(0.46, 0.56), 200, true, false),
+      85: inst(gGunB, vPart(0.48, 0.58), 200, true, false),
+      86: inst(gCpot, vPart(0.66, 0.40), 200, true, false)
+    };
+    var gFarmDry = gFarmBed(false), gFarmWet = gFarmBed(true);
+    Object.keys(WZ.FARM).forEach(function (t) {
+      var f = WZ.FARM[t];
+      VM[t] = inst(f[3] ? gFarmWet : gFarmDry, vPart(f[3] ? 0.25 : 0.88, f[3] ? 0.12 : 0.02), 200, true, false);
+    });
     var FKIND = ['chair', 'table', 'sofa', 'couch', 'standlamp', 'hanglamp'];
-    Object.keys(WZ.GST).forEach(function (t) { var g = WZ.GST[t]; VM[t] = inst(box1, lam(0xffffff, { map: glyphTex(g[3], g[4], g[5]) }), 200, true, false); });
-    Object.keys(WZ.FARM).forEach(function (t) { var f = WZ.FARM[t]; VM[t] = inst(box1, lam(0xffffff, { map: glyphTex(f[4], f[3] ? '🌊' : '🟫', f[2] + 'x' + f[2]) }), 200, true, false); });
     /* shaped variants (vox 87+): geometry in cell-local coords, UVs world-aligned so textures stay continuous */
     function shapeGeo(boxes) {
       var pos = [], nor = [], uv = [], idx = [], off = 0;
@@ -1701,23 +1902,36 @@
     Object.keys(WZ.VARIANT).forEach(function (t) { var vr = WZ.VARIANT[t]; if (VM[vr[0]]) VM[t] = inst(shapeGeo(SHB[vr[1]]), VM[vr[0]].material, 400, true, false); });
     for (var vt0 = 1; vt0 <= 125; vt0++) if (VM[vt0]) VTYPES.push(vt0);
     for (var fi = 52; fi <= 71; fi++) { var fk = fi >= 70 ? 'bed' : FKIND[Math.floor((fi - 52) / 3)], fw = FWC[fi >= 70 ? fi - 69 : (fi - 52) % 3]; VM[fi] = inst(mergeBoxes(furnParts(fk, fw[0], fw[1], fw[2])), lam(0xffffff, { vertexColors: true }), 200, true, false); }
-    W.VSIZE = { 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 1, 2], 81: [3, 1, 3], 82: [1, 1, 1], 83: [2, 1, 2], 84: [3, 1, 3], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 3, 1], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
+    W.VSIZE = { 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
     W.HPT = { 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
     Object.keys(WZ.VARIANT).forEach(function (t) { W.HPT[t] = WZ.ITEMS[WZ.VARIANT[t][3]].hp; });
+    W.VM = VM;
     var vkeys = {}, vcount = 0; VTYPES.forEach(function (t) { vkeys[t] = []; }); W.MAX_VOX = 2600;
     W.voxCount = function () { return vcount; };
-    W.getVox = function (x, y, z) { return vox.get(vk(x, y, z)) || null; };
-    W.setVox = function (x, y, z, t, hp, part, sz) {
+    W.setVox = function (x, y, z, t, hp, part, sz, rot) {
       if (y < 0 || y >= VMAX || Math.abs(x) > MAPH + 2 || Math.abs(z) > MAPH + 2) return false;
       var k = vk(x, y, z); if (vox.has(k)) return false;
-      var arr = vkeys[t]; if (!arr || arr.length >= VM[t].instanceMatrix.count) return false;
-      var idx = arr.length, rec = { t: t, hp: hp, idx: idx }; arr.push([x, y, z]); vox.set(k, rec); if (part != null) rec.anc = part;
-      put(VM[t], x + 0.5, y + 0.5, z + 0.5, 1, 1, 1, 0, null, idx); VM[t].count = arr.length; vcount++;
-      if (t >= 3 && t !== 10 && part == null) rec.ent = addBlockEnt(x, y, z, t, sz);
+      var arr = vkeys[t]; if (!arr || !VM[t]) return false;
+      if (part != null) {
+        vox.set(k, { t: t, hp: hp, idx: -1, anc: part });
+        vcount++;
+        return true;
+      }
+      if (arr.length >= VM[t].instanceMatrix.count) return false;
+      var vsz = W.VSIZE[t], bx = vsz ? vsz[0] : 1, bz = vsz ? vsz[1] : 1, by = vsz ? vsz[2] : 1;
+      var r0 = t >= 87 ? (rot || 0) : (rot ? 1 : 0);
+      var w = sz ? sz.w : (r0 ? bz : bx), d = sz ? sz.d : (r0 ? bx : bz), h = sz ? sz.h : by;
+      var idx = arr.length, rec = { t: t, hp: hp, idx: idx, rot: r0 };
+      arr.push([x, y, z, r0]); vox.set(k, rec);
+      put(VM[t], x + w / 2, y + h / 2, z + d / 2, bx, by, bz, r0 * Math.PI / 2, null, idx);
+      VM[t].count = arr.length; vcount++;
+      if (t >= 3 && t !== 10) rec.ent = addBlockEnt(x, y, z, t, { w: w, d: d, h: h });
       return true;
     };
-    W.setShaped = function (x, y, z, t, hp, rot) { if (!W.setVox(x, y, z, t, hp)) return false; var r = vox.get(vk(x, y, z)); r.rot = rot || 0; if (r.rot) put(VM[t], x + 0.5, y + 0.5, z + 0.5, 1, 1, 1, r.rot * Math.PI / 2, null, r.idx); return true; };
-    /* multi-cell blocks: all cells share the anchor's hp; rot swaps footprint */
+    W.blockMesh = function (t) { var m = VM[t]; if (!m) return null; var o = new THREE.Mesh(m.geometry, m.material); o.castShadow = false; return o; };
+    W.setTurretYaw = function (e, ang) { var r = vox.get(vk(e.vx, e.vy, e.vz)); if (!r || !VM[e.vt]) return; r.yawA = ang; e.yaw = ang; put(VM[e.vt], e.vx + 0.5, e.vy + 0.5, e.vz + 0.5, 1, 1, 1, ang, null, r.idx); };
+    W.setShaped = function (x, y, z, t, hp, rot) { return W.setVox(x, y, z, t, hp, null, null, rot || 0); };
+    /* multi-cell blocks: all cells share the anchor's single full-footprint mesh; rot swaps X/Z footprint */
     W.canPlaceBig = function (x, y, z, t, rot) {
       var sz = W.VSIZE[t] || [1, 1, 1], w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], out = [];
       for (var dx = 0; dx < w; dx++) for (var dz = 0; dz < d; dz++) for (var dy = 0; dy < h; dy++) {
@@ -1730,16 +1944,26 @@
     W.setBig = function (x, y, z, t, hp, rot) {
       if (t >= 87) return W.setShaped(x, y, z, t, hp, rot); var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
       var cells = W.canPlaceBig(x, y, z, t, rot); if (!cells) return false;
-      var w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], ak = vk(x, y, z);
-      if (!W.setVox(x, y, z, t, hp, null, { w: w, d: d, h: h })) return false;
-      var rec = vox.get(ak); rec.cells = [ak]; rec.rot = rot ? 1 : 0;
+      var r0 = rot ? 1 : 0, w = r0 ? sz[1] : sz[0], d = r0 ? sz[0] : sz[1], h = sz[2], ak = vk(x, y, z);
+      if (!W.setVox(x, y, z, t, hp, null, { w: w, d: d, h: h }, r0)) return false;
+      var rec = vox.get(ak); rec.cells = [ak]; rec.rot = r0;
       for (var i = 1; i < cells.length; i++) { var c = cells[i]; if (W.setVox(c[0], c[1], c[2], t, hp, ak)) rec.cells.push(vk(c[0], c[1], c[2])); }
       return true;
     };
     W.getVox = function (x, y, z) { var r = vox.get(vk(x, y, z)); if (r && r.anc != null) return vox.get(r.anc) || null; return r || null; };
     function rmCell(k) {
-      var v = vox.get(k); if (!v) return; var arr = vkeys[v.t], last = arr.pop(), m = VM[v.t];
-      if (v.idx !== arr.length) { arr[v.idx] = last; vox.get(vk(last[0], last[1], last[2])).idx = v.idx; var lr = vox.get(vk(last[0], last[1], last[2])); put(m, last[0] + 0.5, last[1] + 0.5, last[2] + 0.5, 1, 1, 1, lr && lr.rot ? lr.rot * Math.PI / 2 : 0, null, v.idx); }
+      var v = vox.get(k); if (!v) return;
+      if (v.idx < 0) { vox.delete(k); vcount--; return; }
+      var arr = vkeys[v.t], last = arr.pop(), m = VM[v.t];
+      if (v.idx !== arr.length) {
+        arr[v.idx] = last;
+        var lr = vox.get(vk(last[0], last[1], last[2]));
+        if (lr) lr.idx = v.idx;
+        var vsz = W.VSIZE[v.t], lbx = vsz ? vsz[0] : 1, lbz = vsz ? vsz[1] : 1, lby = vsz ? vsz[2] : 1;
+        var lrot = last[3] != null ? last[3] : (lr && lr.rot ? lr.rot : 0);
+        var lw = v.t >= 87 ? 1 : (lrot ? lbz : lbx), ld = v.t >= 87 ? 1 : (lrot ? lbx : lbz), lh = lby;
+        put(m, last[0] + lw / 2, last[1] + lh / 2, last[2] + ld / 2, lbx, lby, lbz, lr && lr.yawA != null ? lr.yawA : lrot * Math.PI / 2, null, v.idx);
+      }
       m.count = arr.length; m.instanceMatrix.needsUpdate = true; vox.delete(k); vcount--;
     }
     W.delVox = function (x, y, z) {
@@ -1767,7 +1991,7 @@
         if (v5) { t = (n % 128) + 1; r = Math.floor(n / 128); y = r % 64; r = Math.floor(r / 64); z = (r % 8192) - 4096; x = Math.floor(r / 8192) - 4096; }
         else if (v4) { t = (n % 32) + 1; y = Math.floor(n / 32) % 64; r = Math.floor(n / 2048); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
         else { t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
-        if (t >= 1 && t <= 127 && VM[t]) { if (rot != null) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
+        if (t >= 1 && t <= 127 && VM[t]) { if (rot != null || W.VSIZE[t]) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot || 0); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
       });
     };
     W.resetWorld = function (newSeed, keepBuild) {
@@ -1794,7 +2018,18 @@
     scene.background = skyColor; scene.fog = new THREE.Fog(fogColor, 34, 220);
     var hemi = new THREE.HemisphereLight(0xf2f7ff, 0x625a48, 1.3); scene.add(hemi);
     var sun = new THREE.DirectionalLight(0xfff5e0, 1.25); sun.position.set(80, 90, 60); scene.add(sun); scene.add(sun.target); W.sun = sun; W.hemi = hemi; W.shadowsOn = false; W.sunDirty = true;
-    sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; var shc = sun.shadow.camera; shc.left = -95; shc.right = 95; shc.top = 95; shc.bottom = -95; shc.near = 20; shc.far = 520; shc.updateProjectionMatrix();
+    var lastShadowRad = 75;
+    sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; var shc = sun.shadow.camera; shc.left = -75; shc.right = 75; shc.top = 75; shc.bottom = -75; shc.near = 20; shc.far = 420; shc.updateProjectionMatrix();
+    /* Render Shader Distance (metres): shadow frustum radius around the player */
+    W.setShadowDist = function (m) { var rad = Math.min(160, Math.max(24, Math.round(m || 70))); if (rad === lastShadowRad) return; lastShadowRad = rad; shc.left = -rad; shc.right = rad; shc.top = rad; shc.bottom = -rad; shc.updateProjectionMatrix(); W.sunDirty = true; };
+    W.setShadowRange = function (sr) {
+      var rad = Math.min(90, Math.max(24, Math.round((sr || 5) * CH * 0.85)));
+      if (rad !== lastShadowRad) {
+        lastShadowRad = rad;
+        shc.left = -rad; shc.right = rad; shc.top = rad; shc.bottom = -rad;
+        shc.updateProjectionMatrix();
+      }
+    };
 
     var skyGrp = new THREE.Group(); scene.add(skyGrp);
     var sunMesh = new THREE.Mesh(new THREE.SphereGeometry(9, 14, 10), new THREE.MeshBasicMaterial({ color: 0xfff0b3, fog: false }));
