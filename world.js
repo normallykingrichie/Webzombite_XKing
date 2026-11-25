@@ -82,7 +82,7 @@
     var R = mulberry(20261116), ANISO = Math.min(16, maxAniso || 8);
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
-    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], farms: [], wfilters: [], gunbs: [], cpots: [], distills: [], cworks: [], sengs: [], engs: [], drives: [], vbenchs: [], pools: [], sews: [], gods: [], seats: [], tables: [], lamps: [], cuttables: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
+    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], farms: [], wfilters: [], gunbs: [], cpots: [], shapers: [], tankers: [], tanks: [], pumps: [], ocars: [], distills: [], cworks: [], sengs: [], engs: [], drives: [], vbenchs: [], pools: [], sews: [], gods: [], seats: [], tables: [], lamps: [], cuttables: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
     var HALF = 1000 /* core extent */, MAPH = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = MAPH; W.gh = WZ.TERRAIN.gh;
 
     var CELL = 8, sgrid = new Map();
@@ -111,7 +111,7 @@
         var ix0 = Math.floor(x0), ix1 = Math.ceil(x1) - 1, iy0 = Math.max(0, Math.floor(y0)), iy1 = Math.ceil(y1) - 1, iz0 = Math.floor(z0), iz1 = Math.ceil(z1) - 1, ix, iy, iz, key;
         for (ix = ix0; ix <= ix1; ix++) for (iz = iz0; iz <= iz1; iz++) for (iy = iy0; iy <= iy1; iy++) {
           key = vk(ix, iy, iz); var rv0 = vox.get(key);
-          if (rv0 && rv0.t >= 87) { var sb = W.shapeBoxes(rv0.t, rv0.rot, ix, iy, iz), sj, q; for (sj = 0; sj < sb.length; sj++) { q = sb[sj]; if (x1 > q[0] && x0 < q[3] && y1 > q[1] && y0 < q[4] && z1 > q[2] && z0 < q[5]) { found = true; if (q[4] > info.top) info.top = q[4]; if (q[1] < info.bottom) info.bottom = q[1]; info.vox = key; } } continue; }
+          if (rv0 && (rv0.t >= 87 && rv0.t <= 125)) { var sb = W.shapeBoxes(rv0.t, rv0.rot, ix, iy, iz), sj, q; for (sj = 0; sj < sb.length; sj++) { q = sb[sj]; if (x1 > q[0] && x0 < q[3] && y1 > q[1] && y0 < q[4] && z1 > q[2] && z0 < q[5]) { found = true; if (q[4] > info.top) info.top = q[4]; if (q[1] < info.bottom) info.bottom = q[1]; info.vox = key; } } continue; }
           if (rv0 && !(rv0.t >= 44 && rv0.t <= 48)) { found = true; if (iy + 1 > info.top) info.top = iy + 1; if (iy < info.bottom) info.bottom = iy; info.vox = key; }
         }
       }
@@ -635,11 +635,11 @@
       rbk.pos.push(x0, h, z1, x1, h, z1, x1, h, z0, x0, h, z0);
       for (var i = 0; i < 4; i++) { rbk.norm.push(0, 1, 0); rbk.col.push(rc.r, rc.g, rc.b); }
       rbk.idx.push(rb, rb + 1, rb + 2, rb, rb + 2, rb + 3);
-      addBox(x0, x1, 0, h, z0, z1, false); occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#555' });
+      addBox(x0, x1, 0, h, z0, z1, false); occupied.push([x0 - 1, x1 + 1, z0 - 1, z1 + 1]); W.noGrass.push([x0 - 0.5, x1 + 0.5, z0 - 0.5, z1 + 0.5]); W.rects.push({ x0: x0, x1: x1, z0: z0, z1: z1, c: '#555' });
       if (R() < 0.6) put(walls, rr(x0 + 2, x1 - 2), h + 1, rr(z0 + 2, z1 - 2), 3, 2, 3, 0, 0x6b7075);
     }
     /* [BUILDINGS] Enterable towers: door on the south wall, a floor slab + staircase per level (flights alternate between the two long walls), one furniture per floor, loot spawned per floor in spawnNature. */
-    W.floors = []; W.indoor = [];
+    W.floors = []; W.indoor = []; W.noGrass = [];
     function tallBuilding(x0, x1, z0, z1, h) {
       var w = x1 - x0, d = z1 - z0; if (w < 12 || d < 10) { tallSolid(x0, x1, z0, z1, h); return; }
       var FH = 3.6, t = 0.4, fl = Math.max(3, Math.min(12, Math.round(h / FH))); h = fl * FH;
@@ -662,7 +662,7 @@
         flights.push({ x0: fx0, x1: fx0 + RUN * NST, z0: fz0, z1: fz0 + SW, up: up });
         for (var si = 0; si < NST; si++) { var sx = up ? fx0 + si * RUN : fx0 + (NST - 1 - si) * RUN; wallSeg(sx, sx + RUN, fz0, fz0 + SW, k * FH, k * FH + RISE * (si + 1), 0x8c857a); }
       }
-      wallSeg(x0 + t, x1 - t, z0 + t, z1 - t, 0, 0.06, 0x8a857a);
+      wallSeg(x0 + t, x1 - t, z0 + t, z1 - t, 0, 0.14, 0x8a857a);
       for (var k2 = 1; k2 <= fl; k2++) {
         var y = k2 * FH, fh = flights[k2 - 1];
         if (k2 === fl || !fh) { wallSeg(x0 + t, x1 - t, z0 + t, z1 - t, y - 0.3, y, SC); continue; }
@@ -1016,13 +1016,14 @@
     }
 
     function addBlockEnt(x, y, z, t, sz) {
-      var kind = t >= 87 ? null : t >= 79 && t <= 84 ? 'farm' : (t >= 72 && t <= 78) || t === 85 || t === 86 ? 'gstation' : t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 51 ? 'godstatue' : t >= 70 ? 'bed' : t >= 67 || (t >= 64 && t <= 66) ? 'lamp' : t >= 61 ? 'sofa' : t >= 58 ? 'sofa' : t >= 55 ? 'table' : t >= 52 ? 'seat' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
+      var kind = (t >= 87 && t <= 125) ? null : WZ.TANK && WZ.TANK[t] ? 'tank' : t >= 79 && t <= 84 ? 'farm' : WZ.GST[t] ? 'gstation' : t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 51 ? 'godstatue' : t >= 70 ? 'bed' : t >= 67 || (t >= 64 && t <= 66) ? 'lamp' : t >= 61 ? 'sofa' : t >= 58 ? 'sofa' : t >= 55 ? 'table' : t >= 52 ? 'seat' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
       if (!kind) return null;
       var w = sz ? sz.w : 1, d = sz ? sz.d : 1, h = sz ? sz.h : 1;
       var e = { k: kind, x: x + w / 2, z: z + d / 2, y: y, r: Math.max(w, d) / 2 + 0.4, h: h, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z, sw: w, sd: d };
       addEnt(e); W.bents.push(e);
       if (t >= 79 && t <= 84) { e.farm = WZ.FARM[t]; e.fn = e.farm[2]; e.fm = { tilled: !!e.farm[3], hoe: 0, wet: 0, crops: [] }; W.farms.push(e); }
-      else if ((t >= 72 && t <= 78) || t === 85 || t === 86) { e.stk = WZ.GST[t][0]; W[WZ.GST[t][2]].push(e); }
+      else if (WZ.GST[t]) { e.stk = WZ.GST[t][0]; W[WZ.GST[t][2]].push(e); }
+      else if (WZ.TANK && WZ.TANK[t]) { e.tk = WZ.TANK[t]; e.tkL = 0; e.tkLiq = null; e.r = Math.max(w, d) / 2 + 0.5; W.tanks.push(e); }
       else if (t === 3) W.furn.push(e);
       else if (t === 6) W.sinks.push(e);
       else if (t === 7) W.camps.push(e);
@@ -1144,35 +1145,42 @@
     for (var tgi = 0; tgi < 5; tgi++) TRUCK_DET.push(bx(1.24, 0.03, 0.03, 0, 0.88 + tgi * 0.08, 3.70, 0xa8aeb6));
     var truckBody = inst(mergeGeos(TRUCK_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 1400, true, true);
     var truckDet  = inst(mergeGeos(TRUCK_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 1400, true, false);
+    var carDoorM = inst(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff, { roughness: 0.38, metalness: 0.3 }), 128, true, true);
     var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet];
     W.cars = [];
     function carHide(c) {
       var j;
       CARM.forEach(function (m) { put(m, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); });
       for (j = 0; j < 6; j++) put(carWh, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 6 * c.ix + j);
+      if (c.own) put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000);
     }
     W.setCar = function (c, on) {
       var y0 = c.y || 0, j;
       carHide(c);
       if (!on) { c.box.on = false; c.alive = false; return; }
+      var bcol = c.burnt ? 0x2a231f : c.col;
       var ry = c.ang != null ? c.ang : (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry);
       function at(lx, lz) { return [c.x + sn * lz + cs * lx, c.z + cs * lz - sn * lx]; }
       if (c.truck) {
-        put(truckBody, c.x, y0, c.z, 1, 1, 1, ry, c.col, c.ix);
-        put(truckDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(truckBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
+        if (!c.burnt) put(truckDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
         var twPos = [[-1.18, 2.45], [1.18, 2.45], [-1.18, -0.95], [1.18, -0.95], [-1.18, -2.55], [1.18, -2.55]];
         for (j = 0; j < 6; j++) { var tw = at(twPos[j][0], twPos[j][1]); put(carWh, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, null, 6 * c.ix + j); }
       } else if (c.suv) {
-        put(suvBody, c.x, y0, c.z, 1, 1, 1, ry, c.col, c.ix);
-        put(suvDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(suvBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
+        if (!c.burnt) put(suvDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
         var swPos = [[-0.93, 1.35], [0.93, 1.35], [-0.93, -1.35], [0.93, -1.35]];
         for (j = 0; j < 4; j++) { var sw = at(swPos[j][0], swPos[j][1]); put(carWh, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, null, 6 * c.ix + j); }
       } else {
-        put(sedanBody, c.x, y0, c.z, 1, 1, 1, ry, c.col, c.ix);
-        put(sedanDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(sedanBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
+        if (!c.burnt) put(sedanDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
         var cwPos = [[-0.90, 1.38], [0.90, 1.38], [-0.90, -1.38], [0.90, -1.38]];
         for (j = 0; j < 4; j++) { var cw = at(cwPos[j][0], cwPos[j][1]); put(carWh, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, null, 6 * c.ix + j); }
       }
+      if (c.own && c.vs && c.vs.doorA > 0.02 && !c.burnt) {
+        var th = c.vs.doorA * 1.15, hl = c.truck ? 3.0 : c.suv ? 0.92 : 0.78, hx = c.truck ? 1.28 : 0.97, dl = c.truck ? 1.5 : 1.12, dc = at(hx + dl / 2 * Math.sin(th), hl - dl / 2 * Math.cos(th));
+        put(carDoorM, dc[0], y0 + (c.truck ? 1.9 : 0.75), dc[1], 0.06, c.truck ? 1.2 : 0.8, dl, ry - th, c.col, c.ix - 1000);
+      } else if (c.own) put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000);
       c.box.on = c.ang == null; c.alive = true;
     };
     /* re-register a car's collision box after it was driven (snapped to an axis) */
@@ -1182,6 +1190,23 @@
       for (cx = Math.floor(b.x0 / CELL); cx <= Math.floor(b.x1 / CELL); cx++) for (cz = Math.floor(b.z0 / CELL); cz <= Math.floor(b.z1 / CELL); cz++) { var k = ck(cx, cz), l = sgrid.get(k); if (!l) { l = []; sgrid.set(k, l); } l.push(b); }
       b.on = true;
     };
+
+    /* ---- Whole (owned) vehicles: placed by the player, drivable, own fuel/engine state ---- */
+    var OSPEC = { suv: { lx: 1.9, lz: 4.4, h: 1.75 }, sedan: { lx: 1.9, lz: 4.4, h: 1.5 }, mustang: { lx: 1.9, lz: 4.4, h: 1.45 }, truck: { lx: 2.7, lz: 7.6, h: 3.2 } };
+    W.newVS = function (kind) { return { cond: 100, hb: false, blown: false, ag: 1, door: false, doorA: 0, seated: false, key: false, eng: false, crank: 0, rpm: 0, gear: 1, fuel: 0, fuelT: kind === 'truck' ? 'diesel' : 'gasoline', heat: 0, odo: 0, v: 0, st: 0, stall: 0, bump: 0 }; };
+    W.reattachCar = function (c) {
+      var ix, j; if (W.ocars.indexOf(c) < 0) W.ocars.push(c); ix = 1000 + W.ocars.indexOf(c); c.ix = ix;
+      for (j = Math.min(CARM[0].count, ix); j < ix; j++) carHide({ ix: j });
+      CARM.forEach(function (m) { m.count = Math.max(m.count, ix + 1); }); carDoorM.count = Math.max(carDoorM.count, ix - 999); carWh.count = Math.max(carWh.count, 6 * ix + 6);
+      c.box = addBox(c.x - c.lx / 2, c.x + c.lx / 2, c.y || 0, (c.y || 0) + c.h, c.z - c.lz / 2, c.z + c.lz / 2, true);
+      W.setCar(c, true); addEnt(c);
+    };
+    W.addOwnedCar = function (kind, x, z, ang, col, hp) {
+      var k = ((Math.round(ang / (Math.PI / 2)) % 4) + 4) % 4, horiz = k === 1 || k === 3, sp = OSPEC[kind] || OSPEC.suv, c;
+      c = { k: 'car', own: true, kind: kind, truck: kind === 'truck', suv: kind === 'suv', idx: -1, x: x, z: z, y: W.gh ? Math.max(0, W.gh(x, z)) : 0, dir: (k === 0 || k === 1) ? 1 : -1, horiz: horiz, r: kind === 'truck' ? 3.4 : 1.9, h: sp.h, lx: horiz ? sp.lz : sp.lx, lz: horiz ? sp.lx : sp.lz, alive: true, dyn: true, respawn: 0, col: col || 0x4f6b52, max: 60, hp: hp != null ? hp : 60, vs: W.newVS(kind) };
+      W.reattachCar(c); return c;
+    };
+    W.ownedCarFree = function (x, z, ang, kind) { var sp = OSPEC[kind] || OSPEC.suv, k = Math.round(ang / (Math.PI / 2)), h = k % 2 !== 0, hx = (h ? sp.lz : sp.lx) / 2, hz = (h ? sp.lx : sp.lz) / 2, y = W.gh ? W.gh(x, z) : 0; return !W.hit(x - hx, x + hx, y + 0.2, y + 1.6, z - hz, z + hz); };
     function addCar(x, z, horiz, rng, truck) {
       var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, dir: rng() < 0.5 ? -1 : 1, r: truck ? 3.4 : 1.9, h: truck ? 3.2 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
       c.suv = !truck && ((Math.floor(x * 7) + Math.floor(z * 13)) % 10 + 10) % 10 < 3; if (c.suv) c.col = [0xe6d5c0, 0xd9c7b0, 0xc9b5a8, 0x9aa7b0, 0xb8452f, 0x4f6b52][((Math.floor(x) * 31 + Math.floor(z)) % 6 + 6) % 6];
@@ -1192,6 +1217,28 @@
       c.box = addBox(x - c.lx / 2, x + c.lx / 2, 0, c.truck ? 3.2 : 1.75, z - c.lz / 2, z + c.lz / 2, true);
       W.setCar(c, true); addEnt(c); W.cars.push(c);
     }
+
+    /* ---- Gas Station: canopy, shop and 4 Fuel Pump Stations (1x1x2) holding 1-10 L of Gasoline or Diesel ---- */
+    function addGasStation(cx, cz) {
+      var gr = mulberry(((Math.floor(cx) * 83492791) ^ (Math.floor(cz) * 2654435761)) >>> 0), pxs = [-5.4, -1.8, 1.8, 5.4];
+      put(walls, cx, -0.1, cz, 36, 0.5, 30, 0, 0x4a4d52); W.noGrass.push([cx - 18, cx + 18, cz - 15, cz + 15]);
+      put(walls, cx, 5.2, cz - 5, 17, 0.5, 9.5, 0, 0xc23b2e); put(walls, cx, 4.9, cz - 5, 17.2, 0.12, 9.7, 0, 0xf2f2f2);
+      [[-8, -9], [8, -9], [-8, -1], [8, -1]].forEach(function (p) { put(walls, cx + p[0], 2.5, cz + p[1], 0.5, 5, 0.5, 0, 0xd9d9d9); addBox(cx + p[0] - 0.25, cx + p[0] + 0.25, 0, 5, cz + p[1] - 0.25, cz + p[1] + 0.25, false); });
+      [-3.6, 3.6].forEach(function (ix) { put(walls, cx + ix, 0.1, cz - 4, 1.6, 0.2, 7, 0, 0x8d9096); });
+      wallSeg(cx - 9, cx + 9, cz + 6, cz + 12, 0, 3.6, 0xe4dccb); put(walls, cx, 3.9, cz + 9, 19, 0.5, 7, 0, 0xc23b2e);
+      put(walls, cx, 2.2, cz + 5.9, 6, 1.2, 0.1, 0, 0x2a3c4a);
+      put(walls, cx - 15, 4.2, cz - 10, 0.35, 8.4, 0.35, 0, 0x6f7378); put(walls, cx - 15, 8.3, cz - 10, 3, 1.8, 0.35, 0, 0xf2f2f2); put(walls, cx - 15, 8.3, cz - 10, 2.6, 1.4, 0.4, 0, 0xc23b2e);
+      addBox(cx - 15.2, cx - 14.8, 0, 8, cz - 10.2, cz - 9.8, false);
+      occupied.push([cx - 18, cx + 18, cz - 15, cz + 15]); W.rects.push({ x0: cx - 18, x1: cx + 18, z0: cz - 15, z1: cz + 15, c: '#4a4d52' });
+      pxs.forEach(function (px) {
+        var fuel = gr() < 0.65 ? 'gasoline' : 'diesel', L = Math.round((1 + gr() * 9) * 10) / 10, x = cx + px, z = cz - 4, top = fuel === 'gasoline' ? 0x3fae56 : 0xd9b21f;
+        put(walls, x, 0.8, z, 0.7, 1.6, 0.5, 0, 0xd8d4c8); put(walls, x, 1.62, z, 0.74, 0.18, 0.54, 0, top); put(walls, x, 1.05, z + 0.26, 0.4, 0.3, 0.04, 0, 0x1c2a22); put(walls, x + 0.3, 0.9, z + 0.3, 0.06, 0.5, 0.06, 0, 0x2b2e33);
+        var e = { k: 'pump', x: x, z: z, y: 0, r: 0.95, h: 2, alive: true, clean: true, fuel: fuel, L: L, max: L, pi: W.pumps.length };
+        e.box = addBox(x - 0.36, x + 0.36, 0, 2, z - 0.28, z + 0.28, false); addEnt(e); W.pumps.push(e);
+      });
+      W.gasStations.push({ x: cx, z: cz });
+    }
+    W.gasStations = [];
     var lakeList = [];
     /* Graveyards: fixed spots (about 2% of the blocks outside the city centre). Zombies also spawn from them. */
     W.graves = [];
@@ -1224,6 +1271,7 @@
       } else if (zone === 'mid') {
         var roll = R();
         if (roll < 0.3 && curBiome !== 'jungle') tallBuilding(bx0 + 2, bx1 - 2, bz0 + 2, bz1 - 2, rr(10, 24));
+        else if (roll >= 0.9 && mulberry(((Math.floor(cx) * 668265263) ^ (Math.floor(cz) * 374761393)) >>> 0)() < 0.7) addGasStation(cx, cz);
         else if (roll < 0.9) { var mx2 = (bx0 + bx1) / 2, mz2 = (bz0 + bz1) / 2; [[mx2 - 12, mz2 - 12], [mx2 + 12, mz2 - 12], [mx2 - 12, mz2 + 12], [mx2 + 12, mz2 + 12]].forEach(function (q, qi) { if (R() < 0.85) house(q[0] + rr(-1.5, 1.5), q[1] + rr(-1.5, 1.5), qi < 2 ? 's' : 'n', 'mid'); }); }
       } else {
         var mx3 = (bx0 + bx1) / 2, mz3 = (bz0 + bz1) / 2;
@@ -1874,6 +1922,33 @@
       86: inst(gCpot, vPart(0.66, 0.40), 200, true, false)
     };
     var gFarmDry = gFarmBed(false), gFarmWet = gFarmBed(true);
+
+    /* [VEHICLE TAG] Manual Iron Shaper Table, Tanker Bench and the fluid tanks (geometry is normalised to one block, then stretched to the block size) */
+    var gShaper = mergeGeos([
+      bx(0.96, 0.10, 0.84, 0, 0.15, 0, 0x6e4a28),
+      bx(0.08, 0.64, 0.08, -0.44, -0.2, -0.36, 0x4a3018), bx(0.08, 0.64, 0.08, 0.44, -0.2, -0.36, 0x4a3018), bx(0.08, 0.64, 0.08, -0.44, -0.2, 0.36, 0x4a3018), bx(0.08, 0.64, 0.08, 0.44, -0.2, 0.36, 0x4a3018),
+      bx(0.9, 0.05, 0.05, 0, -0.38, 0, 0x4a3018),
+      bx(0.30, 0.16, 0.30, -0.22, 0.28, 0.02, 0x4b5057), bx(0.40, 0.06, 0.26, -0.22, 0.38, 0.02, 0x7d858e), bx(0.10, 0.06, 0.16, -0.50, 0.36, 0.02, 0x7d858e),
+      bx(0.12, 0.14, 0.18, 0.36, 0.27, -0.2, 0x2b2e33), bx(0.04, 0.10, 0.04, 0.36, 0.39, -0.2, 0x8a929c),
+      bx(0.06, 0.04, 0.34, 0.14, 0.23, 0.18, 0x5d442a), bx(0.14, 0.08, 0.08, 0.14, 0.27, 0.34, 0x6d737b),
+      bx(0.34, 0.03, 0.06, 0.2, 0.22, -0.2, 0x9c6a3a), bx(0.30, 0.04, 0.04, 0.12, 0.22, 0.02, 0xb58a58)
+    ]);
+    var gTanker = mergeGeos([
+      bx(0.98, 0.10, 0.86, 0, 0.12, 0, 0x5a5f66),
+      bx(0.08, 0.60, 0.08, -0.45, -0.2, -0.38, 0x2b2e33), bx(0.08, 0.60, 0.08, 0.45, -0.2, -0.38, 0x2b2e33), bx(0.08, 0.60, 0.08, -0.45, -0.2, 0.38, 0x2b2e33), bx(0.08, 0.60, 0.08, 0.45, -0.2, 0.38, 0x2b2e33),
+      bx(0.9, 0.05, 0.05, 0, -0.4, 0, 0x2b2e33),
+      cylY(0.20, 0.20, 0.34, -0.26, 0.34, 0, 0x7d838c, 12), cylY(0.12, 0.2, 0.08, -0.26, 0.55, 0, 0x4a4f57, 12),
+      bx(0.06, 0.06, 0.50, 0.04, 0.26, 0.02, 0xc9a23a), bx(0.30, 0.06, 0.06, 0.2, 0.26, 0.26, 0xc9a23a),
+      cylY(0.10, 0.04, 0.12, 0.40, 0.23, 0.26, 0x8a929c, 8), bx(0.16, 0.16, 0.16, 0.30, 0.30, -0.22, 0x3b5f8a), bx(0.10, 0.06, 0.10, 0.30, 0.41, -0.22, 0xd9d9d9)
+    ]);
+    function tankGeo(wood) {
+      var P = wood ? [bx(0.92, 0.86, 0.92, 0, 0.02, 0, 0x8a5a30), bx(0.96, 0.07, 0.96, 0, -0.30, 0, 0x2c3036), bx(0.96, 0.07, 0.96, 0, 0.02, 0, 0x2c3036), bx(0.96, 0.07, 0.96, 0, 0.30, 0, 0x2c3036), bx(0.98, 0.07, 0.98, 0, 0.47, 0, 0x6a4524), bx(0.30, 0.06, 0.30, 0, 0.51, 0, 0x4a3018), bx(0.05, 0.05, 0.05, 0.1, 0.55, 0.1, 0xb9b9b9), bx(0.10, 0.10, 0.12, 0, -0.34, 0.5, 0x7d838c), bx(0.04, 0.22, 0.04, 0.40, 0.05, 0.47, 0xc9d8e8)]
+        : [cylY(0.46, 0.46, 0.84, 0, 0.02, 0, 0x7a838d, 16), cylY(0.48, 0.48, 0.06, 0, -0.30, 0, 0x4a4f57, 16), cylY(0.48, 0.48, 0.06, 0, 0.02, 0, 0x4a4f57, 16), cylY(0.48, 0.48, 0.06, 0, 0.32, 0, 0x4a4f57, 16), cylY(0.30, 0.46, 0.08, 0, 0.47, 0, 0x6b737c, 16), cylY(0.12, 0.12, 0.10, 0, 0.53, 0, 0x2b2e33, 10), bx(0.14, 0.10, 0.14, 0, -0.38, 0.46, 0x9aa2ab), bx(0.05, 0.30, 0.05, 0.28, 0.05, 0.43, 0xd9e6f2), bx(0.08, 0.32, 0.03, 0.28, 0.05, 0.455, 0x3b5f8a)];
+      return mergeGeos(P);
+    }
+    VM[126] = inst(gShaper, vPart(0.62, 0.30), 200, true, false); VM[127] = inst(gTanker, vPart(0.55, 0.35), 200, true, false);
+    VM[128] = inst(tankGeo(true), vPart(0.8, 0.08), 200, true, false); VM[130] = inst(tankGeo(true), vPart(0.8, 0.08), 100, true, false);
+    VM[129] = inst(tankGeo(false), vPart(0.45, 0.5), 200, true, false); VM[131] = inst(tankGeo(false), vPart(0.45, 0.5), 100, true, false);
     Object.keys(WZ.FARM).forEach(function (t) {
       var f = WZ.FARM[t];
       VM[t] = inst(f[3] ? gFarmWet : gFarmDry, vPart(f[3] ? 0.25 : 0.88, f[3] ? 0.12 : 0.02), 200, true, false);
@@ -1900,10 +1975,10 @@
       return out;
     };
     Object.keys(WZ.VARIANT).forEach(function (t) { var vr = WZ.VARIANT[t]; if (VM[vr[0]]) VM[t] = inst(shapeGeo(SHB[vr[1]]), VM[vr[0]].material, 400, true, false); });
-    for (var vt0 = 1; vt0 <= 125; vt0++) if (VM[vt0]) VTYPES.push(vt0);
+    for (var vt0 = 1; vt0 <= 140; vt0++) if (VM[vt0]) VTYPES.push(vt0);
     for (var fi = 52; fi <= 71; fi++) { var fk = fi >= 70 ? 'bed' : FKIND[Math.floor((fi - 52) / 3)], fw = FWC[fi >= 70 ? fi - 69 : (fi - 52) % 3]; VM[fi] = inst(mergeBoxes(furnParts(fk, fw[0], fw[1], fw[2])), lam(0xffffff, { vertexColors: true }), 200, true, false); }
-    W.VSIZE = { 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
-    W.HPT = { 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
+    W.VSIZE = { 126: [3, 1, 2], 127: [3, 1, 2], 128: [2, 2, 2], 129: [2, 2, 2], 130: [4, 4, 2], 131: [4, 4, 2], 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
+    W.HPT = { 126: 90, 127: 90, 128: 70, 129: 120, 130: 160, 131: 260, 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
     Object.keys(WZ.VARIANT).forEach(function (t) { W.HPT[t] = WZ.ITEMS[WZ.VARIANT[t][3]].hp; });
     W.VM = VM;
     var vkeys = {}, vcount = 0; VTYPES.forEach(function (t) { vkeys[t] = []; }); W.MAX_VOX = 2600;
@@ -1919,7 +1994,7 @@
       }
       if (arr.length >= VM[t].instanceMatrix.count) return false;
       var vsz = W.VSIZE[t], bx = vsz ? vsz[0] : 1, bz = vsz ? vsz[1] : 1, by = vsz ? vsz[2] : 1;
-      var r0 = t >= 87 ? (rot || 0) : (rot ? 1 : 0);
+      var r0 = (t >= 87 && t <= 125) ? (rot || 0) : (rot ? 1 : 0);
       var w = sz ? sz.w : (r0 ? bz : bx), d = sz ? sz.d : (r0 ? bx : bz), h = sz ? sz.h : by;
       var idx = arr.length, rec = { t: t, hp: hp, idx: idx, rot: r0 };
       arr.push([x, y, z, r0]); vox.set(k, rec);
@@ -1942,7 +2017,7 @@
       return out;
     };
     W.setBig = function (x, y, z, t, hp, rot) {
-      if (t >= 87) return W.setShaped(x, y, z, t, hp, rot); var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
+      if (t >= 87 && t <= 125) return W.setShaped(x, y, z, t, hp, rot); var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
       var cells = W.canPlaceBig(x, y, z, t, rot); if (!cells) return false;
       var r0 = rot ? 1 : 0, w = r0 ? sz[1] : sz[0], d = r0 ? sz[0] : sz[1], h = sz[2], ak = vk(x, y, z);
       if (!W.setVox(x, y, z, t, hp, null, { w: w, d: d, h: h }, r0)) return false;
@@ -1961,7 +2036,7 @@
         if (lr) lr.idx = v.idx;
         var vsz = W.VSIZE[v.t], lbx = vsz ? vsz[0] : 1, lbz = vsz ? vsz[1] : 1, lby = vsz ? vsz[2] : 1;
         var lrot = last[3] != null ? last[3] : (lr && lr.rot ? lr.rot : 0);
-        var lw = v.t >= 87 ? 1 : (lrot ? lbz : lbx), ld = v.t >= 87 ? 1 : (lrot ? lbx : lbz), lh = lby;
+        var lw = (v.t >= 87 && v.t <= 125) ? 1 : (lrot ? lbz : lbx), ld = (v.t >= 87 && v.t <= 125) ? 1 : (lrot ? lbx : lbz), lh = lby;
         put(m, last[0] + lw / 2, last[1] + lh / 2, last[2] + ld / 2, lbx, lby, lbz, lr && lr.yawA != null ? lr.yawA : lrot * Math.PI / 2, null, v.idx);
       }
       m.count = arr.length; m.instanceMatrix.needsUpdate = true; vox.delete(k); vcount--;
@@ -1977,8 +2052,8 @@
       var out = [];
       vox.forEach(function (v) {
         if (v.anc != null) return;
-        var a = vkeys[v.t][v.idx], p = (((a[0] + 4096) * 8192 + (a[2] + 4096)) * 64 + a[1]) * 128 + (v.t - 1);
-        if (v.cells || v.t >= 87) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
+        var a = vkeys[v.t][v.idx], p = (((a[0] + 4096) * 8192 + (a[2] + 4096)) * 64 + a[1]) * 512 + (v.t - 1);
+        if (v.cells || (v.t >= 87 && v.t <= 125)) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
         else out.push(Math.round(v.hp) < W.HPT[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
       });
       return out;
@@ -1988,16 +2063,18 @@
       list.forEach(function (en) {
         var n = Array.isArray(en) ? en[0] : en, hp = Array.isArray(en) ? en[1] : null, rot = Array.isArray(en) && en.length > 2 ? en[2] : null, t, y, r, z, x;
         if (!v2) return;
-        if (v5) { t = (n % 128) + 1; r = Math.floor(n / 128); y = r % 64; r = Math.floor(r / 64); z = (r % 8192) - 4096; x = Math.floor(r / 8192) - 4096; }
+        if (ver >= 6) { t = (n % 512) + 1; r = Math.floor(n / 512); y = r % 64; r = Math.floor(r / 64); z = (r % 8192) - 4096; x = Math.floor(r / 8192) - 4096; }
+        else if (v5) { t = (n % 128) + 1; r = Math.floor(n / 128); y = r % 64; r = Math.floor(r / 64); z = (r % 8192) - 4096; x = Math.floor(r / 8192) - 4096; }
         else if (v4) { t = (n % 32) + 1; y = Math.floor(n / 32) % 64; r = Math.floor(n / 2048); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
         else { t = (n % 16) + 1; y = Math.floor(n / 16) % 64; r = Math.floor(n / 1024); z = (r % 2048) - 1024; x = Math.floor(r / 2048) - 1024; }
-        if (t >= 1 && t <= 127 && VM[t]) { if (rot != null || W.VSIZE[t]) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot || 0); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
+        if (t >= 1 && t <= 255 && VM[t]) { if (rot != null || W.VSIZE[t]) W.setBig(x, y, z, t, hp != null ? hp : W.HPT[t], rot || 0); else W.setVox(x, y, z, t, hp != null ? hp : W.HPT[t]); }
       });
     };
     W.resetWorld = function (newSeed, keepBuild) {
+      var keepOwned = W.ocars.slice();
       if (!keepBuild) {
         vox.clear(); VTYPES.forEach(function (t) { vkeys[t].length = 0; VM[t].count = 0; VM[t].instanceMatrix.needsUpdate = true; });
-        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0; W.mills.length = W.bombs.length = W.kilns.length = W.crafts.length = W.works.length = W.seats.length = W.tables.length = W.lamps.length = 0; Object.keys(WZ.GST).forEach(function (t) { W[WZ.GST[t][2]].length = 0; }); W.farms.forEach(function (f) { if (f.fmG && f.fmG.parent) f.fmG.parent.remove(f.fmG); }); W.farms.length = 0; W.gods.length = W.liqs.length = W.sews.length = W.blasts.length = W.presses.length = W.casings.length = W.trapbs.length = W.masons.length = W.chests.length = 0;
+        vcount = 0; W.bents.forEach(function (e) { e.alive = false; }); W.bents.length = 0; W.furn.length = 0; W.sinks.length = 0; W.camps.length = 0; W.anvils.length = 0; W.comps.length = 0; W.saws.length = 0; W.tbench.length = 0; W.turrets.length = 0; W.mills.length = W.bombs.length = W.kilns.length = W.crafts.length = W.works.length = W.seats.length = W.tables.length = W.lamps.length = 0; Object.keys(WZ.GST).forEach(function (t) { W[WZ.GST[t][2]].length = 0; }); W.tanks.length = 0; W.farms.forEach(function (f) { if (f.fmG && f.fmG.parent) f.fmG.parent.remove(f.fmG); }); W.farms.length = 0; W.gods.length = W.liqs.length = W.sews.length = W.blasts.length = W.presses.length = W.casings.length = W.trapbs.length = W.masons.length = W.chests.length = 0;
       }
       sgrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn) l.splice(i, 1); });
       egrid.forEach(function (l) { for (var i = l.length - 1; i >= 0; i--) if (l[i].dyn && l[i].vx == null) l.splice(i, 1); });
@@ -2012,6 +2089,7 @@
       crateM.count = lidM.count = staticCrateCount;
       W.pools.forEach(function (p) { scene.remove(p.m); }); W.pools.length = 0;
       spawnNature(newSeed != null ? newSeed : rndSeed(), !!keepBuild);
+      W.ocars.length = 0; if (keepBuild) keepOwned.forEach(function (c) { W.reattachCar(c); });
     };
 
     var skyColor = new THREE.Color(0x88b8de), fogColor = new THREE.Color(0x9bc4e6);

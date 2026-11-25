@@ -138,14 +138,15 @@
   }
   function snapshot(worldOnly) {
     if (cache.ver !== voxVer) { cache.list = W.voxList(); cache.ver = voxVer; }
-    var o = { v: 5, tb: W.tables.filter(function (e) { return e.alive && e.on; }).map(function (e) { return [e.vx, e.vy, e.vz, e.on]; }), df: wDiff, tm: wTime, sd: baseSeed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [], cs: [], bf: bf.slice(), tu: [] };
+    var o = { v: 6, tb: W.tables.filter(function (e) { return e.alive && e.on; }).map(function (e) { return [e.vx, e.vy, e.vz, e.on]; }), df: wDiff, tm: wTime, sd: baseSeed, t: Math.round(T * 10) / 10, b: cache.list, tr: [], rk: [], pl: [], cr: [], cs: [], bf: bf.slice(), tu: [] };
     W.turrets.forEach(function (e) { if (e.alive && e.ammo > 0) o.tu.push([e.vx, e.vy, e.vz, e.ammo]); });
     o.ch = []; W.chests.forEach(function (e) { if (e.alive && Object.keys(e.box).length) o.ch.push([e.vx, e.vy, e.vz, e.box]); });
     W.trees.forEach(function (t, i) { if (!t.alive || t.hp < t.max) o.tr.push([i, Math.round(t.hp), t.given, Math.round(t.respawn)]); });
     W.rocks.forEach(function (t, i) { if (!t.alive || t.hp < t.max) o.rk.push([i, Math.round(t.hp), t.given, Math.round(t.respawn)]); });
     W.piles.forEach(function (p, i) { if (p.searched) o.pl.push([i, Math.round(p.respawn)]); });
     W.crates.forEach(function (p, i) { if (p.searched) o.cr.push([i, Math.round(p.respawn)]); });
-    W.cars.forEach(function (c, i) { if (!c.alive || c.hp < c.max) o.cs.push([i, Math.round(c.hp)]); });
+    W.cars.forEach(function (c, i) { if (!c.alive || c.hp < c.max || c.burnt) o.cs.push([i, Math.round(c.hp), c.burnt ? 1 : 0]); });
+    o.ov = vehSave(); o.pm = (W.pumps || []).map(function (p) { return Math.round(p.L * 10) / 10; }); o.tk = []; (W.tanks || []).forEach(function (e) { if (e.alive && e.tkL > 0) o.tk.push([e.vx, e.vy, e.vz, e.tkL, e.tkLiq]); }); o.jb = jobs.map(function (j) { return [j.id, Math.round(j.left), j.half ? 1 : 0]; });
     if (!worldOnly) {
       o.k = kills; o.cn = coins; o.kc = kc; o.fm = farmSave(); o.p = [r2(P.x), r2(P.y), r2(P.z), Math.round(P.yaw * 1000) / 1000, Math.round(P.pitch * 1000) / 1000];
       o.s = [Math.round(P.hp), Math.round(P.hunger), Math.round(P.thirst), Math.round(P.energy), Math.round(P.comfort), Math.round(status.poison * 10) / 10, Math.round(status.stomach * 10) / 10, Math.round(status.wpoison * 10) / 10];
@@ -183,13 +184,13 @@
   }
   function applySave(s, worldOnly) {
     if (!s || (s.v !== 3 && s.v !== 4)) return false;
-    wDiff = s.df | 0; wTime = s.tm | 0; baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], s.v); farmLoad(s.fm); voxVer++; (s.tb || []).forEach(function (a) { for (var ti = 0; ti < W.tables.length; ti++) { var te = W.tables[ti]; if (te.alive && te.vx === a[0] && te.vy === a[1] && te.vz === a[2] && ITEMS[a[3]]) setTableOn(te, a[3]); } }); (s.ch || []).forEach(function (a) { for (var i = 0; i < W.chests.length; i++) { var e = W.chests[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) e.box = a[3] || {}; } }); (s.tu || []).forEach(function (a) { var te = turretAt(a[0], a[1], a[2]); if (te) te.ammo = a[3] | 0; });
+    wDiff = s.df | 0; wTime = s.tm | 0; baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], s.v); farmLoad(s.fm); voxVer++; vehLoad(s.ov); (s.pm || []).forEach(function (L, i) { if (W.pumps[i]) W.pumps[i].L = L; }); (s.tk || []).forEach(function (a) { for (var i = 0; i < W.tanks.length; i++) { var e = W.tanks[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) { e.tkL = a[3]; e.tkLiq = a[4]; } } }); jobs = (s.jb || []).map(function (a) { return { id: a[0], left: a[1], half: !!a[2] }; }); (s.tb || []).forEach(function (a) { for (var ti = 0; ti < W.tables.length; ti++) { var te = W.tables[ti]; if (te.alive && te.vx === a[0] && te.vy === a[1] && te.vz === a[2] && ITEMS[a[3]]) setTableOn(te, a[3]); } }); (s.ch || []).forEach(function (a) { for (var i = 0; i < W.chests.length; i++) { var e = W.chests[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) e.box = a[3] || {}; } }); (s.tu || []).forEach(function (a) { var te = turretAt(a[0], a[1], a[2]); if (te) te.ammo = a[3] | 0; });
     bf = Array.isArray(s.bf) ? [s.bf[0] | 0, s.bf[1] | 0, s.bf[2] | 0] : [0, 0, 0];
     (s.tr || []).forEach(function (a) { var t = W.trees[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setTree(t, false); });
     (s.rk || []).forEach(function (a) { var t = W.rocks[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setRock(t, false); });
     (s.pl || []).forEach(function (a) { var p = W.piles[a[0]]; if (p) { W.setPile(p, false); p.respawn = a[1]; } });
     (s.cr || []).forEach(function (a) { var p = W.crates[a[0]]; if (p) { W.setCrate(p, false); p.respawn = a[1]; } });
-    (s.cs || []).forEach(function (a) { var c = W.cars[a[0]]; if (!c) return; c.hp = a[1]; if (c.hp <= 0) W.setCar(c, false); });
+    (s.cs || []).forEach(function (a) { var c = W.cars[a[0]]; if (!c) return; c.hp = a[1]; if (a[2]) { c.burnt = true; c.hp = 0; W.setCar(c, true); } else if (c.hp <= 0) W.setCar(c, false); });
     if (!worldOnly) {
       kills = s.k || 0; coins = s.cn || 0; kc = s.kc && typeof s.kc === 'object' ? s.kc : {};
       P.x = clamp(s.p[0] || -32, -W.half + 1, W.ug.all.x1 - 7); P.y = Math.max(0, s.p[1] || 0); P.z = clamp(s.p[2] || 32, -W.half + 1, W.half - 1); if (inUG(P.x)) { P.z = clamp(s.p[2], W.ug.z0 + 7, W.ug.z1 - 7); ugOn = true; ugMax = 6; W.setUnderground(true); torchOn = true; } else { ugOn = false; W.setUnderground(false); }
@@ -221,7 +222,7 @@
   function newPlayerState(slotIdx) {
     inv = { rusty_axe: 1, rusty_pickaxe: 1, plastic_bottled_water: 1 };
     hot = [null, 'rusty_axe', 'rusty_pickaxe', 'plastic_bottled_water', null, null, null, null]; sel = 1;
-    equip = { head: null, chest: null, legs: null, boots: null }; acc = [null, null, null, null]; clearCorpses(); cooking = []; heatQ = []; burn.left = 0; heatGot = 0; manning = null; if (drive) { drive = null; if (driveEl) driveEl.style.display = 'none'; } mg = null; endFish();
+    equip = { head: null, chest: null, legs: null, boots: null }; acc = [null, null, null, null]; clearCorpses(); cooking = []; heatQ = []; burn.left = 0; fuelSl = { id: null, n: 0 }; seenRec = {}; heatGot = 0; manning = null; if (seat) { seat.vs.seated = false; seat = null; if (driveEl) driveEl.style.display = 'none'; if (dashOpen) closeDash(); } mg = null; endFish();
     P.hp = P.hunger = P.thirst = P.energy = P.comfort = 100; status = freshStatus(); kills = 0; dead = false; rest = null;
     $('#dark').style.opacity = 0; placeAtSpawn(slotIdx || 0);
   }
@@ -279,7 +280,7 @@
     for (var i = ci0; i <= ci1 && n < 2500; i++) for (var j = cj0; j <= cj1 && n < 2500; j++) {
       var h = hash32(Math.imul(i, 73856093) ^ Math.imul(j, 19349663) ^ 0x51ed), px = (i + ((h & 255) / 255)) * CS, pz = (j + (((h >> 8) & 255) / 255)) * CS;
       if (Math.hypot(px - P.x, pz - P.z) > R) continue; var bm = W.biomeOf(px, pz), cfg = CT[bm]; if (!cfg || ((h >> 16) & 255) / 255 > cfg[1]) continue;
-      if (W.onRoad && W.onRoad(px, pz, 0.6)) continue; if (W.waterAt && W.waterAt(px, pz)) continue;
+      if (W.onRoad && W.onRoad(px, pz, 0.6)) continue; var ng = false; if (W.noGrass) for (var q = 0; q < W.noGrass.length; q++) { var nr = W.noGrass[q]; if (px > nr[0] && px < nr[1] && pz > nr[2] && pz < nr[3]) { ng = true; break; } } if (ng) continue; if (W.waterAt && W.waterAt(px, pz)) continue;
       var gy = W.gh ? W.gh(px, pz) : 0; if (gy < -0.15) continue;
       if (W.hit && W.hit(px - 0.25, px + 0.25, gy + 0.02, gy + 1.2, pz - 0.25, pz + 0.25)) continue;
       var sc = 0.7 + ((h >> 24) & 15) / 15 * 0.85;
@@ -306,6 +307,7 @@
     if (e.type === 'key') {
       keys[e.code] = e.down;
       if (e.down) {
+        if (seat && carKey(e.code)) return;
         if (/^Digit[1-8]$/.test(e.code)) { sel = +e.code.slice(5) - 1; eatT = 0; SFX.play('click'); renderHotbar(); }
         else if (e.code === 'KeyE') interact();
         else if (e.code === 'KeyR') reloadGun();
@@ -1328,7 +1330,7 @@
     }
     var big = ty === 'block' || ty === 'armor' || ty === 'acc';
     g.scale.setScalar(worldSpace ? (big ? 0.55 : 0.75) : (kind === 'weapon' ? (it.wtype === 'spear' ? 0.75 : 0.72) : big ? 0.38 : 0.55));
-    if (!worldSpace) g.rotation.x = 0.2;
+    if (!worldSpace) g.rotation.x = tl === 'sword' ? -0.75 : 0.2;
     return g;
   }
   function updateVM() {
@@ -1416,7 +1418,7 @@
     var wx = -sy * fwd + cy * str, wz = -cy * fwd - sy * str, len = Math.hypot(wx, wz);
     if (rest && (fwd || str || keys.Space)) endRest();
     if (rest) { wx = wz = 0; len = 0; } if (len > 0) { wx /= len; wz /= len; }
-    var sprint = keys.ShiftLeft && fwd > 0 && P.energy > 0 && !rest, sp = (sprint ? 6.4 : 4.2) * speedMult() * (P.energy <= 0 ? 0.92 : 1);
+    var sprint = keys.ShiftLeft && fwd > 0 && P.energy > 0 && !rest, sp = (sprint ? 6.4 : 4.2) * speedMult() * (creative ? CM.speed : 1) * (P.energy <= 0 ? 0.92 : 1);
     var f = Math.min(1, (P.onGround ? 14 : 3) * dt); P.vx += (wx * sp - P.vx) * f; P.vz += (wz * sp - P.vz) * f;
     if (sprint && len > 0) P.energy = Math.max(0, P.energy - 3 * armorStats().energyDrain * dt);
     if (keys.Space && P.onGround && !rest && !(creative && fly)) { P.vy = 6.4; P.onGround = false; SFX.play('step'); }
@@ -1505,7 +1507,7 @@
     var e = h.e;
     if (it.tool === 'hoe' && e.k === 'farm') return;
     if (e.vx != null) { hitVoxAt(e.vx, e.vy, e.vz, it.bd); return; }
-    if (e.k === 'car') { SFX.play('block'); if (mp.role === 'client') Net.send({ t: 'hitEnt', k: 'car', idx: e.idx, bd: it.bd || 1 }); else applyCarHit(e, it.bd || 1, 'self'); return; }
+    if (e.k === 'car') { if (e.own) { closeDoorOut(e); return; } if (e.burnt) { say('This burnt wreck has nothing left to loot.', true); return; } SFX.play('block'); if (mp.role === 'client') Net.send({ t: 'hitEnt', k: 'car', idx: e.idx, bd: it.bd || 1 }); else applyCarHit(e, it.bd || 1, 'self'); return; }
     if (e.k === 'tree' || e.k === 'rock') {
       var need = e.k === 'tree' ? 'axe' : 'pick';
       if (!e.sand && it.tool !== need) { say(e.k === 'tree' ? 'You need an axe to chop trees.' : 'You need a pickaxe to mine rocks.', true); return; }
@@ -1515,6 +1517,7 @@
     }
   }
   function hitZombie(z, dmg, attacker) {
+    if (creative && attacker !== 'turret') dmg = Math.max(1, Math.round(dmg * CM.dmg));
     if (W.gods.length && aura(z.x, z.z).weak) dmg = Math.round(dmg * 1.1 + 0.4);
     if (z.def.mutant) z.guard = 2.5; if (z.def.wingguard && !(z.gcd > 0) && !(z.guard > 0)) { z.guard = 2.5; z.gcd = 6; } z.hp -= Math.max(1, dmg - (z.def.wingguard ? (z.guard > 0 ? 10 : 0) : z.def.def) - (z.def.mutant && z.guard > 0 ? 4 : 0)); z.flash = 0.14;
     if (attacker !== 'turret') { var dx = z.x - P.x, dz = z.z - P.z, l = Math.hypot(dx, dz) || 1; moveBody(z, dx / l * 0.35, 0, dz / l * 0.35, z.rad, 1.7, false); }
@@ -1568,8 +1571,8 @@
     }
   }
   function placeBlock() {
-    var id = hot[sel], it = id ? ITEMS[id] : null; if (!it || it.type !== 'block' || count(id) < 1) return;
-    var h = aim(5); if (!h || !h.prev) return; var c = h.prev; camera.getWorldDirection(DIR); var rot = Math.abs(DIR.x) > Math.abs(DIR.z) ? 1 : 0; if (it.vox >= 87) rot = it.shape === 'stair' ? (Math.abs(DIR.x) > Math.abs(DIR.z) ? (DIR.x > 0 ? 1 : 3) : (DIR.z > 0 ? 0 : 2)) : 0;
+    var id = hot[sel], it = id ? ITEMS[id] : null; if (it && it.veh && count(id) > 0) { placeVehicle(id, it); return; } if (!it || it.type !== 'block' || count(id) < 1) return;
+    var h = aim(5); if (!h || !h.prev) return; var c = h.prev; camera.getWorldDirection(DIR); var rot = Math.abs(DIR.x) > Math.abs(DIR.z) ? 1 : 0; if (it.vox >= 87 && it.vox <= 125) rot = it.shape === 'stair' ? (Math.abs(DIR.x) > Math.abs(DIR.z) ? (DIR.x > 0 ? 1 : 3) : (DIR.z > 0 ? 0 : 2)) : 0;
     var cells = W.canPlaceBig(c[0], c[1], c[2], it.vox, rot); if (!cells) { say('Not enough room for this block here.', true); return; }
     if (W.voxCount() + cells.length >= W.MAX_VOX) { say('Block limit reached.', true); return; }
     for (var ci = 0; ci < cells.length; ci++) {
@@ -1680,59 +1683,246 @@
     var a = rnd() * 6.28; placeZombie('hardzombie', W.statue.x + Math.cos(a) * 5, W.statue.z + Math.sin(a) * 5); ann('The statue cracks... HARD ZOMBIE has been summoned!'); SFX.play('boom');
   }
 
-  /* ---------------- Driving (all abandoned cars: Scout II SUV, sedans, trucks) ---------------- */
-  var drive = null, driveEl = null;
-  var DRV = { suv: { top: 24, acc: 9, turn: 1.55, seat: [0.42, 0.1], ey: -0.3, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]] }, sedan: { top: 28, acc: 10, turn: 1.7, seat: [0.42, -0.1], ey: -0.4, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]] }, truck: { top: 17, acc: 5.5, turn: 1.1, seat: [0.55, 2.5], ey: 0.75, hit: [[1.3, 3.7], [-1.3, 3.7], [1.3, -3.7], [-1.3, -3.7], [0, 3.8], [0, -3.8], [1.3, 0], [-1.3, 0]] } };
-  function driveSpec(c) { return c.truck ? DRV.truck : c.suv ? DRV.suv : DRV.sedan; }
+  /* ================= Vehicles (complete cars only; abandoned wrecks cannot be driven) ================= */
+  var seat = null, dashOpen = false, driveEl = null, dashEl = null, crankHold = false, pumpE = null, pumpBox = null, pumpJob = null, pumpAmt = 1;
+  /* per-vehicle statistics. ratios[0]=Reverse, ratios[1]=Neutral (0 = no movement), then the forward gears. Higher ratio = stronger acceleration but lower top speed. auto = automatic gearbox ('Matic'): the shift lever has R / N / D only. */
+  var VCFG = {
+    suv: { name: 'Scout II SUV', hp: 150, def: 2, ratios: [-2.2, 0, 2.5, 1.3, 0.7], top: 25, maxRpm: 7100, safe: 3800, hot: 4750, accK: 2.6, tank: 15, fuelT: 'gasoline', engine: 'AMC i4 Engine', gearbox: 'AMC 3-Speed Gearbox' },
+    truck: { name: 'GMC Brigadier', hp: 350, def: 7, ratios: [-3.0, 0, 4.2, 2.6, 1.7, 1.15, 0.8], top: 20, maxRpm: 3600, safe: 2400, hot: 3000, accK: 1.15, tank: 60, fuelT: 'diesel', engine: 'Detroit Diesel V6 Truck Engine', gearbox: 'Detroit 5-Speed Diesel' },
+    sedan: { name: 'Mercedes 230CE', hp: 175, def: 2, ratios: [-2.8, 0, 3.0], auto: [3.0, 1.9, 1.25, 0.85], top: 31, maxRpm: 6500, safe: 4200, hot: 5200, accK: 2.1, tank: 20, fuelT: 'gasoline', engine: 'M102 i4 Mercedes Engine', gearbox: 'Mercedes 4-Speed Matic Gasoline' },
+    mustang: { name: 'Ford Mustang GT', hp: 225, def: 3, ratios: [-2.6, 0, 3.2, 2.0, 1.35, 0.9], top: 42, maxRpm: 6800, safe: 4600, hot: 5600, accK: 3.0, tank: 18, fuelT: 'gasoline', engine: 'Ford FE 428 V8', gearbox: 'Ford FE 4-Speed Turbo Gas', loud: true }
+  };
+  function vcfg(c) { return VCFG[c.kind] || VCFG.suv; }
+  function gearNames(cf) { var n = ['R', 'N']; if (cf.auto) n.push('D'); else for (var i = 2; i < cf.ratios.length; i++) n.push(String(i - 1)); return n; }
+  function topRatio(cf) { return cf.auto ? cf.auto[cf.auto.length - 1] : cf.ratios[cf.ratios.length - 1]; }
+  function rpmK(cf) { return cf.maxRpm / (cf.top * topRatio(cf)); }
+  function curRatio(c) { var cf = vcfg(c), v = c.vs; return (cf.auto && v.gear === 2) ? cf.auto[(v.ag || 1) - 1] : cf.ratios[v.gear]; }
+  function gearName(c) { var cf = vcfg(c), v = c.vs; return cf.auto && v.gear === 2 ? 'D' + (v.ag || 1) : gearNames(cf)[v.gear]; }
+  /* universal stat: parts at 90-100% = 100%, every further 10% of the weakest part age removes 10% of the vehicle stats */
+  function condMult(cond) { return Math.max(0.1, 1 - 0.1 * Math.floor((100 - clamp(cond, 0, 100) - 1e-4) / 10)); }
+  var VSP = {
+    suv: { seat: [0.42, 0.1], ey: -0.3, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]], tank: 15 },
+    sedan: { seat: [0.42, -0.1], ey: -0.4, hit: [[0.9, 2.1], [-0.9, 2.1], [0.9, -2.1], [-0.9, -2.1], [0, 2.2], [0, -2.2]], tank: 15 },
+    truck: { seat: [0.55, 2.5], ey: 0.75, hit: [[1.3, 3.7], [-1.3, 3.7], [1.3, -3.7], [-1.3, -3.7], [0, 3.8], [0, -3.8], [1.3, 0], [-1.3, 0]], tank: 30 }
+  };
+  function vsp(c) { var s = c.truck ? VSP.truck : c.suv ? VSP.suv : VSP.sedan; return { seat: s.seat, ey: s.ey, hit: s.hit, tank: vcfg(c).tank }; }
   function carAng(c) { return c.ang != null ? c.ang : (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0); }
-  function enterCar(c) {
-    if (mp.role === 'client') { say('Driving is only available for the host / solo play for now.', true); return; }
-    if (!c.alive || drive) return;
-    var a = carAng(c); drive = { c: c, v: 0, st: 0, ang: a, bump: 0 };  c.ang = a; c.box.on = false; endRest && rest && endRest(); P.vx = P.vz = 0; P.vy = 0; manning = null;
-    if (!driveEl) { driveEl = document.createElement('div'); driveEl.style.cssText = 'position:fixed;right:18px;bottom:96px;z-index:30;background:rgba(10,12,16,.72);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;font:600 15px system-ui,sans-serif;text-align:right;pointer-events:none'; document.body.appendChild(driveEl); }
-    driveEl.style.display = 'block'; say('You are driving. W/S accelerate & brake, A/D steer, Space handbrake, [E] leave the car.'); SFX.play('click');
-  }
-  function exitCar(why) {
-    if (!drive) return; var c = drive.c, k = ((Math.round(drive.ang / (Math.PI / 2)) % 4) + 4) % 4;
-    c.ang = undefined; c.horiz = k === 1 || k === 3; c.dir = (k === 0 || k === 1) ? 1 : -1; var sp = driveSpec(c);
-    c.lx = c.truck ? (c.horiz ? 7.6 : 2.7) : (c.horiz ? 4.4 : 1.9); c.lz = c.truck ? (c.horiz ? 2.7 : 7.6) : (c.horiz ? 1.9 : 4.4);
-    var ry = (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry), side = c.truck ? 2.4 : 2.0, found = false, i, s2;
-    for (i = 0; i < 2 && !found; i++) { s2 = i ? -side : side; var ex = c.x + cs * s2, ez = c.z - sn * s2; if (!W.hit(ex - 0.35, ex + 0.35, (c.y || 0) + 0.1, (c.y || 0) + 1.9, ez - 0.35, ez + 0.35) || true) { P.x = ex; P.z = ez; found = true; } }
-    P.y = (c.y || 0) + 0.1; P.vx = P.vz = P.vy = 0; if (W.relocCar) W.relocCar(c); W.setCar(c, true); drive = null; if (driveEl) driveEl.style.display = 'none';
-    if (why) say(why, true); else SFX.play('click');
-  }
-  function driveTick(dt) {
-    var d = drive, c = d.c, sp = driveSpec(c); if (!c.alive) { exitCar(); return; }
-    var up = keys.KeyW ? 1 : 0, dn = keys.KeyS ? 1 : 0;
-    if (up && !dn) { d.v += (d.v < 0 ? 22 : sp.acc * (1 - Math.max(0, d.v) / (sp.top * 1.15))) * dt; }
-    else if (dn && !up) { d.v -= (d.v > 0.4 ? 20 : 7) * dt; }
-    else { var dr = (keys.Space ? 22 : 2.2) * dt; d.v = Math.abs(d.v) <= dr ? 0 : d.v - Math.sign(d.v) * dr; }
-    if (keys.Space && !up && !dn) { var db = 14 * dt; d.v = Math.abs(d.v) <= db ? 0 : d.v - Math.sign(d.v) * db; }
-    d.v = clamp(d.v, -6.5, sp.top);
-    var tgt = (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0); d.st += (tgt - d.st) * Math.min(1, 5 * dt);
-    var dA = d.st * sp.turn * clamp(d.v / 5, -1, 1) * dt; d.ang += dA; P.yaw += dA;
-    var sn = Math.sin(d.ang), cs = Math.cos(d.ang), y0 = (c.y || 0), nx = c.x + sn * d.v * dt, nz = c.z + cs * d.v * dt, blocked = false, i, p, qx, qz;
-    if (Math.abs(d.v) > 0.05) {
-      for (i = 0; i < sp.hit.length && !blocked; i++) { p = sp.hit[i]; qx = nx + cs * p[0] + sn * p[1]; qz = nz - sn * p[0] + cs * p[1]; var gq = W.gh ? W.gh(qx, qz) : 0; if (gq - y0 > 0.95 || Math.abs(qx) > W.half - 2 || Math.abs(qz) > W.half - 2 || W.hit(qx - 0.25, qx + 0.25, y0 + 0.6, y0 + 1.3, qz - 0.25, qz + 0.25)) blocked = true; if (!blocked && W.waterAt) { var wa = W.waterAt(qx, qz); if (wa === 'sea' || wa === 'lake') blocked = true; } }
-    }
-    if (blocked) { var imp = Math.abs(d.v); if (imp > 7 && d.bump <= 0) { d.bump = 0.6; c.hp -= Math.floor(imp / 7); SFX.play('block'); say('Crash! Break Points ' + Math.max(0, Math.round(c.hp)) + '/' + c.max, true); if (c.hp <= 0) { exitCar('The car broke down in the crash!'); W.setCar(c, false); return; } } d.v = -d.v * 0.25; if (Math.abs(d.v) < 0.6) d.v = 0; }
-    else { c.x = nx; c.z = nz; }
-    d.bump -= dt; if (W.gh) { var gh = W.gh(c.x, c.z); c.y = (c.y || 0) + (gh - (c.y || 0)) * Math.min(1, 8 * dt); }
-    if (Math.abs(d.v) > 4) for (i = 0; i < zombies.length; i++) { var z = zombies[i]; if (!z || z.dead || z.hp <= 0 || (z.runT > 0 && z.runT > nowT())) continue; var rx = z.x - c.x, rz = z.z - c.z, fl = rx * sn + rz * cs, sd = rx * cs - rz * sn; if (Math.abs(fl) < (c.truck ? 3.8 : 2.4) && Math.abs(sd) < (c.truck ? 1.6 : 1.2) && Math.abs((z.y || 0) - (c.y || 0)) < 2.5) { z.runT = nowT() + 0.6; hitZombie(z, Math.round(Math.abs(d.v) * 2.5), 'car'); z.vx = sn * d.v * 0.3; z.vz = cs * d.v * 0.3; } }
-    W.setCar(c, true);
-    var sx = c.x + cs * sp.seat[0] + sn * sp.seat[1], sz = c.z - sn * sp.seat[0] + cs * sp.seat[1]; P.x = sx; P.z = sz; P.y = (c.y || 0) + sp.ey; P.vx = P.vz = P.vy = 0; P.onGround = true;
-    if (driveEl) driveEl.innerHTML = Math.round(Math.abs(d.v) * 3.6) + ' km/h' + (d.v < -0.3 ? ' · R' : '') + '<br><span style="font-weight:500;font-size:12px;opacity:.8">W/S gas·brake · A/D steer · Space handbrake · E exit</span>';
-  }
   function nowT() { return performance.now() / 1000; }
+  function carUse(e) {
+    if (!e.own) { say(e.burnt ? 'A burnt wreck. A Smasher Machine (coming soon) can clear it away.' : 'An abandoned wreck cannot be driven. Break the trunk open with Left Click, or build a complete vehicle at a Vehicle Bench.', true); return; }
+    if (mp.role === 'client') { say('Vehicles are only available for the host / solo play for now.', true); return; }
+    if (e.burnt) { say('This vehicle is a burnt wreck now.', true); return; }
+    var v = e.vs;
+    if (!v.door) { v.door = true; SFX.play('click'); say('Door opened. Press [E] again to sit in the driver seat.'); return; }
+    seatIn(e);
+  }
+  function seatIn(c) {
+    if (seat) return; seat = c; c.vs.seated = true; c.vs.door = true; manning = null; P.vx = P.vz = P.vy = 0; keys = {}; lmb = false;
+    var a = carAng(c); P.yaw = a + Math.PI; seatPose(c);
+    if (!driveEl) { driveEl = document.createElement('div'); driveEl.style.cssText = 'position:fixed;right:18px;bottom:96px;z-index:30;background:rgba(10,12,16,.72);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;font:600 15px system-ui,sans-serif;text-align:right;pointer-events:none'; document.body.appendChild(driveEl); }
+    driveEl.style.display = 'block'; SFX.play('click');
+    say('You sit in the driver seat. [E] close the door, then [U] open the dashboard to start the engine. [X] leave the seat (door must be open).');
+  }
+  function seatPose(c) {
+    var a = carAng(c), sn = Math.sin(a), cs = Math.cos(a), sp = vsp(c);
+    P.x = c.x + cs * sp.seat[0] + sn * sp.seat[1]; P.z = c.z - sn * sp.seat[0] + cs * sp.seat[1]; P.y = (c.y || 0) + sp.ey; P.vx = P.vz = P.vy = 0; P.onGround = true;
+  }
+  function seatOut(why) {
+    if (!seat) return; var c = seat, v = c.vs;
+    if (!why && !v.door) { say('Open the door first: press [E].', true); return; }
+    if (dashOpen) closeDash();
+    var k = ((Math.round(carAng(c) / (Math.PI / 2)) % 4) + 4) % 4; v.v = 0; v.seated = false;
+    c.ang = undefined; c.horiz = k === 1 || k === 3; c.dir = (k === 0 || k === 1) ? 1 : -1;
+    var sp = OSPECG[c.kind] || OSPECG.suv; c.lx = c.horiz ? sp[1] : sp[0]; c.lz = c.horiz ? sp[0] : sp[1];
+    var ry = (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry), side = (c.truck ? 2.5 : 2.1);
+    P.x = c.x + cs * side; P.z = c.z - sn * side; P.y = (c.y || 0) + 0.1; P.vx = P.vz = P.vy = 0;
+    if (W.relocCar) W.relocCar(c); W.setCar(c, true); seat = null; if (driveEl) driveEl.style.display = 'none'; SFX.play('click'); if (why) say(why, true);
+  }
+  var OSPECG = { suv: [4.4, 1.9], sedan: [4.4, 1.9], truck: [7.6, 2.7] };
+  function closeDoorOut(c) { if (c.vs && c.vs.door && !seat) { c.vs.door = false; SFX.play('click'); say('Door closed.'); } else if (c.vs && !c.vs.door) { c.vs.door = true; SFX.play('click'); say('Door opened.'); } }
+  /* key presses while sitting: [U] dashboard, [X] leave, [R] gear up, [F] gear down */
+  function carKey(code) {
+    var c = seat; if (!c) return false; var v = c.vs, cf = vcfg(c);
+    if (code === 'KeyU') { openDash(); return true; }
+    if (code === 'KeyX') { seatOut(); return true; }
+    if (code === 'Space') { v.hb = !v.hb; if (v.hb) v.v = 0; SFX.play('click'); say(v.hb ? 'Handbrake ON: the vehicle is locked in place. Press [Space] again to release.' : 'Handbrake released.'); return true; }
+    if (code === 'KeyR' || code === 'KeyF') {
+      var n = gearNames(cf).length, ng = clamp(v.gear + (code === 'KeyR' ? 1 : -1), 0, n - 1);
+      if (ng === v.gear) { say(code === 'KeyR' ? 'Already in the highest gear.' : 'Already in Reverse.', true); return true; }
+      var old = v.gear; v.gear = ng; var ratio = cf.auto && ng === 2 ? cf.auto[0] : cf.ratios[ng], k = rpmK(cf), rpmAfter = Math.abs(v.v) * Math.abs(ratio) * k;
+      if (cf.auto && ng === 2) v.ag = 1;
+      SFX.play('click');
+      if (v.eng && ratio !== 0 && (rpmAfter > cf.maxRpm * 1.15 || (ratio < 0 && v.v > 3) || (ratio > 0 && old === 0 && v.v < -3))) { v.blown = true; v.eng = false; v.key = false; v.rpm = 0; c.hp = Math.max(1, c.hp - Math.round(c.max * 0.1)); SFX.play('hit'); say('WRONG GEAR at ' + Math.round(Math.abs(v.v) * 3.6) + ' km/h! The engine over-revved and is destroyed!', true); return true; }
+      if (v.eng && ratio !== 0 && rpmAfter > cf.maxRpm) { v.heat = Math.min(1, v.heat + 0.5); SFX.play('hit'); say('Dangerous downshift! The engine is over-revving!', true); return true; }
+      say('Gear: ' + gearName(c) + (ng === 0 ? ' (W = backwards)' : ng === 1 ? ' (neutral, no movement)' : '')); return true;
+    }
+    return false;
+  }
+  /* Dashboard panel [U]: gauges + the key slot (click = insert key, press & HOLD = starter, click when running = switch off) */
+  function openDash() {
+    if (!seat) return; dashOpen = true; mode = 'dash'; keys = {}; lmb = false; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (er) {} }
+    if (!dashEl) {
+      dashEl = document.createElement('div'); dashEl.id = 'dash';
+      dashEl.style.cssText = 'position:fixed;left:50%;bottom:30px;transform:translateX(-50%);z-index:60;background:rgba(14,16,20,.94);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:16px 20px;font:600 14px system-ui,sans-serif;min-width:340px;user-select:none';
+      dashEl.innerHTML = '<div style="font-size:16px;margin-bottom:8px">🚗 Dashboard <span style="float:right;opacity:.6;font-weight:500">[U] close</span></div><div id="dgs"></div><div style="display:flex;align-items:center;gap:14px;margin-top:12px"><div id="dkey" style="width:74px;height:74px;border-radius:50%;border:4px solid #666;background:radial-gradient(circle,#222 30%,#111);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer">🔑</div><div id="dtxt" style="font-weight:500;font-size:13px;opacity:.9;max-width:230px"></div></div>';
+      document.body.appendChild(dashEl);
+      var dk = dashEl.querySelector('#dkey');
+      dk.addEventListener('mousedown', function (e) { e.preventDefault(); if (!seat) return; var v = seat.vs; if (v.eng) { v.eng = false; v.key = false; v.rpm = 0; SFX.play('click'); say('Engine off.'); } else if (!v.key) { v.key = true; SFX.play('click'); say('Key inserted. Now press and HOLD the key to crank the starter.'); } else crankHold = true; });
+      document.addEventListener('mouseup', function () { crankHold = false; });
+      dk.addEventListener('touchstart', function (e) { e.preventDefault(); dk.dispatchEvent(new MouseEvent('mousedown')); }, { passive: false }); dk.addEventListener('touchend', function () { crankHold = false; });
+      document.addEventListener('keydown', function (e) { if (dashOpen && (e.code === 'KeyU' || e.code === 'Escape')) { e.preventDefault(); e.stopPropagation(); closeDash(); } }, true);
+    }
+    dashEl.style.display = 'block'; if (driveEl) driveEl.style.display = 'none'; dashUpdate();
+  }
+  function closeDash() { dashOpen = false; crankHold = false; if (dashEl) dashEl.style.display = 'none'; if (driveEl && seat) driveEl.style.display = 'block'; if (mode === 'dash') enterGame(); }
+  function bar(f, col) { return '<div style="height:9px;background:#2a2d33;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:' + Math.round(clamp(f, 0, 1) * 100) + '%;background:' + col + '"></i></div>'; }
+  function dashUpdate() {
+    if (!dashEl || !seat) return; var c = seat, v = c.vs, sp = vcfg(c), kmh = Math.round(Math.abs(v.v) * 3.6);
+    var g = $('#dgs'); if (g) g.innerHTML = '<div style="display:flex;justify-content:space-between"><span>RPM ' + Math.round(v.rpm) + '</span><span>' + kmh + ' km/h</span><span>Gear ' + gearName(c) + (v.hb ? ' · HANDBRAKE' : '') + '</span></div>' + bar(v.rpm / sp.maxRpm, v.rpm > sp.hot ? '#e5533d' : v.rpm > sp.safe ? '#e5b83d' : '#4cc36b')
+      + '<div style="display:flex;justify-content:space-between;margin-top:6px"><span>Fuel ' + v.fuel.toFixed(1) + ' / ' + sp.tank + ' L (' + (v.fuelT === 'diesel' ? 'Diesel' : 'Gasoline') + ')</span><span>ODO ' + (v.odo / 1000).toFixed(2) + ' km</span></div>' + bar(v.fuel / sp.tank, '#3d8fe5')
+      + '<div style="margin-top:6px">Heat</div>' + bar(v.heat, v.heat > 0.7 ? '#e5533d' : '#e5a23d');
+    var kb = $('#dkey'), tx = $('#dtxt'); var cfn = $('#dgs'); if (cfn) cfn.innerHTML += '<div style="opacity:.7;margin-top:6px;font-size:12px">' + sp.name + ' · ' + sp.engine + ' · ' + sp.gearbox + ' · Stats ' + Math.round(condMult(v.cond == null ? 100 : v.cond) * 100) + '%</div>'; if (kb) { kb.style.borderColor = v.eng ? '#4cc36b' : v.key ? '#e5b83d' : '#666'; kb.style.transform = crankHold && v.key && !v.eng ? 'rotate(' + (Math.sin(performance.now() / 40) * 6 + 25) + 'deg)' : v.key ? 'rotate(0deg)' : ''; kb.style.opacity = v.key ? 1 : 0.55; }
+    if (tx) tx.textContent = v.blown ? 'The engine is destroyed. It needs a new ' + sp.engine + '.' : v.eng ? 'Engine running. Click the key to switch the engine off.' : v.key ? (crankHold ? 'Cranking… keep holding until the engine catches (' + Math.round(v.crank * 100) + '%).' : 'Key inserted. Press and HOLD the key to start the engine.') : 'Click the key slot to insert the key.';
+  }
+  function i2g(v, cf) { return v.gear - 1; }
+  function carFail(c, msg) { c.vs.eng = false; c.vs.rpm = 0; say(msg, true); SFX.play('hit'); }
+  /* one physics / engine step for every complete vehicle */
+  function vehTick(dt) {
+    var list = W.ocars || [], i, j;
+    for (i = 0; i < list.length; i++) {
+      var c = list[i], v = c.vs; if (!v || !c.alive) continue; var chg = false;
+      var da = v.door ? 1 : 0; if (Math.abs(v.doorA - da) > 0.001) { v.doorA += clamp(da - v.doorA, -4 * dt, 4 * dt); chg = true; }
+      var cf = vcfg(c), sp = vsp(c), me = c === seat && mode === 'play', thr = me && keys.KeyW && !v.hb ? 1 : 0, brk = me && keys.KeyS ? 1 : 0, ratio = curRatio(c), RK = rpmK(cf), top = ratio ? cf.top * Math.abs(topRatio(cf)) / Math.abs(ratio) : cf.top, dir = ratio < 0 ? -1 : 1;
+      if (c.burnt) { v.eng = false; v.key = false; }
+      if (cf.auto && v.eng && v.gear === 2 && c === seat) { var rw0 = Math.abs(v.v) * cf.auto[(v.ag || 1) - 1] * RK; if (rw0 > cf.maxRpm * 0.8 && (v.ag || 1) < cf.auto.length) v.ag = (v.ag || 1) + 1; else if (rw0 < cf.maxRpm * 0.32 && (v.ag || 1) > 1) v.ag = (v.ag || 1) - 1; ratio = cf.auto[(v.ag || 1) - 1]; top = cf.top * topRatio(cf) / ratio; }
+      /* starter */
+      if (c === seat && crankHold && v.key && !v.eng) {
+        if (v.blown) { crankHold = false; say('The engine is destroyed. It needs a new ' + cf.engine + '.', true); }
+        else { v.crank += dt / 1.5; v.rpm = v.crank * 850 * (0.9 + 0.2 * Math.random());
+          if (v.crank >= 1) { crankHold = false; v.crank = 0; if (v.heat > 0.8) { v.rpm = 0; say('The engine is too hot to start. Let it cool down.', true); } else if (v.fuel <= 0.01) { v.rpm = 0; say('The engine cranks but there is no fuel. Fill the tank at a Fuel Pump Station.', true); } else { v.eng = true; v.rpm = 850; SFX.play('craft'); say('Engine started! The vehicle is still in ' + gearName(c) + '. Shift with [R]/[F], then hold [W].' + (cf.loud ? ' The roaring V8 attracts zombies!' : '')); } } }
+      } else if (!v.eng && v.crank > 0) { v.crank = Math.max(0, v.crank - dt * 2); v.rpm = v.crank * 850; } else if (!v.eng) v.rpm = Math.max(0, v.rpm - 2000 * dt);
+      if (v.eng) {
+        var rpmW = Math.abs(v.v) * Math.abs(ratio) * RK;
+        var want = ratio === 0 ? 850 + thr * (cf.hot - 850) : Math.max(850, rpmW) + (thr && rpmW < 850 ? 400 : 0);
+        v.rpm += (want - v.rpm) * Math.min(1, dt * (ratio === 0 ? 3 : 8)); v.rpm = Math.min(v.rpm, cf.maxRpm);
+        if (v.rpm > cf.hot) v.heat += dt * (v.rpm - cf.hot) / (cf.maxRpm - cf.hot) * 0.5; else v.heat -= dt * 0.08; v.heat = clamp(v.heat, 0, 1);
+        if (v.heat >= 1) carFail(c, 'The engine overheated and shut down! Let it cool before restarting.');
+        var burn = (thr ? 0.03 + 0.1 * (v.rpm - 850) / (cf.maxRpm - 850) : 0.012) * (cf.tank / 15 > 2 ? 1.6 : 1); v.fuel -= burn * dt; if (v.fuel <= 0) { v.fuel = 0; carFail(c, 'Out of fuel!'); }
+        if (me && ratio && !cf.auto) {
+          var needS = i2g(v, cf) >= 3 ? 2.2 : i2g(v, cf) === 2 ? 1.1 : 0;
+          if (thr && Math.abs(v.v) < needS) { v.stall += dt; if (v.stall > 0.6) { v.stall = 0; carFail(c, 'The engine stalled! Start in 1st gear.'); } } else v.stall = 0;
+        }
+        if (cf.loud && !c.noiseT) c.noiseT = 0; if (cf.loud) { c.noiseT -= dt; if (c.noiseT <= 0) { c.noiseT = 2; for (j = 0; j < zombies.length; j++) { var zz = zombies[j]; if (zz && Math.hypot(zz.x - c.x, zz.z - c.z) < 160) zz.rush = true; } } }
+      } else v.heat = Math.max(0, v.heat - dt * 0.05);
+      if (c !== seat) { if (v.v) { v.v = 0; } continue; }
+      if (v.hb) v.v = 0;
+      if (!me) { v.v *= Math.max(0, 1 - 2.5 * dt); if (Math.abs(v.v) < 0.05) v.v = 0; }
+      else {
+        var run = v.eng && ratio !== 0 && !v.hb, aGear = cf.accK * Math.abs(ratio);
+        if (run && thr) { var along = v.v * dir; if (along > top) v.v -= dir * 8 * dt, v.heat = Math.min(1, v.heat + dt * 0.2); else v.v += dir * aGear * (along < 0 ? 1 : (1 - along / top)) * dt; }
+        else if (run) { var eb = (1.2 + Math.abs(ratio) * 0.5) * dt; v.v = Math.abs(v.v) <= eb ? 0 : v.v - Math.sign(v.v) * eb; }
+        else { var rr = 0.7 * dt; v.v = Math.abs(v.v) <= rr ? 0 : v.v - Math.sign(v.v) * rr; }
+        if (brk) { var bb = 18 * dt; v.v = Math.abs(v.v) <= bb ? 0 : v.v - Math.sign(v.v) * bb; }
+      }
+      var tgt = me ? (keys.KeyA ? 1 : 0) - (keys.KeyD ? 1 : 0) : 0; v.st += (tgt - v.st) * Math.min(1, 5 * dt);
+      var ang = carAng(c), dA = v.st * (c.truck ? 1.1 : 1.6) * clamp(v.v / 5, -1, 1) * dt;
+      if (c.ang == null && (Math.abs(v.v) > 0.05)) { c.ang = ang; c.box.on = false; }
+      if (c.ang != null) { ang += dA; c.ang = ang; P.yaw += dA; }
+      var sn = Math.sin(ang), cs = Math.cos(ang), y0 = c.y || 0, nx = c.x + sn * v.v * dt, nz = c.z + cs * v.v * dt, blocked = false, p, qx, qz;
+      if (Math.abs(v.v) > 0.05) {
+        for (j = 0; j < sp.hit.length && !blocked; j++) { p = sp.hit[j]; qx = nx + cs * p[0] + sn * p[1]; qz = nz - sn * p[0] + cs * p[1]; var gq = W.gh ? W.gh(qx, qz) : 0; if (gq - y0 > 0.95 || Math.abs(qx) > W.half - 2 || Math.abs(qz) > W.half - 2 || W.hit(qx - 0.25, qx + 0.25, y0 + 0.6, y0 + 1.3, qz - 0.25, qz + 0.25)) blocked = true; if (!blocked && W.waterAt) { var wa = W.waterAt(qx, qz); if (wa === 'sea' || wa === 'lake') blocked = true; } }
+      }
+      if (blocked) {
+        var imp = Math.abs(v.v); if (imp > 7 && v.bump <= 0) { v.bump = 0.6; c.hp -= Math.max(1, Math.round(imp * 0.9 - cf.def * 1.5)); SFX.play('block'); say('Crash! Break Points ' + Math.max(0, Math.round(c.hp)) + '/' + c.max, true); if (c.hp <= 0) { burnCar(c); seatOut('The vehicle is burnt out after the crash!'); continue; } }
+        v.v = -v.v * 0.25; if (Math.abs(v.v) < 0.6) v.v = 0;
+      } else { c.x = nx; c.z = nz; v.odo += Math.abs(v.v) * dt; }
+      v.bump -= dt; if (W.gh) { var gh = W.gh(c.x, c.z); c.y = (c.y || 0) + (gh - (c.y || 0)) * Math.min(1, 8 * dt); }
+      if (Math.abs(v.v) > 4) for (j = 0; j < zombies.length; j++) { var z = zombies[j]; if (!z || z.dead || z.hp <= 0 || (z.runT > 0 && z.runT > nowT())) continue; var rx = z.x - c.x, rz = z.z - c.z, fl = rx * sn + rz * cs, sd = rx * cs - rz * sn; if (Math.abs(fl) < (c.truck ? 3.8 : 2.4) && Math.abs(sd) < (c.truck ? 1.6 : 1.2) && Math.abs((z.y || 0) - (c.y || 0)) < 2.5) { z.runT = nowT() + 0.6; hitZombie(z, Math.round(Math.abs(v.v) * 2.5), 'car'); } }
+      chg = chg || Math.abs(v.v) > 0.01;
+      if (chg) W.setCar(c, true);
+    }
+    if (seat) { seatPose(seat); if (driveEl) { var s2 = seat.vs; driveEl.innerHTML = Math.round(Math.abs(s2.v) * 3.6) + ' km/h · Gear ' + gearName(seat) + (s2.hb ? ' · HANDBRAKE' : '') + ' · ' + Math.round(s2.rpm) + ' rpm' + (s2.eng ? '' : ' · ENGINE OFF') + '<br><span style="font-weight:500;font-size:12px;opacity:.8">W gas · S brake · A/D steer<br>R gear up · F gear down · Space handbrake · U dashboard · E door · X leave</span>'; } if (dashOpen) dashUpdate(); }
+  }
+  function burnCar(c) { c.hp = 0; c.burnt = true; if (c.vs) { c.vs.eng = false; c.vs.key = false; c.vs.rpm = 0; } W.setCar(c, true); if (mp.role === 'host') Net.send({ t: 'ent', k: 'car', idx: c.idx, hp: 0, alive: true, burnt: true }); }
+  /* smoke from burnt wrecks */
+  var smokePool = [], smokeT = 0, smokeCars = [], smokeScan = 0;
+  function smokeTick(dt) {
+    smokeScan -= dt; if (smokeScan <= 0) { smokeScan = 1; smokeCars = []; var L = (W.cars || []).concat(W.ocars || []); for (var i = 0; i < L.length; i++) { var c = L[i]; if (c.burnt && c.alive && Math.hypot(c.x - P.x, c.z - P.z) < 90) smokeCars.push(c); } }
+    if (!smokePool.length) { var cv = document.createElement('canvas'); cv.width = cv.height = 64; var g = cv.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(70,66,62,.9)'); gr.addColorStop(1, 'rgba(70,66,62,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); var tx = new THREE.CanvasTexture(cv);
+      for (var k = 0; k < 48; k++) { var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, opacity: 0 })); sp.visible = false; sp.userData = { life: 0 }; scene.add(sp); smokePool.push(sp); } }
+    smokeT -= dt; if (smokeT <= 0 && smokeCars.length) { smokeT = 0.18 / smokeCars.length; var cc = smokeCars[Math.floor(Math.random() * smokeCars.length)]; for (var q = 0; q < smokePool.length; q++) { var s = smokePool[q]; if (s.userData.life <= 0) { s.userData.life = s.userData.max = 2.8 + Math.random(); s.position.set(cc.x + (Math.random() - 0.5) * 1.2, (cc.y || 0) + 1.5, cc.z + (Math.random() - 0.5) * 1.6); s.visible = true; break; } } }
+    for (var m = 0; m < smokePool.length; m++) { var p = smokePool[m], u = p.userData; if (u.life <= 0) continue; u.life -= dt; if (u.life <= 0) { p.visible = false; p.material.opacity = 0; continue; } var f = 1 - u.life / u.max; p.position.y += dt * 1.3; p.position.x += dt * 0.25; p.scale.set(0.8 + f * 2.6, 0.8 + f * 2.6, 1); p.material.opacity = 0.55 * (1 - f); }
+  }
+  /* ---- Fluid tanks ---- */
+  function tankUse(e) {
+    var k = e.tk, hid = hot[sel], it = hid ? ITEMS[hid] : null, m;
+    if (it && (m = /^(ib|wb)_(\w+)$/.exec(hid)) && WZ.LIQ[m[2]]) {
+      var liq = m[2];
+      if (k.allow.indexOf(liq) < 0) { say(k.name + ' cannot hold ' + WZ.LIQ[liq][0] + '.', true); return; }
+      if (e.tkLiq && e.tkLiq !== liq && e.tkL > 0) { say('The tank already holds ' + WZ.LIQ[e.tkLiq][0] + '. Liquids cannot be mixed.', true); return; }
+      if (e.tkL + 1 > k.cap + 1e-6) { say('The tank is full (' + k.cap + ' L).', true); return; }
+      take(hid, 1); give(it.ret || (m[1] === 'ib' ? 'iron_bucket' : 'wooden_bucket'), 1); e.tkLiq = liq; e.tkL += 1; SFX.play('wash'); say('Poured 1 L of ' + WZ.LIQ[liq][0] + ' into the tank (' + e.tkL + '/' + k.cap + ' L).'); renderHotbar(); return;
+    }
+    if (hid === 'iron_bucket' || hid === 'wooden_bucket') {
+      if (!e.tkL || !e.tkLiq) { say('The tank is empty.', true); return; }
+      var pre = hid === 'iron_bucket' ? 'ib_' : 'wb_'; if (pre === 'wb_' && !(WZ.WOOD_WATER && WZ.WOOD_WATER[e.tkLiq])) { say('A Wooden Bucket cannot carry ' + WZ.LIQ[e.tkLiq][0] + '.', true); return; }
+      take(hid, 1); give(pre + e.tkLiq, 1); e.tkL -= 1; var nm = WZ.LIQ[e.tkLiq][0]; if (e.tkL <= 1e-6) { e.tkL = 0; e.tkLiq = null; } SFX.play('wash'); say('Took 1 L of ' + nm + ' from the tank (' + e.tkL + '/' + k.cap + ' L).'); renderHotbar(); return;
+    }
+    say(k.name + ': ' + (e.tkL ? e.tkL + '/' + k.cap + ' L ' + WZ.LIQ[e.tkLiq][0] : 'empty (0/' + k.cap + ' L)') + '. Hold a filled bucket and press [E] to pour it in, or an empty bucket to take 1 L out.');
+  }
+  /* ---- Fuel Pump Station ---- */
+  function nearOwned(x, z, r) { var b = null, bd = r; (W.ocars || []).forEach(function (c) { if (c.burnt) return; var d = Math.hypot(c.x - x, c.z - z); if (d < bd) { bd = d; b = c; } }); return b; }
+  function pumpUse(e) {
+    pumpE = e; mode = 'dash'; keys = {}; lmb = false; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (er) {} }
+    if (!pumpBox) { pumpBox = document.createElement('div'); pumpBox.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;background:rgba(14,16,20,.96);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:18px 22px;font:600 14px system-ui,sans-serif;min-width:320px;user-select:none'; document.body.appendChild(pumpBox);
+      pumpBox.addEventListener('click', function (ev) { var t = ev.target.closest('[data-pa]'); if (!t) return; var a = t.dataset.pa; if (a === 'x') { closePump(); return; } if (a === 'fill') { startFill(); return; } pumpAmt = clamp(Math.round((pumpAmt + parseFloat(a)) * 10) / 10, 0.5, 30); renderPump(); }); }
+    pumpBox.style.display = 'block'; renderPump();
+  }
+  function closePump() { if (pumpBox) pumpBox.style.display = 'none'; pumpE = null; if (mode === 'dash') enterGame(); }
+  function renderPump() {
+    if (!pumpE || !pumpBox) return; var e = pumpE, c = nearOwned(e.x, e.z, 9), sp = c ? vsp(c) : null, fn = e.fuel === 'diesel' ? 'Diesel' : 'Gasoline', room = c ? Math.max(0, sp.tank - c.vs.fuel) : 0, mx = c ? Math.min(e.L, room) : e.L;
+    pumpAmt = Math.min(pumpAmt, Math.max(0.5, Math.round(mx * 10) / 10)); var bt = 'style="background:#2c3038;color:#fff;border:1px solid #555;border-radius:8px;padding:6px 12px;font:600 14px system-ui;cursor:pointer;margin:0 3px"';
+    pumpBox.innerHTML = '<div style="font-size:17px;margin-bottom:6px">⛽ Fuel Pump Station</div><div>Fuel: <b>' + fn + '</b> &middot; Stock: <b>' + e.L.toFixed(1) + ' L</b></div>'
+      + '<div style="margin:6px 0;opacity:.85">' + (c ? 'Vehicle: ' + vcfg(c).name + ' &middot; tank ' + c.vs.fuel.toFixed(1) + ' / ' + sp.tank + ' L (' + (c.vs.fuelT === 'diesel' ? 'Diesel' : 'Gasoline') + ')' + (c.vs.eng ? ' <span style="color:#e5533d">ENGINE ON – switch it off first</span>' : '') : '<span style="color:#e5b83d">No vehicle close enough. Park it next to the pump.</span>') + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:center;margin:10px 0"><span data-pa="-1" ' + bt + '>-1</span><span data-pa="-0.5" ' + bt + '>-0.5</span><b style="font-size:22px;min-width:90px;text-align:center">' + pumpAmt.toFixed(1) + ' L</b><span data-pa="0.5" ' + bt + '>+0.5</span><span data-pa="1" ' + bt + '>+1</span></div>'
+      + '<div style="display:flex;gap:10px;justify-content:center"><span data-pa="fill" ' + bt.replace('#2c3038', '#2f7d46') + '>⛽ Fill</span><span data-pa="x" ' + bt + '>Close</span></div>';
+  }
+  function startFill() {
+    var e = pumpE; if (!e) return; var c = nearOwned(e.x, e.z, 9);
+    if (!c) { say('No vehicle close enough to the pump.', true); return; }
+    if (c.vs.eng) { say('Switch the engine off before refuelling!', true); return; }
+    if (c.vs.fuelT !== e.fuel) { say('This vehicle runs on ' + (c.vs.fuelT === 'diesel' ? 'Diesel' : 'Gasoline') + ', but this pump has ' + (e.fuel === 'diesel' ? 'Diesel' : 'Gasoline') + '.', true); return; }
+    var amt = Math.min(pumpAmt, e.L, vsp(c).tank - c.vs.fuel); if (amt <= 0.01) { say(e.L <= 0.01 ? 'The pump is empty.' : 'The tank is already full.', true); return; }
+    pumpJob = { e: e, c: c, left: amt, total: amt }; closePump(); say('Filling ' + amt.toFixed(1) + ' L…'); SFX.play('click');
+  }
+  function pumpTick(dt) {
+    var j = pumpJob; if (!j) return;
+    if (Math.hypot(P.x - j.e.x, P.z - j.e.z) > 14 || j.c.vs.eng) { say('Refuelling stopped (' + (j.total - j.left).toFixed(1) + ' L added).', true); pumpJob = null; return; }
+    var d = Math.min(j.left, 0.5 * dt, j.e.L, vsp(j.c).tank - j.c.vs.fuel); j.left -= d; j.e.L -= d; j.c.vs.fuel += d; setBar('Filling ' + (j.total - j.left).toFixed(1) + ' / ' + j.total.toFixed(1) + ' L', (j.total - j.left) / j.total);
+    if (j.left <= 0.001 || d <= 0.0001) { say('Refuelling done: +' + (j.total - j.left).toFixed(1) + ' L (tank ' + j.c.vs.fuel.toFixed(1) + ' L). Pump stock ' + j.e.L.toFixed(1) + ' L.'); SFX.play('craft'); pumpJob = null; var eb = $('#eat'); if (eb && eatT <= 0) eb.style.display = 'none'; }
+  }
+  /* placing a complete vehicle item with Right Click */
+  function placeVehicle(id, it) {
+    var h = aim(8); if (!h || (h.kind !== 'ground' && h.kind !== 'static' && h.kind !== 'vox')) { say('Aim at flat ground to place the vehicle.', true); return; }
+    camera.getWorldDirection(DIR); var ang = Math.atan2(DIR.x, DIR.z), px = P.x + DIR.x * 6, pz = P.z + DIR.z * 6, k = Math.round(ang / (Math.PI / 2)) * (Math.PI / 2);
+    if (!W.ownedCarFree(px, pz, k, it.veh)) { say('Not enough free space here for the vehicle (needs a flat area about 2 x 5 blocks).', true); return; }
+    if (mp.role === 'client') { say('Vehicles are only available for the host / solo play for now.', true); return; }
+    take(id, 1); var cf = VCFG[it.veh] || VCFG.suv, c = W.addOwnedCar(it.veh, px, pz, k, it.vcol || 0x4f6b52); c.max = c.hp = cf.hp; c.vs.fuelT = cf.fuelT; SFX.play('craft'); say('Vehicle placed. Open the door with [E] and sit in. The tank is empty: fill it at a Fuel Pump Station!'); renderHotbar();
+  }
+  function vehSave() { return (W.ocars || []).map(function (c) { var v = c.vs; return [c.kind, Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100, ((Math.round(carAng(c) / (Math.PI / 2)) % 4) + 4) % 4, c.col, Math.round(c.hp), c.burnt ? 1 : 0, Math.round(v.fuel * 100) / 100, v.fuelT, Math.round(v.odo), v.gear, v.blown ? 1 : 0]; }); }
+  function vehLoad(a) { (a || []).forEach(function (r) { var c = W.addOwnedCar(r[0], r[1], r[2], r[3] * Math.PI / 2, r[4], r[5]); var cf2 = VCFG[r[0]] || VCFG.suv; c.max = cf2.hp; c.burnt = !!r[6]; c.vs.fuel = r[7] || 0; c.vs.fuelT = r[8] || 'gasoline'; c.vs.odo = r[9] || 0; c.vs.blown = !!r[11]; if (c.burnt) W.setCar(c, true); }); }
   function interact() {
-    if (drive) { exitCar(); return; }
+    if (seat) { var vv = seat.vs; vv.door = !vv.door; SFX.play('click'); say(vv.door ? 'Door opened. [X] leave the seat.' : 'Door closed. Press [U] for the dashboard.'); return; }
     var cpx = nearCorpse(2.6); if (cpx) { lootCorpse(cpx); return; }
     if (W.statue && !ugOn && Math.hypot(P.x - W.statue.x, P.z - W.statue.z) < 3.6) { useStatue(); return; }
+    var ht0 = aim(3.6); if (ht0 && ht0.kind === 'ent' && ht0.e.k === 'tank') { tankUse(ht0.e); return; }
     var bid0 = hot[sel]; if (bid0 === 'wooden_bucket' && count(bid0) > 0) { var wsc = scoopTarget(); if (wsc && WZ.WOOD_WATER[wsc]) { take(bid0, 1); give('wb_' + wsc, 1); say('Filled the Wooden Bucket with ' + WZ.LIQ[wsc][0] + '.'); SFX.play('click'); return; } if (wsc) { say('A Wooden Bucket can only hold water.', true); return; } }
-    var bid = hot[sel]; if ((bid === 'iron_bucket' || bid === 'titanium_bucket') && count(bid) > 0) { var sc = scoopTarget(); if (sc) { take(bid, 1); give('ib_' + sc, 1); say('Filled the bucket with ' + WZ.LIQ[sc][0] + '.'); SFX.play('click'); return; } }
+    var bid = hot[sel]; if ((bid === 'iron_bucket' || bid === 'titanium_bucket') && count(bid) > 0) { var sc = scoopTarget(); if (sc) { if (sc === 'lava' && bid === 'iron_bucket') { say('An Iron Bucket would melt! Only a Titanium Bucket can carry Lava.', true); return; } take(bid, 1); give('ib_' + sc, 1); say('Filled the bucket with ' + WZ.LIQ[sc][0] + '.'); SFX.play('click'); return; } }
     var h = aim(3.6); if (!h || h.kind !== 'ent') return; var e = h.e;
     if (e.k === 'farm') { farmUse(e); return; }
-    if (e.k === 'car') { enterCar(e); return; }
+    if (e.k === 'car') { carUse(e); return; }
+    if (e.k === 'pump') { pumpUse(e); return; }
+    if (e.k === 'tank') { tankUse(e); return; }
     if (e.k === 'pile' || e.k === 'crate') { SFX.play('loot'); if (mp.role === 'client') { if (e.searched) { say('Already searched.'); return; } Net.send({ t: 'search', k: e.k, idx: e.idx }); } else applySearchEnt(e, 'self'); }
     else if (e.k === 'bed') { rest = { k: 'sleep', clean: !!e.clean }; P.vx = P.vz = 0; $('#dark').style.opacity = 0.75; say(e.clean ? 'Sleeping in a clean bed: time passes 3x faster. Comfort & Energy recover.' : 'Sleeping in a shabby bed: time passes 2x faster. Energy recovers, but Comfort does not.'); }
     else if (e.k === 'sofa') sitOn(e);
@@ -1801,9 +1991,9 @@
   }
 
   function hurt(n, elem) {
-    if (creative) return;
+    if (creative && CM.god) return;
     if (dead || unl.imm > 0) return;
-    var ast0 = armorStats(), def = elem ? 0 : ast0.def, dmg = n - def; if (elem === 'frost') dmg = Math.round(n * (1 - ast0.frostRes)); else if (elem === 'fire') dmg = Math.round(n * (1 - ast0.fireRes));
+    var ast0 = armorStats(), def = elem ? 0 : ast0.def * (creative ? CM.buff : 1), dmg = n - def; if (creative) dmg = dmg / CM.def; if (elem === 'frost') dmg = Math.round(n * (1 - ast0.frostRes)); else if (elem === 'fire') dmg = Math.round(n * (1 - ast0.fireRes));
     if (dmg <= 0) dmg = 1; if (status.gold > 0) dmg = Math.max(1, Math.round(dmg * 0.9));
     P.hp -= dmg; if (P.hp <= 0 && unl.armed) { P.hp = 1; unl.armed = false; unl.imm = 1; say('UNLETHAL! You are immortal for 1 second.', true); }
     P.comfort = Math.max(0, P.comfort - 3); if (rest) endRest(); if (fish) { endFish(); say('Fishing canceled.', true); }
@@ -1849,7 +2039,7 @@
     if (status.corr > 0) { status.corr -= dt; P.hp -= 5 * dt; }
     if (status.acid > 0) { status.acid -= dt; P.hp -= Math.pow(3, Math.max(0, status.acidN - 1)) * dt; if (status.acid <= 0) status.acidN = 0; }
     if (P.hunger <= 0) P.hp -= 0.8 * dt; if (P.thirst <= 0) P.hp -= 0.8 * dt;
-    if (creative) { P.hp = armorStats().hpMax; P.hunger = P.thirst = P.energy = 100; status.poison = status.wpoison = status.stomach = status.corr = status.acid = 0; }
+    if (creative && CM.god) { P.hp = armorStats().hpMax; P.hunger = P.thirst = P.energy = 100; status.poison = status.wpoison = status.stomach = status.corr = status.acid = 0; }
     if (P.hp <= 0 && !dead) { die(); return; }
     if (P.hunger > 40 && P.thirst > 40 && status.poison <= 0 && status.wpoison <= 0 && P.hp < ast.hpMax) P.hp = Math.min(ast.hpMax, P.hp + 0.4 * dt);
   }
@@ -1947,7 +2137,7 @@
   }
   /* Loot cars: every car has 10-25 Break Points; breaking it opens the trunk. Loot tier is random 2..world tier (max 5); world tier 1 gives crate tier 1. */
   function applyCarHit(e, bd, pid) {
-    if (!e.alive) return; e.hp -= Math.max(1, Math.round(bd / 2));
+    if (!e.alive || e.burnt || e.own) return; e.hp -= Math.max(1, Math.round(bd / 2));
     if (e.hp <= 0) {
       var wt = worldTier(clockInfo(T).day), tier = wt < 2 ? 1 : 2 + ((rnd() * (Math.min(5, wt) - 1)) | 0), key = e.wreck ? 'wreck' : e.truck ? (wt >= 3 ? 'truck3' : wt >= 2 ? 'truck' : 'crate1') : 'crate' + tier, lname = e.wreck ? 'Shipwreck Chest' : e.truck ? (wt < 2 ? 'Wooden Crate (Tier 1)' : 'Iron Crate (Tier ' + Math.min(5, wt) + ')') : WZ.LOOT[key].name, rolls = (WZ.LOOT[key].rolls || 3) * (e.truck ? 2 + (rnd() < 0.5 ? 0 : 1) : 1), got = {};
       for (var i = 0; i < rolls; i++) { var id = WZ.rollLoot(key, rnd); got[id] = (got[id] || 0) + 1; }
@@ -1956,9 +2146,9 @@
         if (pid === 'self') { give(id, got[id]); say('+' + got[id] + ' ' + ITEMS[id].name); }
         else if (mp.role === 'host') Net.send({ t: 'give', to: pid, id: id, n: got[id], msg: '+' + got[id] + ' ' + ITEMS[id].name });
       });
-      W.setCar(e, false);
+      e.burnt = true; e.hp = 0; W.setCar(e, true); SFX.play('hit'); say('The car is burnt out: a rusty, smoking wreck now.', true);
     }
-    if (mp.role === 'host') Net.send({ t: 'ent', k: 'car', idx: e.idx, hp: Math.round(e.hp), alive: e.alive });
+    if (mp.role === 'host') Net.send({ t: 'ent', k: 'car', idx: e.idx, hp: Math.round(e.hp), alive: e.alive, burnt: !!e.burnt });
   }
   /* ---- Liquids: scooping with an Iron Bucket, pool hazards ---- */
   function aimPool(maxD) {
@@ -1993,15 +2183,48 @@
     if (sha256(a) === cf.h1 && sha256(b) === cf.h2) { creative = true; $('#bCreative').textContent = 'Creative Mode: ON (click to turn off)'; alert('Creative mode ON.\nIn game: [G] fly (Space up / C down), [B] item picker. You cannot be hurt and need no food.'); }
     else alert('Wrong password.');
   }
+  var CM = { speed: 1, dmg: 1, def: 1, buff: 1, god: true }, crTab = 'items';
+  function crSpawnPt(d) { camera.getWorldDirection(DIR); return { x: P.x + DIR.x * d, z: P.z + DIR.z * d, ang: Math.atan2(DIR.x, DIR.z) }; }
   function crOpen() {
-    var pn = $('#crPanel'); if (!pn) { pn = document.createElement('div'); pn.id = 'crPanel'; pn.style.cssText = 'position:fixed;inset:6% 8%;background:#14161aee;border:1px solid #e3b02a;border-radius:14px;z-index:60;padding:14px;overflow:auto;color:#eee'; document.body.appendChild(pn); }
+    var pn = $('#crPanel'); if (!pn) { pn = document.createElement('div'); pn.id = 'crPanel'; pn.style.cssText = 'position:fixed;inset:5% 7%;background:#14161af2;border:1px solid #e3b02a;border-radius:14px;z-index:60;padding:14px;overflow:auto;color:#eee'; document.body.appendChild(pn); }
+    var tip = $('#crTip'); if (!tip) { tip = document.createElement('div'); tip.id = 'crTip'; document.body.appendChild(tip); }
     mode = 'cr'; keys = {}; lmb = false; if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (e) {} }
-    pn.style.display = 'block'; pn.innerHTML = '<b style="color:#e3b02a">Creative item picker</b> <input id="crQ" placeholder="search item..." style="margin:0 8px;padding:6px 10px;border-radius:8px;background:#262a32;color:#eee;border:1px solid #444"> <button id="crX" class="btn">Close [B]</button><div id="crL" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>';
-    function fill() { var q = $('#crQ').value.toLowerCase(), h = ''; Object.keys(ITEMS).filter(function (id) { return !q || (ITEMS[id].name + ' ' + id).toLowerCase().indexOf(q) >= 0; }).slice(0, 120).forEach(function (id) { h += '<button class="btn" data-id="' + id + '" style="padding:4px 8px;font-size:.8rem">' + ITEMS[id].ic + ' ' + ITEMS[id].name + '</button>'; }); $('#crL').innerHTML = h; }
-    fill(); $('#crQ').oninput = fill; $('#crQ').focus(); $('#crX').onclick = crClose;
-    $('#crL').onclick = function (e) { var id = e.target.dataset && e.target.dataset.id; if (!id) return; var n = WZ.maxStack(id) > 1 ? 20 : 1; give(id, n); say('+' + n + ' ' + ITEMS[id].name + ' (creative)'); renderHotbar(); };
+    pn.style.display = 'block';
+    function nf(k, lab) { return '<label style="display:flex;justify-content:space-between;gap:10px;margin:6px 0">' + lab + '<input type="number" data-cm="' + k + '" value="' + CM[k] + '" min="0.1" max="20" step="0.1" style="width:80px;background:#262a32;color:#eee;border:1px solid #444;border-radius:6px;padding:4px"></label>'; }
+    function draw() {
+      var h = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="color:#e3b02a">Creative</b><button class="tab' + (crTab === 'items' ? ' on' : '') + '" data-ct="items">Items</button><button class="tab' + (crTab === 'tools' ? ' on' : '') + '" data-ct="tools">Tools</button>' + (crTab === 'items' ? '<input id="crQ" placeholder="search item..." style="margin:0 8px;padding:6px 10px;border-radius:8px;background:#262a32;color:#eee;border:1px solid #444">' : '') + '<button id="crX" class="btn">Close [B]</button></div>';
+      if (crTab === 'items') h += '<div id="crL" class="crgrid" style="margin-top:10px"></div>';
+      else {
+        var zs = Object.keys(ZDEF).map(function (k) { return '<option value="' + k + '">' + esc(ZDEF[k].name || k) + '</option>'; }).join(''), ls = Object.keys(WZ.LOOT).map(function (k) { return '<option value="' + k + '">' + esc(WZ.LOOT[k].name || k) + ' (' + k + ')</option>'; }).join(''), sel = 'background:#262a32;color:#eee;border:1px solid #444;border-radius:6px;padding:4px';
+        h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:12px">' +
+          '<div class="box"><h2>Multipliers</h2>' + nf('speed', 'Speed multiplier') + nf('dmg', 'Damage multiplier') + nf('def', 'Defense multiplier') + nf('buff', 'Buff multiplier (armor / accessory)') + '<label style="display:flex;gap:8px;margin-top:8px"><input type="checkbox" id="cmGod"' + (CM.god ? ' checked' : '') + '> Invincible (when off, Defense multiplier reduces damage)</label></div>' +
+          '<div class="box"><h2>Spawn / Summon</h2><select id="spZ" style="' + sel + ';width:100%">' + zs + '</select><div style="display:flex;gap:8px;margin-top:8px"><input id="spN" type="number" value="1" min="1" max="30" style="width:70px;' + sel + '"><button class="btn primary" id="spGo">Summon in front of me</button></div><button class="btn" id="spKill" style="margin-top:8px">Remove all zombies</button></div>' +
+          '<div class="box"><h2>Loot spawn</h2><select id="lpK" style="' + sel + ';width:100%">' + ls + '</select><div style="display:flex;gap:8px;margin-top:8px"><input id="lpN" type="number" value="3" min="1" max="50" style="width:70px;' + sel + '"><button class="btn primary" id="lpGo">Roll loot into bag</button></div><h2 style="margin-top:12px">Vehicles</h2><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-sv="suv">Scout II</button><button class="btn" data-sv="truck">GMC Brigadier</button><button class="btn" data-sv="sedan">Mercedes 230CE</button><button class="btn" data-sv="mustang">Ford Mustang GT</button></div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="spCar">Abandoned car + loot</button><button class="btn" id="spTruck">Abandoned truck + loot</button></div></div></div>';
+      }
+      pn.innerHTML = h; $('#crX').onclick = crClose;
+      [].forEach.call(pn.querySelectorAll('[data-ct]'), function (b) { b.onclick = function () { crTab = b.dataset.ct; draw(); }; });
+      if (crTab === 'items') {
+        var fill = function () { var q = $('#crQ').value.toLowerCase(), h2 = ''; Object.keys(ITEMS).filter(function (id) { return !q || (ITEMS[id].name + ' ' + id).toLowerCase().indexOf(q) >= 0; }).forEach(function (id) { h2 += '<button class="crs" data-id="' + id + '">' + ITEMS[id].ic + '</button>'; }); $('#crL').innerHTML = h2; };
+        fill(); $('#crQ').oninput = fill; $('#crQ').focus();
+        var L = $('#crL');
+        L.onclick = function (e) { var b = e.target.closest('[data-id]'); if (!b) return; var id = b.dataset.id, n = WZ.maxStack(id) > 1 ? 20 : 1; give(id, n); say('+' + n + ' ' + ITEMS[id].name + ' (creative)'); renderHotbar(); };
+        L.onmouseover = function (e) { var b = e.target.closest('[data-id]'); if (!b) return; var it = ITEMS[b.dataset.id]; tip.innerHTML = '<b>' + it.ic + ' ' + esc(it.name) + '</b><br>' + esc(it.desc || ''); tip.style.display = 'block'; };
+        L.onmousemove = function (e) { tip.style.left = Math.min(innerWidth - 290, e.clientX + 14) + 'px'; tip.style.top = Math.min(innerHeight - 120, e.clientY + 14) + 'px'; };
+        L.onmouseleave = function () { tip.style.display = 'none'; };
+      } else {
+        [].forEach.call(pn.querySelectorAll('[data-cm]'), function (i) { i.onchange = function () { CM[i.dataset.cm] = clamp(+i.value || 1, 0.1, 20); i.value = CM[i.dataset.cm]; }; });
+        $('#cmGod').onchange = function () { CM.god = this.checked; };
+        $('#spGo').onclick = function () { var n = clamp(+$('#spN').value || 1, 1, 30), p = crSpawnPt(6); for (var i = 0; i < n; i++) placeZombie($('#spZ').value, p.x + (rnd() - 0.5) * 4, p.z + (rnd() - 0.5) * 4); say('Summoned ' + n + '.'); };
+        $('#spKill').onclick = function () { zombies.slice().forEach(function (z) { z.hp = 0; killZombie(z, 'self'); }); say('Zombies removed.'); };
+        $('#lpGo').onclick = function () { var k = $('#lpK').value, n = clamp(+$('#lpN').value || 1, 1, 50), got = {}; for (var i = 0; i < n; i++) { var id = WZ.rollLoot(k, rnd); got[id] = (got[id] || 0) + 1; } Object.keys(got).forEach(function (id) { give(id, got[id]); }); say('Loot rolled: ' + Object.keys(got).map(function (id) { return got[id] + '× ' + ITEMS[id].name; }).join(', ')); renderHotbar(); };
+        [].forEach.call(pn.querySelectorAll('[data-sv]'), function (b) { b.onclick = function () { var p = crSpawnPt(7), k = b.dataset.sv, cf = VCFG[k] || VCFG.suv, c = W.addOwnedCar(k, p.x, p.z, Math.round(p.ang / (Math.PI / 2)) * (Math.PI / 2), 0x4f6b52); c.max = c.hp = cf.hp; c.vs.fuelT = cf.fuelT; c.vs.fuel = 10; say('Vehicle spawned with 10 L of fuel.'); }; });
+        function wreck(truck) { var p = crSpawnPt(8); say('Use the loot roll: ' + (truck ? 'truck' : 'trunk') + ' loot added to the bag.'); var key = truck ? 'truck3' : 'crate1', got = {}; for (var i = 0; i < (WZ.LOOT[key].rolls || 3) * (truck ? 2 : 1); i++) { var id = WZ.rollLoot(key, rnd); got[id] = (got[id] || 0) + 1; } Object.keys(got).forEach(function (id) { give(id, got[id]); }); }
+        $('#spCar').onclick = function () { wreck(false); }; $('#spTruck').onclick = function () { wreck(true); };
+      }
+    }
+    draw();
   }
-  function crClose() { var pn = $('#crPanel'); if (pn) pn.style.display = 'none'; enterGame(); }
+  function crClose() { var pn = $('#crPanel'); if (pn) pn.style.display = 'none'; var tp = $('#crTip'); if (tp) tp.style.display = 'none'; enterGame(); }
   /* ---- Farming: tilled farmland, wet soil, crops that grow in real time ---- */
   var hoeBar = null, hoeSnd = 0;
   function farmGroup(e) {
@@ -2495,7 +2718,7 @@
         else if (msg.k === 'rock') { var rk = W.rocks[msg.idx]; if (rk) { rk.hp = msg.hp; rk.given = msg.given; if (rk.alive !== msg.alive) W.setRock(rk, msg.alive); } }
         else if (msg.k === 'pile') { var pl = W.piles[msg.idx]; if (pl) W.setPile(pl, !msg.searched); }
         else if (msg.k === 'crate') { var cr = W.crates[msg.idx]; if (cr) W.setCrate(cr, !msg.searched); }
-        else if (msg.k === 'car') { var cc = W.cars[msg.idx]; if (cc) { cc.hp = msg.hp; if (cc.alive !== msg.alive) W.setCar(cc, msg.alive); } }
+        else if (msg.k === 'car') { var cc = W.cars[msg.idx]; if (cc) { cc.hp = msg.hp; if (msg.burnt && !cc.burnt) { cc.burnt = true; W.setCar(cc, true); } else if (cc.alive !== msg.alive) W.setCar(cc, msg.alive); } }
       } else if (msg.t === 'give' && msg.to === myPid) { give(msg.id, msg.n); if (msg.msg) say(msg.msg); }
       else if (msg.t === 'say' && msg.to === myPid) say(msg.msg);
       else if (msg.t === 'hurt' && msg.to === myPid) { hurt(msg.dmg || 5); if (msg.wp) applyWaterPoison(); }
@@ -2522,12 +2745,22 @@
   var STN0 = [['hand', 'Handmade', null], ['sawmill', 'Sawmill', 'saws'], ['furnace', 'Furnace', 'furn'], ['campfire', 'Campfire', 'camps'], ['anvil', 'Iron Anvil', 'anvils'], ['sink', 'Sink', 'sinks'], ['turret', 'Turret Workbench', 'tbench'], ['computer', 'Computer Bench', 'comps'], ['milling', 'Manual Milling', 'mills'], ['bomb', 'Bomb Workbench', 'bombs'], ['kiln', 'Glass Kiln', 'kilns'], ['craft', 'Crafting Workbench', 'crafts'], ['work', 'Working Workbench', 'works'], ['press', 'Manual Pressing', 'presses'], ['casing', 'Casing & Frame Crafter', 'casings'], ['trapb', 'Trap Bench', 'trapbs'], ['mason', 'Mason Workbench', 'masons'], ['blast', 'Blast Smelter', 'blasts'], ['liquiders', 'Liquiders Workbench', 'liqs'], ['sewing', 'Sewing Table', 'sews'], ['cutting', 'Cutting Board (on a Table)', 'cuttables']];
   STN0.push(['tablecraft', 'Furniture Table', 'tables']); Object.keys(WZ.GST).forEach(function (t) { var G = WZ.GST[t]; STN0.push([G[0], G[1], G[2]]); });
   function stnList() { return STN0.map(function (a) { return [a[0], a[1], a[2] ? W[a[2]] : null]; }); }
-  var STBTN = { cpot: 'Cook', gunb: 'Craft', tablecraft: 'Craft', wfilter: 'Filter', distill: 'Distill', cwork: 'Build', seng: 'Craft', eng: 'Craft', drive: 'Craft', vbench: 'Craft', hand: 'Craft', sawmill: 'Cut', furnace: 'Smelt', campfire: 'Cook', anvil: 'Forge', sink: 'Wash', turret: 'Build', computer: 'Build', milling: 'Mill', bomb: 'Build', kiln: 'Craft', craft: 'Craft', work: 'Craft', press: 'Press', casing: 'Craft', trapb: 'Build', mason: 'Cut', blast: 'Smelt', liquiders: 'Craft', sewing: 'Sew', cutting: 'Cut' };
+  var STBTN = { shaper: 'Craft', tanker: 'Craft', cpot: 'Cook', gunb: 'Craft', tablecraft: 'Craft', wfilter: 'Filter', distill: 'Distill', cwork: 'Build', seng: 'Craft', eng: 'Craft', drive: 'Craft', vbench: 'Craft', hand: 'Craft', sawmill: 'Cut', furnace: 'Smelt', campfire: 'Cook', anvil: 'Forge', sink: 'Wash', turret: 'Build', computer: 'Build', milling: 'Mill', bomb: 'Build', kiln: 'Craft', craft: 'Craft', work: 'Craft', press: 'Press', casing: 'Craft', trapb: 'Build', mason: 'Cut', blast: 'Smelt', liquiders: 'Craft', sewing: 'Sew', cutting: 'Cut' };
   function stationOk(r) { if (r.st === 'furnace' && nearArr(W.blasts)) return true; var S = stnList(); for (var i = 0; i < S.length; i++) if (S[i][0] === r.st) return !S[i][2] || nearArr(S[i][2]); return true; }
   /* Recipe reveal rule: a recipe is only listed when you are at its station AND you already own the ingredients (WZ.REVEAL: 'all' = every ingredient type, 'any' = at least one) */
   function revealed(r) { var ks = Object.keys(r.cost); return stationOk(r) && (WZ.REVEAL === 'any' ? ks.some(function (k) { return count(k) > 0; }) : ks.every(function (k) { return count(k) > 0; })); }
   function hasAll(r) { return Object.keys(r.cost).every(function (id) { return count(id) >= r.cost[id]; }); }
   function fuelHtml() { return Object.keys(WZ.FUEL).map(function (f) { return ITEMS[f].ic + ' ' + ITEMS[f].name + ' x' + count(f) + ' (' + WZ.FUEL[f].t + ' s, power ' + WZ.FUEL[f].p + ')'; }).join(' &middot; '); }
+  /* ---- Slow manual jobs (Manual Iron Shaper Table): run in the background, a solved puzzle halves the remaining time ---- */
+  var jobs = [];
+  function jobRec(j) { return WZ.RECIPES.filter(function (x) { return x.id === j.id; })[0]; }
+  function startJob(r) { Object.keys(r.cost).forEach(function (k) { take(k, r.cost[k]); }); jobs.push({ id: r.id, left: r.dur, half: false }); SFX.play('click'); say('Started: ' + (r.label || ITEMS[r.out[0]].name) + ' (' + r.dur + ' s). Solve the puzzle at the table to cut the remaining time by 50%.'); }
+  function jobTick(dt) { for (var i = jobs.length - 1; i >= 0; i--) { var j = jobs[i], r = jobRec(j); if (!r) { jobs.splice(i, 1); continue; } j.left -= dt; if (j.left <= 0) { jobs.splice(i, 1); give(r.out[0], r.out[1]); say('Finished: ' + ITEMS[r.out[0]].name + '!'); SFX.play('craft'); } } }
+  function jobsHtml() {
+    if (!jobs.length) return ''; var out = '<h2 style="margin-top:12px">⏳ Manual jobs in progress</h2>';
+    jobs.forEach(function (j, i) { var r = jobRec(j); if (!r) return; var m = Math.floor(j.left / 60), s = Math.floor(j.left % 60); out += '<div class="rec"><div><b>' + ITEMS[r.out[0]].ic + ' ' + esc(r.label || ITEMS[r.out[0]].name) + '</b><div class="cost">' + m + ':' + ('0' + s).slice(-2) + ' left' + (j.half ? ' · puzzle bonus used' : '') + '</div></div>' + (j.half ? '' : '<button class="btn primary" data-jpz="' + i + '"' + (stationOk(r) ? '' : ' disabled') + '>🧩 Puzzle −50%</button>') + '</div>'; });
+    return out;
+  }
   function recipesHtml() {
     var out = '', shown = 0;
     stnList().forEach(function (sn) {
@@ -2536,6 +2769,7 @@
       if (sn[0] === 'furnace' || sn[0] === 'campfire' || sn[0] === 'blast' || sn[0] === 'cpot') out += '<div class="m" style="color:var(--muted);font-size:.78rem;margin-bottom:6px">Fuel in your bag: ' + fuelHtml() + (heatQ.length ? '<br>🔥 Jobs queued: ' + heatQ.length + ' &middot; progress ' + Math.round(heatGot / heatQ[0].r.heat * 100) + '%' : '') + '</div>';
       out += rs.map(function (r) {
         var o = ITEMS[r.out[0]], can = hasAll(r), note = '';
+        if (r.dur) note += '<br>⏳ Takes ' + r.dur + ' s in the background';
         if (r.heat) note += '<br>🔥 Needs ' + r.heat + ' heat power (burn fuel)';
         if (r.puz && r.puz.k === 'img') note += '<br>🧩 Picture puzzle &middot; Tier ' + r.tier + ' (' + r.puz.n + '×' + r.puz.n + ')';
         else if (r.puz && r.puz.k === 'mask') note += '<br>🧩 Shape puzzle';
@@ -2545,13 +2779,15 @@
         return '<div class="rec"><div><b>' + o.ic + ' ' + esc(r.label || o.name) + (r.out[1] > 1 ? ' x' + r.out[1] : '') + '</b><div class="cost">' + costHtml(r) + note + '</div></div><button class="btn' + (can ? ' primary' : '') + '" data-craft="' + r.id + '"' + (can ? '' : ' disabled') + '>' + STBTN[r.st] + '</button></div>';
       }).join('');
     });
+    out += jobsHtml(); if (jobs.length) shown++;
     if (!shown) out += '<p class="m" style="color:var(--muted)">No recipes available. Recipes only appear when you are standing at the right crafting station and already carry every ingredient. Explore, gather materials and check the wiki.</p>';
     return out;
   }
   /* ---- Heat jobs (furnace / campfire) ---- */
   var heatQ = [], heatGot = 0, burn = { left: 0, rate: 0 }, heatWarn = false;
-  function queueHeat(r) { Object.keys(r.cost).forEach(function (k) { take(k, r.cost[k]); }); heatQ.push({ r: r }); say('Started: ' + (r.label || ITEMS[r.out[0]].name) + '. Stay near the ' + (r.st === 'furnace' ? 'furnace' : r.st === 'blast' ? 'blast smelter' : r.st === 'cpot' ? 'cooking pot' : 'campfire') + ' with fuel in your bag.'); SFX.play('click'); }
-  function pickFuel() { var o = ['charcoal', 'coal', 'wood']; for (var i = 0; i < o.length; i++) if (count(o[i]) > 0) return o[i]; return null; }
+  function queueHeat(r) { Object.keys(r.cost).forEach(function (k) { take(k, r.cost[k]); }); heatQ.push({ r: r }); say('Started: ' + (r.label || ITEMS[r.out[0]].name) + '. Stay near the ' + (r.st === 'furnace' ? 'furnace' : r.st === 'blast' ? 'blast smelter' : r.st === 'cpot' ? 'cooking pot' : 'campfire') + ' and keep fuel in its fuel slot.'); SFX.play('click'); }
+  function pickBagFuel() { var o = ['charcoal', 'coal', 'wood']; for (var i = 0; i < o.length; i++) if (count(o[i]) > 0) return o[i]; return null; }
+  function pickFuel() { if (fuelSl.id && fuelSl.n > 0) { fuelSl.n--; var f = fuelSl.id; if (fuelSl.n <= 0) fuelSl.id = null; return f; } return null; }
   function setBar(txt, f) { var e = $('#eat'); if (!e || eatT > 0) return; e.style.display = 'block'; $('#eat i').style.width = clamp(f * 100, 0, 100) + '%'; $('#eat span').textContent = txt; }
   function heatTick(dt) {
     if (!heatQ.length) { heatGot = 0; return; }
@@ -2560,8 +2796,8 @@
     var guard = 0;
     while (heatGot < need && dt > 1e-6 && guard++ < 6) {
       if (burn.left <= 0) {
-        var f = pickFuel(); if (!f) { if (!heatWarn) { heatWarn = true; say('Out of fuel! Carry Coal, Charcoal or Wood Logs.', true); } setBar('Out of fuel!', heatGot / need); return; }
-        heatWarn = false; take(f, 1); burn.left = WZ.FUEL[f].t; burn.rate = WZ.FUEL[f].p / WZ.FUEL[f].t;
+        var f = pickFuel(); if (!f) { if (!heatWarn) { heatWarn = true; say('Out of fuel! Put Coal, Charcoal or Wood into the fuel slot of the station.', true); } setBar('Out of fuel!', heatGot / need); return; }
+        heatWarn = false; burn.left = WZ.FUEL[f].t; burn.rate = WZ.FUEL[f].p / WZ.FUEL[f].t;
       }
       var use = Math.min(dt, burn.left); heatGot += burn.rate * use * hm; burn.left -= use; dt -= use;
     }
@@ -2717,7 +2953,7 @@
     else if (t.dataset.padd) { var id = t.dataset.padd; if (count(id) < 1) return; if (p.run) { say('The pot is busy cooking.', true); return; }
       if (id === 'wooden_bowl') { if (p.cont && p.cont.id !== id) return; take(id, 1); p.cont = { id: id, n: (p.cont ? p.cont.n : 0) + 1 }; }
       else { var sl = p.sl.filter(function (s) { return s && s.id === id; })[0]; if (sl) { take(id, 1); sl.n++; } else { var fi = p.sl.indexOf(null); if (fi < 0) { say('All 6 slots are full.', true); return; } take(id, 1); p.sl[fi] = { id: id, n: 1 }; } } SFX.play('click'); }
-    else if (t.dataset.pcook) { var r = potMatch(p); if (!r || p.run) return; var f = pickFuel(); if (!f) { say('You need fuel (Coal, Charcoal or Wood) in your bag.', true); return; }
+    else if (t.dataset.pcook) { var r = potMatch(p); if (!r || p.run) return; var f = pickBagFuel(); if (!f) { say('You need fuel (Coal, Charcoal or Wood) in your bag.', true); return; }
       if (p.out && p.out.id !== r.out[0]) { say('Take the finished meal out first.', true); return; }
       take(f, 1); Object.keys(r.ing).forEach(function (k) { var left = r.ing[k]; p.sl.forEach(function (s, i) { if (s && s.id === k && left > 0) { var d = Math.min(s.n, left); s.n -= d; left -= d; if (s.n <= 0) p.sl[i] = null; } }); });
       p.cont.n--; if (p.cont.n <= 0) p.cont = null; p.run = { r: r, t: r.time }; SFX.play('craft'); say('Cooking started.'); }
@@ -2738,6 +2974,7 @@
     $('#inv').innerHTML = h;
   }
   function craftNow(r) {
+    if (r.jobFlag) { var jf = r.jobFlag; if (jobs.indexOf(jf) >= 0 && !jf.half) { jf.left = Math.max(1, jf.left * 0.5); jf.half = true; say('Puzzle solved! The remaining time was cut by 50%.'); SFX.play('craft'); } return; }
     Object.keys(r.cost).forEach(function (k) { if (r.keep && r.keep.indexOf(k) >= 0) return; take(k, r.cost[k]); });
     if (r.chance != null && rnd() >= r.chance) { say('The gravel crumbled to dust. Try again!', true); SFX.play('hit'); return; }
     var oq = r.out[1] + (r.extra && rnd() < r.extra ? 1 : 0); give(r.out[0], oq);
@@ -2859,7 +3096,52 @@
     for (var j = 0; j < 5; j++) { var ci = wire.order[j]; h += '<button class="btn" data-wr="' + j + '" style="background:' + WCOL[ci] + ';min-width:110px;' + (wire.done[ci] ? 'opacity:.35;' : '') + '">' + (wire.done[ci] ? '✔' : '●') + '</button>'; }
     $('#inv').innerHTML = h + '</div></div></div></div>';
   }
+
+  /* ---- Station crafting UI: one themed screen per station (list + detail panel), fuel slot for heat stations ---- */
+  var invTab = 'bag', crSel = null, crScroll = 0, seenRec = {}, fuelSl = { id: null, n: 0 };
+  var STIC = { hand: '✋', sawmill: '🪚', furnace: '🔥', campfire: '🏕️', anvil: '🔨', sink: '🚿', turret: '🎯', computer: '💻', milling: '⚙️', bomb: '💣', kiln: '🏺', craft: '🛠️', work: '🧰', press: '🗜️', casing: '🔩', trapb: '🪤', mason: '🧱', blast: '🌋', liquiders: '🧪', shaper: '⚒️', tanker: '🛢️', vbench: '🚗', sewing: '🧵', cutting: '✂️', tablecraft: '🪑', distill: '⚗️', wfilter: '💧', cpot: '🍲' };
+  var HEATST = { furnace: 1, campfire: 1, blast: 1, cpot: 1 };
+  var FUELIC = ['charcoal', 'coal', 'wood'];
+  function crRecs(sn) {
+    return WZ.RECIPES.filter(function (r) { if (r.st !== sn || r.pot) return false; if (!stationOk(r)) return false; if (revealed(r)) seenRec[r.id] = 1; return seenRec[r.id]; });
+  }
+  function crTabs() { var out = []; stnList().forEach(function (sn) { if (crRecs(sn[0]).length || (sn[0] === 'shaper' && jobs.length && stationOk({ st: 'shaper' }))) out.push([sn[0], sn[1]]); }); return out; }
+  function crDetail(r) {
+    if (!r) return '<div class="cr-hint">Select an item from the list to see its details here.</div>';
+    var o = ITEMS[r.out[0]], can = hasAll(r), note = [];
+    if (r.dur) note.push('⏳ Takes ' + r.dur + ' s in the background (a solved puzzle cuts the remaining time by 50%)');
+    if (r.heat) note.push('🔥 Needs ' + r.heat + ' heat power (burns fuel from the fuel slot)');
+    if (r.puz && r.puz.k === 'img') note.push('🧩 Picture puzzle · Tier ' + r.tier + ' (' + r.puz.n + '×' + r.puz.n + ')');
+    else if (r.puz && r.puz.k === 'mask') note.push('🧩 Shape puzzle');
+    else if (r.puz && r.puz.k === 'saw') note.push('📏 Sawing minigame (a failed cut gives Failed Craft Wood)');
+    else if (r.puz && r.puz.k === 'crank') note.push('🔧 Crank minigame: ' + r.puz.n + ' turns');
+    else if (r.puz && r.puz.k === 'wire') note.push('🔌 Wire minigame');
+    var mats = Object.keys(r.cost).map(function (id) { var have = count(id), need = r.cost[id]; return '<div class="mat ' + (have >= need ? 'ok' : 'no') + '"><b>' + ITEMS[id].ic + '</b><span>' + esc(ITEMS[id].name) + '</span><em>' + have + ' / ' + need + '</em></div>'; }).join('');
+    return '<div class="cr-d-l"><div class="cr-big">' + o.ic + '</div><h3>' + esc(r.label || o.name) + (r.out[1] > 1 ? ' ×' + r.out[1] : '') + '</h3><div class="m">' + esc(o.desc || '') + '</div>' + (note.length ? '<div class="cr-note">' + note.join('<br>') + '</div>' : '') + '</div><div class="cr-d-r"><div class="cr-mt">Materials</div><div class="mats">' + mats + '</div><button class="btn cr-go' + (can ? ' primary' : ' lack') + '" data-craft="' + r.id + '">' + (can ? STBTN[r.st] || 'Craft' : 'Missing materials') + '</button></div>';
+  }
+  function crFuelHtml() {
+    var f = fuelSl.id ? ITEMS[fuelSl.id] : null;
+    var h = '<div class="cr-fuel"><div class="fs-t">Fuel slot</div><button class="fslot' + (f ? ' on' : '') + '" data-fslot="1" title="Click to take the fuel back">' + (f ? '<b>' + f.ic + '</b><em>' + fuelSl.n + '</em>' : '<span>Empty</span>') + '</button><div class="fs-p"><div class="fs-bar"><i style="width:' + (heatQ.length && heatQ[0].r.heat ? Math.round(heatGot / heatQ[0].r.heat * 100) : 0) + '%"></i></div><small>' + (heatQ.length ? '🔥 Queue: ' + heatQ.length + ' · ' + Math.round(heatGot / heatQ[0].r.heat * 100) + '%' : 'Idle') + (burn.left > 0 ? ' · burning' : '') + '</small></div><div class="fs-pick">';
+    FUELIC.forEach(function (id) { if (!ITEMS[id]) return; var have = count(id); h += '<button class="fpick' + (have ? '' : ' no') + '" data-fput="' + id + '" title="' + esc(ITEMS[id].name) + ' · ' + WZ.FUEL[id].t + ' s · power ' + WZ.FUEL[id].p + '">' + ITEMS[id].ic + '<em>' + have + '</em></button>'; });
+    return h + '</div></div>';
+  }
+  function crStationHtml(sn) {
+    var nm = (STN0.filter(function (a) { return a[0] === sn; })[0] || [0, sn])[1], rs = crRecs(sn);
+    if (crSel && (!rs.some(function (r) { return r.id === crSel; }))) crSel = null;
+    var sr = rs.filter(function (r) { return r.id === crSel; })[0];
+    var h = '<div class="cr-wrap st-' + sn + '"><div class="cr-head"><span class="cr-ic">' + (STIC[sn] || '⚙️') + '</span><div><b>' + esc(nm) + '</b><small>' + (HEATST[sn] ? 'Put fuel in the slot, pick a recipe and start smelting.' : 'Choose a recipe, check the materials, then craft.') + '</small></div></div>';
+    if (HEATST[sn]) h += crFuelHtml();
+    h += '<div class="cr-list' + (crSel ? ' half' : '') + '">';
+    rs.forEach(function (r) { var o = ITEMS[r.out[0]], can = hasAll(r); h += '<button class="cr-row' + (can ? '' : ' lack') + (r.id === crSel ? ' sel' : '') + '" data-crsel="' + r.id + '"><b>' + o.ic + '</b><span>' + esc(r.label || o.name) + (r.out[1] > 1 ? ' ×' + r.out[1] : '') + '</span><small>' + Object.keys(r.cost).map(function (id) { return '<i class="' + (count(id) >= r.cost[id] ? 'ok' : 'no') + '">' + ITEMS[id].ic + r.cost[id] + '</i>'; }).join('') + '</small></button>'; });
+    if (sn === 'shaper') h += jobsHtml();
+    h += '</div>';
+    h += '<div class="cr-det' + (crSel ? ' open' : '') + '" id="crDet">' + (crSel ? crDetail(sr) : '') + '</div></div>';
+    return h;
+  }
+  var lastTab = '', scr0 = [], scrOuter = 0;
+  function keepScroll() { var bs = document.querySelectorAll('#inv .box'); for (var i = 0; i < bs.length; i++) bs[i].scrollTop = scr0[i] || 0; $('#inv').scrollTop = scrOuter; lastTab = invTab; }
   function renderInv() {
+    if (lastTab === invTab && !godE && !wire && !mg) { scr0 = [].map.call(document.querySelectorAll('#inv .box'), function (e) { return e.scrollTop; }); scrOuter = $('#inv').scrollTop; } else { scr0 = []; scrOuter = 0; }
     if (godE) { renderGod(); return; }
     if (wire) { renderWireGame(); return; }
     if (mg) { renderMg(); return; }
@@ -2870,19 +3152,26 @@
     if (ast.ironN > 0) buffs.push('Iron (' + ast.ironN + '/4): Max HP ' + ast.hpMax + ', Melee +' + (ast.ironN * 6) + '%');
     if (ast.bucket) buffs.push('Iron Bucket: Water Poison chance halved');
 
-    var h = '<div class="inv-wrap"><div class="top"><h2 style="margin:0">Bag, Gear &amp; Crafting</h2><div class="row" style="display:flex;gap:8px"><button class="btn primary" id="bBack">Back (Tab)</button></div></div><div class="box"><h2>Worn Armor (Click to remove)</h2><div class="eq-row">';
+    var tabs = crTabs(); if (invTab !== 'bag' && !tabs.some(function (t) { return t[0] === invTab; })) invTab = 'bag';
+    var h = '<div class="inv-wrap"><div class="top"><h2 style="margin:0">' + (invTab === 'bag' ? 'Bag &amp; Gear' : 'Crafting') + '</h2><div class="tabs"><button class="tab' + (invTab === 'bag' ? ' on' : '') + '" data-tab="bag">🎒 Bag</button>' + tabs.map(function (t) { return '<button class="tab' + (invTab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + (STIC[t[0]] || '⚙️') + ' ' + esc(t[1]) + '</button>'; }).join('') + '</div><div class="row" style="display:flex;gap:8px"><button class="btn primary" id="bBack">Back (Tab)</button></div></div>';
+    if (invTab !== 'bag') { h += crStationHtml(invTab) + '</div>'; $('#inv').innerHTML = h; $('#bBack').onclick = closeInv; var cl = $('#inv .cr-list'); if (cl) cl.scrollTop = crScroll; lastTab = invTab; return; }
+    h += '<div class="bag-grid"><div class="box"><h2>Worn Armor (Click to remove)</h2><div class="eq-row">';
     slots.forEach(function (sl) { var id = equip[sl[0]], it = id ? ITEMS[id] : null; h += '<button class="eq-slot' + (it ? ' on' : '') + '" data-eq="' + sl[0] + '"><b>' + (it ? it.ic : '▫') + '</b><span>' + (it ? esc(it.name) : sl[1]) + '</span><small>' + (it ? 'DEF +' + it.def : 'Empty') + '</small></button>'; });
     h += '</div><h2>Accessories (Click to remove)</h2><div class="eq-row">';
     for (var ai = 0; ai < 4; ai++) { var aid = acc[ai], ait = aid ? ITEMS[aid] : null; h += '<button class="eq-slot' + (ait ? ' on' : '') + '" data-acc="' + ai + '"><b>' + (ait ? ait.ic : '▫') + '</b><span>' + (ait ? esc(ait.name) : 'Accessory ' + (ai + 1)) + '</span><small>' + (ait ? 'Equipped' : 'Empty') + '</small></button>'; }
     h += '</div><div class="eq-buff">' + esc(buffs.join(' · ')) + '</div><h2>Hotbar</h2><div class="hb">';
     for (var i = 0; i < 8; i++) { var hid = hot[i] || (i === 0 ? 'fists' : null); h += '<div class="slot' + (i === sel ? ' sel' : '') + '" data-slot="' + i + '"><small>' + (i + 1) + '</small>' + (hid ? ITEMS[hid].ic : '') + '</div>'; }
-    h += '</div><p class="m" style="color:var(--muted);font-size:.8rem;margin:0 0 10px">Click a hotbar slot, then click an item to assign it (armor and accessories equip directly).</p><h2>Items (' + slotsUsed() + '/' + slotCap() + ' slots)</h2>';
+    h += '</div><p class="m" style="color:var(--muted);font-size:.8rem;margin:0 0 10px">Click a hotbar slot, then click an item to assign it (armor and accessories equip directly).</p></div><div class="box"><h2>Items (' + slotsUsed() + '/' + slotCap() + ' slots)</h2>';
     h += ids.length ? '<div class="items">' + ids.map(function (id) { var it = ITEMS[id]; return '<button class="it" data-item="' + id + '"><b>' + it.ic + '</b>' + esc(it.name) + '<em>' + inv[id] + '</em></button>'; }).join('') + '</div>' : '<p class="m" style="color:var(--muted)">Your bag is empty.</p>';
-    h += '<div class="detail" id="detail">' + detailHtml(selItem) + '</div></div><div class="box"><h2>Crafting &amp; Stations</h2>' + recipesHtml() + '<h2 style="margin-top:14px">Schematics (Coming Soon)</h2>' + WZ.SCHEMATICS.map(function (n) { return '<div class="rec" style="opacity:.55"><div><b>🔒 ' + esc(n) + '</b><div class="cost">Coming soon</div></div></div>'; }).join('') + '</div></div>';
-    $('#inv').innerHTML = h; $('#bBack').onclick = closeInv;
+    h += '<div class="detail" id="detail">' + detailHtml(selItem) + '</div></div></div></div>';
+    $('#inv').innerHTML = h; $('#bBack').onclick = closeInv; keepScroll();
   }
   document.addEventListener('click', function (ev) {
-    if (mode !== 'inv') return; var t = ev.target.closest('[data-item],[data-slot],[data-craft],[data-eq],[data-acc],[data-wl],[data-wr],[data-wcancel],[data-mcancel],[data-cb],[data-cw],[data-cclose],[data-pclose],[data-psl],[data-pct],[data-pout],[data-padd],[data-pcook],[data-bless],[data-gclose]'); if (!t) return;
+    if (mode !== 'inv') return; var t = ev.target.closest('[data-tab],[data-crsel],[data-fslot],[data-fput],[data-item],[data-slot],[data-craft],[data-jpz],[data-eq],[data-acc],[data-wl],[data-wr],[data-wcancel],[data-mcancel],[data-cb],[data-cw],[data-cclose],[data-pclose],[data-psl],[data-pct],[data-pout],[data-padd],[data-pcook],[data-bless],[data-gclose]'); if (!t) return;
+    if (t.dataset.tab) { invTab = t.dataset.tab; crSel = null; crScroll = 0; SFX.play('click'); renderInv(); return; }
+    if (t.dataset.crsel) { crSel = t.dataset.crsel; SFX.play('click'); var cl0 = $('#inv .cr-list'); if (cl0) crScroll = cl0.scrollTop; renderInv(); return; }
+    if (t.dataset.fslot) { if (fuelSl.id) { give(fuelSl.id, fuelSl.n); fuelSl.id = null; fuelSl.n = 0; SFX.play('click'); renderInv(); } return; }
+    if (t.dataset.fput) { var fid = t.dataset.fput, fn = count(fid); if (fn <= 0) { say('You have no ' + ITEMS[fid].name + '.', true); return; } if (fuelSl.id && fuelSl.id !== fid) { give(fuelSl.id, fuelSl.n); fuelSl.id = null; fuelSl.n = 0; } take(fid, fn); fuelSl.id = fid; fuelSl.n += fn; SFX.play('click'); renderInv(); return; }
     if (potE && (t.dataset.pclose || t.dataset.psl != null || t.dataset.pct || t.dataset.pout || t.dataset.padd || t.dataset.pcook)) { potClick(t); return; }
     if (t.dataset.gclose) { godE = null; closeInv(); return; }
     if (t.dataset.bless) { var ge = godE; if (!ge) return; var bk = t.dataset.bless; if (bk === 'unl' && !(ge.cdU > 0)) { unl.armed = true; ge.cdU = 600; say('Blessing of Unlethal received. It triggers once when a blow would kill you.'); } else if (bk === 'weak' && !(ge.cdW > 0)) { ge.weakT = 120; ge.cdW = 300; say('Zombie Weaks: zombies near the statue are weaker for 2 minutes.'); } else if (bk === 'foot' && !(ge.cdF > 0)) { ge.footT = 120; ge.cdF = 240; say('Zombie Weak Foot: zombies near the statue are slower for 2 minutes.'); } SFX.play('craft'); renderGod(); return; }
@@ -2919,9 +3208,11 @@
       }
       renderInv(); return;
     }
+    if (t.dataset.jpz != null) { var jj = jobs[+t.dataset.jpz], jr = jj && jobRec(jj); if (jr && !jj.half && stationOk(jr)) { var r2 = {}; for (var kk in jr) r2[kk] = jr[kk]; r2.cost = {}; r2.dur = null; r2.jobFlag = jj; startMg(r2); } return; }
     if (t.dataset.craft) {
       var r = WZ.RECIPES.filter(function (x) { return x.id === t.dataset.craft; })[0];
-      if (!r || !hasAll(r) || !stationOk(r)) return;
+      if (!r || !stationOk(r)) return; if (!hasAll(r)) { say('Not enough materials (marked red).', true); return; }
+      if (r.dur) { startJob(r); renderInv(); return; }
       if (r.puz) { startMg(r); return; }
       if (r.heat) { queueHeat(r); renderInv(); return; }
       craftNow(r); renderInv();
@@ -2938,7 +3229,7 @@
     W.crates.forEach(function (p) { if (p.searched && T >= p.respawn) { W.setCrate(p, true); if (mp.role === 'host') Net.send({ t: 'ent', k: 'crate', idx: p.idx, searched: false }); } });
   }
   function update(dt, nowMs, clk) {
-    drain(); T += dt * (rest && rest.k === 'sleep' ? (rest.clean ? 3 : 2) : 1); /* sleeping: clean bed = time x3, shabby bed = time x2 */ swingCd -= dt; gunTick(dt); potTick(dt); if (drive && dead) { exitCar(); } if (drive) driveTick(dt); else stepPlayer(dt); stats(dt); if (dead) return;
+    drain(); T += dt * (rest && rest.k === 'sleep' ? (rest.clean ? 3 : 2) : 1); /* sleeping: clean bed = time x3, shabby bed = time x2 */ swingCd -= dt; gunTick(dt); potTick(dt); jobTick(dt); if (seat && dead) seatOut('You left the vehicle.'); vehTick(dt); pumpTick(dt); smokeTick(dt); if (seat) seatPose(seat); else stepPlayer(dt); stats(dt); if (dead) return;
     if (lmb && !manning) { var it = curItem(); if (it.type === 'tool' && swingCd <= 0) swing(); }
     godTick(dt); seaTick(dt); poolTick(dt); farmTick(dt); hoeTick(dt); tableTick(); lampTick(); ugCd -= dt; if (W.ug) { if (!inUG(P.x)) { if (ugCd <= 0 && Math.hypot(P.x - W.mine.door.x, P.z - W.mine.door.z) < 1.5 && P.y < 1.5) enterUG(); else if (ugCd <= 0 && W.caves) { for (var cvi = 0; cvi < W.caves.length; cvi++) { var cv = W.caves[cvi]; if (Math.hypot(P.x - cv.door.x, P.z - cv.door.z) < 1.6 && Math.abs(P.y - cv.y) < 2.5) { enterUG(cv); break; } } } } else if (ugCd <= 0) { var uli = ugLayer(P.x), UL = W.ugL[uli]; if (Math.hypot(P.x - UL.exit.x, P.z - UL.exit.z) < 1.8) { if (uli === 0) exitUG(); else ugMove(uli - 1, true); } else if (UL.down && Math.hypot(P.x - UL.down.x, P.z - UL.down.z) < 1.8) { if (ugMax >= LAYER_NEED[uli + 1]) ugMove(uli + 1, false); else { ugCd = 3; say('The shaft is blocked by rubble. Only the Mineshaft or Mountain Cave lead deeper.'); } } } trapTick(dt); }
     var nd = clk.hour < 5.5 ? clk.day - 1 : clk.day, bo = clk.night && bloodFlag(nd);
@@ -2949,7 +3240,7 @@
   }
   function hud() {
     renderStats(); drawMini();
-    var h = mode === 'play' && !drive ? aim(3.6) : null, txt = '', cross = $('#cross'); cross.className = '';
+    var h = mode === 'play' && !seat ? aim(3.6) : null, txt = '', cross = $('#cross'); cross.className = '';
     var cp = mode === 'play' ? nearCorpse(2.6) : null;
     if (cp) txt = (cp.name === 'Dropped Items' || cp.name === 'Turret Scraps') ? '[E] Pick up ' + cp.name : cp.mine ? '[E] Loot your corpse' : cp.name + '\'s corpse';
     else if (h) {
@@ -2981,12 +3272,14 @@
         else if (e.k === 'crate') { var effC = Math.max(1, Math.min(e.tier || 1, worldTier(clockInfo(T).day), 5)); txt = e.searched ? 'Empty crate' : '[E] Open ' + (effC < 2 ? 'wooden' : 'iron') + ' crate (Tier ' + effC + ')'; }
         else if (e.k === 'bed') txt = e.clean ? '[E] Sleep in the clean bed' : '[E] Sleep in the shabby bed';
         else if (e.k === 'couch') txt = e.clean ? '[E] Sit on the clean couch' : 'Dirty couch (does not restore Comfort)';
-        else if (e.k === 'car') txt = e.alive ? (e.truck ? 'Abandoned Truck · Break Points ' : 'Abandoned Car · Break Points ') + Math.max(0, Math.round(e.hp)) + '/' + e.max + ' · [E] Drive · ' + (e.truck ? 'Left Click: Break open the cargo' : 'Left Click: Break open the trunk') : '';
+        else if (e.k === 'car') txt = !e.alive ? '' : e.burnt ? 'Burnt wreck · a Smasher Machine (coming soon) will clear it' : e.own ? vcfg(e).name + ' · Break Points ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + ' · Fuel ' + e.vs.fuel.toFixed(1) + ' L · ' + (e.vs.door ? '[E] Sit in the driver seat · Left Click: Close the door' : '[E] Open the door') : (e.truck ? 'Abandoned Truck · Break Points ' : 'Abandoned Car · Break Points ') + Math.max(0, Math.round(e.hp)) + '/' + e.max + ' · cannot be driven · ' + (e.truck ? 'Left Click: Break open the cargo' : 'Left Click: Break open the trunk');
+        else if (e.k === 'pump') txt = 'Fuel Pump Station · ' + (e.fuel === 'diesel' ? 'Diesel' : 'Gasoline') + ' ' + e.L.toFixed(1) + ' L · [E] Refuel a vehicle';
+        else if (e.k === 'tank') txt = e.tk.name + ' · ' + (e.tkL ? e.tkL + '/' + e.tk.cap + ' L ' + WZ.LIQ[e.tkLiq][0] : 'empty 0/' + e.tk.cap + ' L') + ' · [E] Pour in / take out with a bucket · Left Click: Dismantle';
         else if (e.k === 'tree') txt = 'Tree  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'axe' ? '' : '  (needs an axe)');
         else if (e.k === 'rock') txt = (ROCKNAME[e.kind] || (e.ore ? 'Iron Ore' : e.gold ? 'Gold Ore' : e.zinc ? 'Zinc Ore' : e.copper ? 'Copper Ore' : e.coal ? 'Coal' : 'Stone')) + '  Durability ' + Math.max(0, Math.round(e.hp)) + '/' + e.max + (curItem().tool === 'pick' ? '' : '  (needs a pickaxe)');
       }
     }
-    if (!txt && mode === 'play' && (hot[sel] === 'iron_bucket' || hot[sel] === 'titanium_bucket')) { var sct = scoopTarget(); if (sct) txt = '[E] Fill bucket: ' + WZ.LIQ[sct][0]; }
+    if (!txt && mode === 'play' && (hot[sel] === 'iron_bucket' || hot[sel] === 'titanium_bucket')) { var sct = scoopTarget(); if (sct) txt = sct === 'lava' && hot[sel] === 'iron_bucket' ? 'Iron Buckets melt in Lava (use a Titanium Bucket)' : '[E] Fill bucket: ' + WZ.LIQ[sct][0]; }
     if (!txt && mode === 'play' && curItem().tool === 'rod' && !fish) { var wq = aimWater(15); if (wq) txt = wq.type === 'river' ? 'River (fishing coming soon)' : 'Lake · Left Click: Cast line'; }
     $('#prompt').textContent = txt;
   }
@@ -3033,6 +3326,7 @@
 
       if (mode === 'play') { update(dt, ms, clk); if (ms - lastHud > 100) { lastHud = ms; hud(); } }
       else if (mode === 'menu') { P.yaw += dt * 0.08; networkTick(ms); }
+      else if (mode === 'dash') { update(dt, ms, clk); }
       else if (mode === 'inv' && mg && mp.role === 'solo') { update(dt * 0.5, ms, clk); }
       else if (mp.role !== 'solo') { stepPeers(dt); networkTick(ms); }
 
@@ -3131,7 +3425,7 @@
       screen('<div class="card"><h1><b>Webzombite</b></h1><p>Could not start the 3D view.</p><pre style="white-space:pre-wrap;font-size:12px;opacity:.85">' + esc(e && e.message ? e.message : e) + '</pre><div class="row"><a class="btn sm" href="' + esc(C.coreUrl || '../index.html') + '">Back to XKing Core</a></div></div>');
     }
   }
-  window.WZ.debug = function () { return { openPot: openPot, potTick: potTick, gunState: function () { return [gunRel, gunRelMax, gunPend, gunClip, sel]; }, give: give, farmUse: farmUse, farmTick: farmTick, setHot: function (i, id) { hot[i] = id; sel = i; }, getInv: function () { return inv; }, creativeToggle: creativeToggle, makeZombie: makeZombie, zombiesList: function () { return zombies; }, eatTick: eatTick, explodeAt: explodeAt, setBleed: setBleed, bleedTick: bleedTick, throwBomb: throwBomb, tntLocal: tntLocal, fuseTick: fuseTick, openChest: openChest, chestE: function () { return chestE; }, renderChest: renderChest, applySearchEnt: applySearchEnt, openMysteryBox: openMysteryBox, status: status, roomFor: roomFor, count: count, takeRaw: takeRaw, openInv: openInv, closeInv: closeInv, renderInv: renderInv, recipesHtml: recipesHtml, revealed: revealed, startMg: startMg, mgs: function () { return mg; }, mgSolved: mgSolved, drawMg: drawMg, heatQ: function () { return heatQ; }, queueHeat: queueHeat, heatTick: heatTick, loadTurret: loadTurret, turretTick: turretTick, turretAt: turretAt, toggleManning: toggleManning, manualTick: manualTick, damageVoxLocal: damageVoxLocal, slotsUsed: slotsUsed, slotCap: slotCap, corpses: corpses, sawEval: sawEval, craftNow: craftNow, interact: interact, setLmb: function (v) { lmb = v; }, snapshot: snapshot, showPause: showPause, gfx: gfx, applyGfx: applyGfx, dorm: dorm, DU: DU, DF: DF, dAdd: dAdd, dormTick: dormTick, hydrate: hydrate, placeZombie: placeZombie, spawnZombie: spawnZombie, enterUG: enterUG, exitUG: exitUG, awardKill: awardKill, coins: function () { return coins; }, bf: bf, tier: function () { return worldTier(clockInfo(T).day); }, bloodFlag: bloodFlag, applyCarHit: applyCarHit, killZombie: killZombie, stepZombie: stepZombie, scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
+  window.WZ.debug = function () { return { placeVeh: function (k, x, z, a) { var c = W.addOwnedCar(k, x, z, a, 0x4f6b52); c.max = c.hp = vcfg(c).hp; c.vs.fuelT = vcfg(c).fuelT; c.vs.fuel = 10; return c; }, seatIn: seatIn, carUse: carUse, carKey: carKey, openDash: openDash, closeDash: closeDash, seatState: function () { return seat ? seat.vs : null; }, pumpUse: pumpUse, startFill: startFill, setCrank: function (b) { crankHold = b; }, tankUse: tankUse, jobs: function () { return jobs; }, startJob: startJob, openPot: openPot, potTick: potTick, gunState: function () { return [gunRel, gunRelMax, gunPend, gunClip, sel]; }, give: give, farmUse: farmUse, farmTick: farmTick, setHot: function (i, id) { hot[i] = id; sel = i; }, getInv: function () { return inv; }, creativeToggle: creativeToggle, makeZombie: makeZombie, zombiesList: function () { return zombies; }, eatTick: eatTick, explodeAt: explodeAt, setBleed: setBleed, bleedTick: bleedTick, throwBomb: throwBomb, tntLocal: tntLocal, fuseTick: fuseTick, openChest: openChest, chestE: function () { return chestE; }, renderChest: renderChest, applySearchEnt: applySearchEnt, openMysteryBox: openMysteryBox, status: status, roomFor: roomFor, count: count, takeRaw: takeRaw, openInv: openInv, closeInv: closeInv, renderInv: renderInv, recipesHtml: recipesHtml, revealed: revealed, startMg: startMg, mgs: function () { return mg; }, mgSolved: mgSolved, drawMg: drawMg, heatQ: function () { return heatQ; }, queueHeat: queueHeat, heatTick: heatTick, loadTurret: loadTurret, turretTick: turretTick, turretAt: turretAt, toggleManning: toggleManning, manualTick: manualTick, damageVoxLocal: damageVoxLocal, slotsUsed: slotsUsed, slotCap: slotCap, corpses: corpses, sawEval: sawEval, craftNow: craftNow, interact: interact, setLmb: function (v) { lmb = v; }, snapshot: snapshot, showPause: showPause, gfx: gfx, applyGfx: applyGfx, dorm: dorm, DU: DU, DF: DF, dAdd: dAdd, dormTick: dormTick, hydrate: hydrate, placeZombie: placeZombie, spawnZombie: spawnZombie, enterUG: enterUG, exitUG: exitUG, awardKill: awardKill, coins: function () { return coins; }, bf: bf, tier: function () { return worldTier(clockInfo(T).day); }, bloodFlag: bloodFlag, applyCarHit: applyCarHit, killZombie: killZombie, stepZombie: stepZombie, scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
   window.WZ.started = true;
   boot();
 })();

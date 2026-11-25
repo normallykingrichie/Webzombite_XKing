@@ -81,7 +81,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     for (k in I) { var it = I[k], cat = wcat(it), st = [];
       ['tier', 'slot', 'dmg', 'cd', 'def', 'bd', 'range', 'reach', 'dly', 'wtype', 'hp', 'chest', 'eat', 'splash', 'thorn', 'luck', 'power', 'bdef', 'rng', 'clip', 'reload'].forEach(function (f) { if (it[f] != null && typeof it[f] !== 'object') st.push([LBL[f] || cap(f), f === 'tier' || f === 'slot' ? cap(it[f]) : it[f]]); });
       if (it.size) st.push([LBL.size, [].concat(it.size).join(' x ')]); if (it.bleed) st.push(['Bleeding', it.bleed.dmg + ' dmg every ' + it.bleed.tick + ' s for ' + it.bleed.dur + ' s']);
-      S.builtin[k] = { slug: k, title: it.name, category: cat, subcat: wsub(it, k, cat), icon: it.ic, body_md: it.desc || '', stats: st, skills: it.note || '', builtin: true, itemId: k, tierv: it.tier, cats: (k === 'iron_bucket' || k === 'titanium_bucket') ? ['armor', 'tools'] : [cat], recipes: recipeOf(k).map(function (r) { return { st: r.st, cost: r.cost, out: r.out && r.out[1] }; }), loot: lootSources(k) }; }
+      S.builtin[k] = { slug: k, title: it.name, category: cat, subcat: wsub(it, k, cat), icon: it.ic, body_md: it.desc || '', stats: st, skills: it.note || '', builtin: true, itemId: k, tierv: it.tier, cats: (k === 'iron_bucket' || k === 'titanium_bucket') ? ['armor', 'tools'] : [cat], recipes: recipeOf(k).map(function (r) { return { st: r.st, cost: r.cost, out: r.out && r.out[1] }; }), loot: lootSources(k), sources: W.sourcesOf ? W.sourcesOf(k) : [] }; }
     var Z = W.ZOMBIES || {};
     for (k in Z) { var z = Z[k], mi = MI[k] || {}, boss = z.rarity === 'boss';
       S.builtin['mob-' + k] = { cats: [boss ? 'boss' : 'zombie'], slug: 'mob-' + k, title: z.name || k, category: boss ? 'boss' : 'zombie', subcat: z.rarity ? cap(z.rarity) : '', icon: W.spr('z_' + k) || '🧟', mob: k, body_md: z.desc || '', skills: mi.skills || 'No special skills', spawn: mi.spawn || 'Any biome', builtin: true, tierv: z.tier,
@@ -207,7 +207,8 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     var I = W.ITEMS || {}, h = '', rs = p.recipes || [];
     rs.forEach(function (r) { h += '<div class="msg"><b>Crafting on ' + esc(stName(r.st)) + '</b>' + (r.out > 1 ? ' (makes ' + r.out + ')' : '') + ', required ' + Object.keys(r.cost || {}).map(function (id) { var t = I[id]; return '<a href="#/p/' + id + '" style="margin-right:10px;white-space:nowrap">' + (t ? t.ic : '') + ' ' + r.cost[id] + '&times; ' + esc(t ? t.name : id) + '</a>'; }).join('') + '</div>'; });
     if (p.obtain) h += '<div class="msg">' + esc(p.obtain) + '</div>';
-    if (!p.obtain && p.loot && p.loot.length) h += '<div class="msg">Looting: ' + p.loot.map(esc).join(', ') + '</div>';
+    if (p.sources && p.sources.length) p.sources.forEach(function (s) { h += '<div class="msg">' + esc(s) + '</div>'; }); else if (!p.obtain && p.loot && p.loot.length) h += '<div class="msg">Looting: ' + p.loot.map(esc).join(', ') + '</div>';
+    if (!h && p.itemId && (W.ITEMS[p.itemId] || {}).soon) h = '<div class="msg muted">Coming soon.</div>';
     return h;
   }
   function pageView(sl, from) {
@@ -220,9 +221,9 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     if (p.mob || p.category === 'zombie' || p.category === 'boss') h += '<div class="box"><b>Special skills:</b> ' + esc(p.skills || 'No special skills') + '</div>'; else if (p.skills) h += '<div class="box"><b>Special:</b> ' + esc(p.skills) + '</div>';
     if (st.length) h += '<table class="st">' + st.map(function (a) { return '<tr><td>' + esc(a[0]) + '</td><td>' + esc(a[1]) + '</td></tr>'; }).join('') + '</table>';
     h += '<div class="body">' + body + '</div>';
-    var ob = obtainHtml(p); h += '<h3>Obtain through</h3>' + (ob || '<div class="msg muted">Not obtainable yet.</div>');
+    var ob = obtainHtml(p); h += '<h3>Obtain through</h3>' + (ob || '<div class="msg muted">Not obtainable yet (no source in the game rules yet).</div>');
     if (used.length) h += '<h3>Used to craft</h3><div>' + used.slice(0, 40).map(function (id) { var t = I[id]; return t ? '<a href="#/p/' + id + '" style="margin-right:12px;white-space:nowrap">' + t.ic + ' ' + esc(t.name) + '</a>' : ''; }).join('') + '</div>';
-    if (p.slug === 'iron_bucket' || p.slug === 'wooden_bucket') { var pre = p.slug === 'iron_bucket' ? 'ib_' : 'wb_', all = merged(), tg = Object.keys(all).filter(function (k) { return k.indexOf(pre) === 0; }); if (tg.length) h += '<h3>Special-Material tags</h3><p class="muted">When this bucket is filled it becomes <b>' + esc(p.title) + ' (Liquid)</b>. When it is used up it turns back into the empty bucket.</p><div class="tiles">' + tg.map(function (k) { return tile(all[k]); }).join('') + '</div>'; }
+    if (p.slug === 'iron_bucket' || p.slug === 'wooden_bucket' || p.slug === 'titanium_bucket') { var pre = p.slug === 'wooden_bucket' ? 'wb_' : 'ib_', all = merged(), tg = Object.keys(all).filter(function (k) { return k.indexOf(pre) === 0 && (p.slug === 'titanium_bucket' ? k === 'ib_lava' : (p.slug === 'iron_bucket' ? k !== 'ib_lava' : true)); }); if (tg.length) h += '<h3>Special-Material tags</h3><p class="muted">When this bucket is filled it becomes <b>' + esc(p.title) + ' (Liquid)</b>. When it is used up it turns back into the empty bucket.</p><div class="tiles">' + tg.map(function (k) { return tile(all[k]); }).join('') + '</div>'; }
     if (S.admin) h += '<div class="row"><button id="eb" class="pri">Edit' + (p.builtin ? ' (changes this built-in entry)' : '') + '</button><button id="dupb">Duplicate as new draft</button>' + (!p.builtin ? '<button id="db" class="dng">Delete</button>' : p.edited ? '<button id="rb" class="dng">Reset to game data</button>' : '') + '</div>';
     $('#view').innerHTML = h + '</div>';
     if ($('#eb')) $('#eb').onclick = function () { editor(p); };
