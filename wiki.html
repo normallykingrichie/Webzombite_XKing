@@ -89,10 +89,19 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     (W.GUIDES || []).forEach(function (g) { S.builtin[g.slug] = { slug: g.slug, title: g.title, category: 'guides', subcat: '', icon: '📖', body_md: g.md || '', stats: [], skills: '', builtin: true }; });
   }
   /* DB page + built-in = one merged entry, so editing a built-in changes that same entry (not a new page). */
+  /* A saved page whose slug differs from the built-in id (e.g. copper-ingot vs copper_bar) REPLACES that built-in page instead of becoming a second card */
+  var ALIAS = {};
+  function aliasOf(p) {
+    if (ALIAS[p.slug] !== undefined) return ALIAS[p.slug]; var res = null, t = String(p.title || '').toLowerCase(), c = normCat(p.category), sl = String(p.slug).replace(/-/g, '_');
+    if (S.builtin[sl]) res = sl;
+    else for (var k in S.builtin) { var b = S.builtin[k]; if (b.mob || !b.itemId) continue; if (String(b.title).toLowerCase() === t && (b.category === c || (b.cats || []).indexOf(c) >= 0)) { res = k; break; } }
+    return (ALIAS[p.slug] = res);
+  }
   function merged() {
     var o = {}, k, b, p, m;
     for (k in S.builtin) o[k] = S.builtin[k];
-    for (k in S.pages) { p = S.pages[k]; b = S.builtin[k]; if (b) { m = {}; for (var f in b) m[f] = b[f]; for (f in p) if (p[f] != null && p[f] !== '' && !(f === 'body_md' && !p.body_md && !p.body_html)) m[f] = p[f]; m.builtin = true; m.edited = true; m.category = normCat(p.category) || b.category; m.cats = p.cats && p.cats.length ? p.cats : (b.cats || [m.category]); if (p.recipes && p.recipes.length) m.recipes = p.recipes; m.obtain = p.obtain || b.obtain; if (p.stats && p.stats.length) m.stats = p.stats; m.icon_url = p.icon_url || null; o[k] = m; } else { p.category = normCat(p.category); p.cats = p.cats && p.cats.length ? p.cats : [p.category]; o[k] = p; } }
+    var ak = {}; for (k in S.pages) { p = S.pages[k]; if (!S.builtin[k]) { var bk = aliasOf(p); if (bk) ak[k] = bk; } }
+    for (k in S.pages) { p = S.pages[k]; var kk = ak[k] || k; b = S.builtin[kk]; if (b) { m = {}; for (var f in b) m[f] = b[f]; for (f in p) if (p[f] != null && p[f] !== '' && !(f === 'body_md' && !p.body_md && !p.body_html)) m[f] = p[f]; m.builtin = true; m.edited = true; m.category = normCat(p.category) || b.category; m.cats = p.cats && p.cats.length ? p.cats : (b.cats || [m.category]); if (p.recipes && p.recipes.length) m.recipes = p.recipes; m.obtain = p.obtain || b.obtain; if (p.stats && p.stats.length) m.stats = p.stats; m.icon_url = p.icon_url || null; o[kk] = m; } else { p.category = normCat(p.category); p.cats = p.cats && p.cats.length ? p.cats : [p.category]; o[k] = p; } }
     return o;
   }
   function normCat(c) { return LEGACY[c] || c; }
@@ -145,7 +154,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
   }
   /* ---------- data ---------- */
   function load() {
-    return sb ? sb.from('wiki_pages').select('*').order('title').then(function (r) { S.pages = {}; if (r.error) { S.dbErr = r.error.message; return; } S.dbErr = ''; (r.data || []).forEach(function (p) { S.pages[p.slug] = p; }); }) : Promise.resolve();
+    return sb ? sb.from('wiki_pages').select('*').order('title').then(function (r) { S.pages = {}; ALIAS = {}; if (r.error) { S.dbErr = r.error.message; return; } S.dbErr = ''; (r.data || []).forEach(function (p) { S.pages[p.slug] = p; }); }) : Promise.resolve();
   }
   function initAuth() {
     if (!window.supabase || !C.supabaseUrl) return Promise.resolve();
@@ -212,7 +221,7 @@ table.st{border-collapse:collapse;margin:10px 0;min-width:260px}table.st td{bord
     return h;
   }
   function pageView(sl, from) {
-    var p = merged()[sl]; if (!p) { $('#view').innerHTML = '<div class="card"><h2>Page not found</h2><p class="muted">No page "' + esc(sl) + '" yet.</p>' + (S.admin ? '<button class="pri" id="mk">Create it</button>' : '') + '</div>'; if ($('#mk')) $('#mk').onclick = function () { editor({ slug: sl, title: sl, category: 'guides', body_md: '' }); }; return; }
+    var p = merged()[sl] || (function () { var mm = merged(); for (var q in mm) if (mm[q].slug === sl) return mm[q]; })(); if (!p) { $('#view').innerHTML = '<div class="card"><h2>Page not found</h2><p class="muted">No page "' + esc(sl) + '" yet.</p>' + (S.admin ? '<button class="pri" id="mk">Create it</button>' : '') + '</div>'; if ($('#mk')) $('#mk').onclick = function () { editor({ slug: sl, title: sl, category: 'guides', body_md: '' }); }; return; }
     if (p.redirect_to && p.redirect_to !== sl && merged()[p.redirect_to] && !S.noRedirect) { location.replace('#/p/' + p.redirect_to + '?from=' + encodeURIComponent(sl)); return; }
     var body = p.body_html ? sanitize(p.body_html) : md2html(p.body_md || ''), st = p.stats || [], I = W.ITEMS || {};
     var used = p.itemId ? usedIn(p.itemId) : [];

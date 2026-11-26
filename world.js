@@ -79,10 +79,11 @@
   function rndSeed() { return ((Math.random() * 0x7fffffff) | 0) || 123456; }
 
   WZ.createWorld = function (THREE, scene, maxAniso, initSeed) {
-    var R = mulberry(20261116), ANISO = Math.min(16, maxAniso || 8);
+    var CSD = (function () { try { return parseInt(sessionStorage.getItem('wz_cs'), 10) || 0; } catch (e) { return 0; } })(), TS = CSD ? (Math.abs(CSD) % 9973) + 1 : 0;
+    var R = mulberry(CSD ? (20261116 ^ Math.imul(CSD, 0x9e3779b1)) | 0 : 20261116), ANISO = Math.min(16, maxAniso || 8);
     function rr(a, b, rng) { return a + (rng || R)() * (b - a); }
     function pick(a, rng) { var fn = rng || R; return a[(fn() * a.length) | 0]; }
-    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], farms: [], wfilters: [], gunbs: [], cpots: [], shapers: [], tankers: [], tanks: [], pumps: [], ocars: [], distills: [], cworks: [], sengs: [], engs: [], drives: [], vbenchs: [], pools: [], sews: [], gods: [], seats: [], tables: [], lamps: [], cuttables: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
+    var W = { half: WZ.HALF, ents: [], trees: [], rocks: [], piles: [], crates: [], furn: [], sinks: [], camps: [], anvils: [], comps: [], saws: [], tbench: [], turrets: [], mills: [], bombs: [], kilns: [], crafts: [], works: [], presses: [], blasts: [], liqs: [], farms: [], wfilters: [], gunbs: [], cpots: [], shapers: [], tankers: [], odists: [], iforges: [], craft3s: [], seatbs: [], asmbs: [], craft2s: [], bfurns: [], tanvils: [], tanks: [], pumps: [], ocars: [], distills: [], cworks: [], sengs: [], engs: [], drives: [], vbenchs: [], pools: [], sews: [], gods: [], seats: [], tables: [], lamps: [], cuttables: [], casings: [], trapbs: [], masons: [], chests: [], waters: [], bents: [], rects: [], roads: [], spawn: { x: -32, y: 0, z: 32 }, seed: 0 };
     var HALF = 1000 /* core extent */, MAPH = WZ.HALF, ROADS = [], RW = 10; for (var rk = -15; rk <= 14; rk++) ROADS.push(32 + 64 * rk); W.roads = ROADS; W.half = MAPH; W.gh = WZ.TERRAIN.gh;
 
     var CELL = 8, sgrid = new Map();
@@ -221,7 +222,7 @@
         g.putImageData(img, 0, 0);
       }, true);
     }
-    sharedBump = buildMicroNoise(901, 128, 1.5);
+    sharedBump = buildMicroNoise(901 + TS, 128, 1.5);
 
     function paintNoiseOverlay(g, w, h, seed, alpha, count, minS, maxS) {
       var r = mulberry(seed);
@@ -261,10 +262,10 @@
       });
     }
     var FACADE_STYLES = [
-      facadeStyleTex(0, 11),
-      facadeStyleTex(1, 21),
-      facadeStyleTex(2, 31),
-      facadeStyleTex(3, 41)
+      facadeStyleTex(0, 11 + TS),
+      facadeStyleTex(1, 21 + TS),
+      facadeStyleTex(2, 31 + TS),
+      facadeStyleTex(3, 41 + TS)
     ];
     var FACADE_DEFS = [['#a8a49b', 0], ['#b3a89a', 0], ['#929aa3', 0], ['#ab9687', 0], ['#899399', 0], ['#bdb29f', 0], ['#d8bb85', 1], ['#c9a46a', 1], ['#e4cf9f', 1], ['#dfe6ec', 2], ['#b9c7d6', 2], ['#cfd8e0', 2], ['#7d8f5e', 3], ['#6e7d52', 3], ['#8a7a58', 3]];
     var FACADE_MATS = FACADE_DEFS.map(function (a) {
@@ -325,7 +326,7 @@
         }
       });
     }
-    var roadTex = buildRoadTex(6);
+    var roadTex = buildRoadTex(6 + TS);
     var junMaskM = null;
     (function () {
       var jm = inst(boxB, lam(0xffffff, { map: roadTex, bumpMap: sharedBump, bumpScale: 0.025, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 1000, false, false);
@@ -352,7 +353,7 @@
         for (var j = 0; j < 8; j++) g.fillRect(((j * 89 + 45) % (w - 8)) + 4, j * 32, 2, 32);
       });
     }
-    var plankTex = buildPlankTex(7);
+    var plankTex = buildPlankTex(7 + TS);
     function buildStoneTex(seed) {
       var sp = getPackSpec();
       return canvasTex(256, 256, function (g, w, h) {
@@ -370,7 +371,7 @@
         paintNoiseOverlay(g, w, h, seed + 22, 0.12 * sp.contrast, 900, 1, 4);
       });
     }
-    var stoneTex = buildStoneTex(8);
+    var stoneTex = buildStoneTex(8 + TS);
     var glassTex = canvasTex(128, 128, function (g, w, h) {
       g.fillStyle = 'rgba(150,205,255,0.22)'; g.fillRect(0, 0, w, h);
       g.strokeStyle = '#3a86e8'; g.lineWidth = 7; g.strokeRect(4, 4, w - 8, h - 8);
@@ -392,7 +393,7 @@
         paintNoiseOverlay(g, w, h, seed, 0.08 + sp.grime * 0.1, 900, 1, 5);
       });
     }
-    var houseWallTex = buildHouseWallTex(9);
+    var houseWallTex = buildHouseWallTex(9 + TS);
     var winTex = canvasTex(128, 128, function (g, w, h) {
       g.fillStyle = '#ded7c9'; g.fillRect(0, 0, w, h); g.clearRect(12, 12, w - 24, h - 24);
       g.fillStyle = 'rgba(145,205,245,0.34)'; g.fillRect(12, 12, w - 24, h - 24);
@@ -639,7 +640,7 @@
       if (R() < 0.6) put(walls, rr(x0 + 2, x1 - 2), h + 1, rr(z0 + 2, z1 - 2), 3, 2, 3, 0, 0x6b7075);
     }
     /* [BUILDINGS] Enterable towers: door on the south wall, a floor slab + staircase per level (flights alternate between the two long walls), one furniture per floor, loot spawned per floor in spawnNature. */
-    W.floors = []; W.indoor = []; W.noGrass = [];
+    W.floors = []; W.indoor = []; W.noGrass = []; W.citySeed = CSD;
     function tallBuilding(x0, x1, z0, z1, h) {
       var w = x1 - x0, d = z1 - z0; if (w < 12 || d < 10) { tallSolid(x0, x1, z0, z1, h); return; }
       var FH = 3.6, t = 0.4, fl = Math.max(3, Math.min(12, Math.round(h / FH))); h = fl * FH;
@@ -1145,42 +1146,59 @@
     for (var tgi = 0; tgi < 5; tgi++) TRUCK_DET.push(bx(1.24, 0.03, 0.03, 0, 0.88 + tgi * 0.08, 3.70, 0xa8aeb6));
     var truckBody = inst(mergeGeos(TRUCK_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 1400, true, true);
     var truckDet  = inst(mergeGeos(TRUCK_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 1400, true, false);
+    var carCrateM = inst(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff, { roughness: 0.85, metalness: 0.02 }), 128, true, true);
+    var CRATEP = { suv: [-1.0, 1.72], sedan: [-0.7, 1.45], mustang: [-0.7, 1.4], truck: [-2.5, 1.7] };
     var carDoorM = inst(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff, { roughness: 0.38, metalness: 0.3 }), 128, true, true);
-    var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet];
+    var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet]; W.CARM = CARM;
     W.cars = [];
+    /* Owned (whole) vehicles use their own instanced meshes that are never baked into static chunks, so they move freely and stay visible */
+    function ownMesh(m, cap) { var o = inst(m.geometry, m.material, cap, true, !!m.instanceColor); o.castShadow = m.castShadow; o.receiveShadow = m.receiveShadow; if (m.customDepthMaterial) o.customDepthMaterial = m.customDepthMaterial; return o; }
+    var OCARM = CARM.map(function (m) { return ownMesh(m, 128); }), oWh = ownMesh(carWh, 128 * 6); W.OCARM = OCARM;
+    var _eu = new THREE.Euler();
+    function putWh(m, x, y, z, sx, sy, sz, ry, c, j, idx) {
+      var st = 0, roll = 0; if (c.own && c.vs) { st = j < 2 ? c.vs.st * 0.5 : 0; roll = c.vs.roll || 0; }
+      P.set(x, y + GYO, z); S.set(sx, sy, sz); Q.setFromEuler(_eu.set(roll, ry + st, 0, 'YXZ')); Mx.compose(P, Q, S); m.setMatrixAt(idx, Mx); m.instanceMatrix.needsUpdate = true;
+    }
     function carHide(c) {
+      var j;
+      if (c.own) { OCARM.forEach(function (m) { put(m, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); }); for (j = 0; j < 6; j++) put(oWh, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 6 * (c.ix - 1000) + j); put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); put(carCrateM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); return; }
+      CARM.forEach(function (m) { put(m, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); });
+      for (j = 0; j < 6; j++) put(carWh, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 6 * c.ix + j);
+    }
+    function carHideOLD(c) {
       var j;
       CARM.forEach(function (m) { put(m, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix); });
       for (j = 0; j < 6; j++) put(carWh, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, 6 * c.ix + j);
-      if (c.own) put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000);
+      if (c.own) { put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); put(carCrateM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); }
     }
     W.setCar = function (c, on) {
-      var y0 = c.y || 0, j;
+      var y0 = c.y || 0, j, O = !!c.own, ci = O ? c.ix - 1000 : c.ix, MS = O ? OCARM : CARM, mW = O ? oWh : carWh;
       carHide(c);
       if (!on) { c.box.on = false; c.alive = false; return; }
       var bcol = c.burnt ? 0x2a231f : c.col;
       var ry = c.ang != null ? c.ang : (c.horiz ? Math.PI / 2 : 0) + (c.dir < 0 ? Math.PI : 0), sn = Math.sin(ry), cs = Math.cos(ry);
       function at(lx, lz) { return [c.x + sn * lz + cs * lx, c.z + cs * lz - sn * lx]; }
       if (c.truck) {
-        put(truckBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
-        if (!c.burnt) put(truckDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(MS[4], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
+        if (!c.burnt) put(MS[5], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var twPos = [[-1.18, 2.45], [1.18, 2.45], [-1.18, -0.95], [1.18, -0.95], [-1.18, -2.55], [1.18, -2.55]];
-        for (j = 0; j < 6; j++) { var tw = at(twPos[j][0], twPos[j][1]); put(carWh, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, null, 6 * c.ix + j); }
+        for (j = 0; j < 6; j++) { var tw = at(twPos[j][0], twPos[j][1]); if (O) putWh(mW, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, c, j, 6 * ci + j); else put(mW, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, null, 6 * ci + j); }
       } else if (c.suv) {
-        put(suvBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
-        if (!c.burnt) put(suvDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(MS[2], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
+        if (!c.burnt) put(MS[3], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var swPos = [[-0.93, 1.35], [0.93, 1.35], [-0.93, -1.35], [0.93, -1.35]];
-        for (j = 0; j < 4; j++) { var sw = at(swPos[j][0], swPos[j][1]); put(carWh, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, null, 6 * c.ix + j); }
+        for (j = 0; j < 4; j++) { var sw = at(swPos[j][0], swPos[j][1]); if (O) putWh(mW, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, c, j, 6 * ci + j); else put(mW, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, null, 6 * ci + j); }
       } else {
-        put(sedanBody, c.x, y0, c.z, 1, 1, 1, ry, bcol, c.ix);
-        if (!c.burnt) put(sedanDet, c.x, y0, c.z, 1, 1, 1, ry, null, c.ix);
+        put(MS[0], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
+        if (!c.burnt) put(MS[1], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var cwPos = [[-0.90, 1.38], [0.90, 1.38], [-0.90, -1.38], [0.90, -1.38]];
-        for (j = 0; j < 4; j++) { var cw = at(cwPos[j][0], cwPos[j][1]); put(carWh, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, null, 6 * c.ix + j); }
+        for (j = 0; j < 4; j++) { var cw = at(cwPos[j][0], cwPos[j][1]); if (O) putWh(mW, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, c, j, 6 * ci + j); else put(mW, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, null, 6 * ci + j); }
       }
       if (c.own && c.vs && c.vs.doorA > 0.02 && !c.burnt) {
         var th = c.vs.doorA * 1.15, hl = c.truck ? 3.0 : c.suv ? 0.92 : 0.78, hx = c.truck ? 1.28 : 0.97, dl = c.truck ? 1.5 : 1.12, dc = at(hx + dl / 2 * Math.sin(th), hl - dl / 2 * Math.cos(th));
         put(carDoorM, dc[0], y0 + (c.truck ? 1.9 : 0.75), dc[1], 0.06, c.truck ? 1.2 : 0.8, dl, ry - th, c.col, c.ix - 1000);
       } else if (c.own) put(carDoorM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000);
+      if (c.own) { if (c.crate && !c.burnt) { var cp = CRATEP[c.kind] || CRATEP.suv, cc2 = at(0, cp[0]); put(carCrateM, cc2[0], y0 + cp[1] + 0.27, cc2[1], 1.05, 0.54, 1.05, ry, 0x9a7348, c.ix - 1000); } else put(carCrateM, 0, -50, 0, 0.0001, 0.0001, 0.0001, 0, null, c.ix - 1000); }
       c.box.on = c.ang == null; c.alive = true;
     };
     /* re-register a car's collision box after it was driven (snapped to an axis) */
@@ -1196,8 +1214,7 @@
     W.newVS = function (kind) { return { cond: 100, hb: false, blown: false, ag: 1, door: false, doorA: 0, seated: false, key: false, eng: false, crank: 0, rpm: 0, gear: 1, fuel: 0, fuelT: kind === 'truck' ? 'diesel' : 'gasoline', heat: 0, odo: 0, v: 0, st: 0, stall: 0, bump: 0 }; };
     W.reattachCar = function (c) {
       var ix, j; if (W.ocars.indexOf(c) < 0) W.ocars.push(c); ix = 1000 + W.ocars.indexOf(c); c.ix = ix;
-      for (j = Math.min(CARM[0].count, ix); j < ix; j++) carHide({ ix: j });
-      CARM.forEach(function (m) { m.count = Math.max(m.count, ix + 1); }); carDoorM.count = Math.max(carDoorM.count, ix - 999); carWh.count = Math.max(carWh.count, 6 * ix + 6);
+      OCARM.forEach(function (m) { m.count = Math.max(m.count, ix - 999); }); oWh.count = Math.max(oWh.count, 6 * (ix - 999)); carDoorM.count = Math.max(carDoorM.count, ix - 999); carCrateM.count = Math.max(carCrateM.count, ix - 999); 
       c.box = addBox(c.x - c.lx / 2, c.x + c.lx / 2, c.y || 0, (c.y || 0) + c.h, c.z - c.lz / 2, c.z + c.lz / 2, true);
       W.setCar(c, true); addEnt(c);
     };
@@ -1206,7 +1223,7 @@
       c = { k: 'car', own: true, kind: kind, truck: kind === 'truck', suv: kind === 'suv', idx: -1, x: x, z: z, y: W.gh ? Math.max(0, W.gh(x, z)) : 0, dir: (k === 0 || k === 1) ? 1 : -1, horiz: horiz, r: kind === 'truck' ? 3.4 : 1.9, h: sp.h, lx: horiz ? sp.lz : sp.lx, lz: horiz ? sp.lx : sp.lz, alive: true, dyn: true, respawn: 0, col: col || 0x4f6b52, max: 60, hp: hp != null ? hp : 60, vs: W.newVS(kind) };
       W.reattachCar(c); return c;
     };
-    W.ownedCarFree = function (x, z, ang, kind) { var sp = OSPEC[kind] || OSPEC.suv, k = Math.round(ang / (Math.PI / 2)), h = k % 2 !== 0, hx = (h ? sp.lz : sp.lx) / 2, hz = (h ? sp.lx : sp.lz) / 2, y = W.gh ? W.gh(x, z) : 0; return !W.hit(x - hx, x + hx, y + 0.2, y + 1.6, z - hz, z + hz); };
+    W.ownedCarFree = function (x, z, ang, kind) { var sp = OSPEC[kind] || OSPEC.suv, k = Math.round(ang / (Math.PI / 2)), h = k % 2 !== 0, hx = (h ? sp.lz : sp.lx) / 2, hz = (h ? sp.lx : sp.lz) / 2, y = W.gh ? W.gh(x, z) : 0; return !W.hit(x - hx, x + hx, y + 1.05, y + 1.6, z - hz, z + hz); };
     function addCar(x, z, horiz, rng, truck) {
       var c = { k: 'car', truck: !!truck, idx: W.cars.length, x: x, z: z, y: 0, dir: rng() < 0.5 ? -1 : 1, r: truck ? 3.4 : 1.9, h: truck ? 3.2 : 1.75, horiz: horiz, lx: truck ? (horiz ? 7.6 : 2.7) : (horiz ? 4.4 : 1.9), lz: truck ? (horiz ? 2.7 : 7.6) : (horiz ? 1.9 : 4.4), alive: true, dyn: true, respawn: 0, col: truck ? pick([0xb5b0a4, 0xa34f3a, 0x3b5f8a, 0xc9a23a], rng) : pick([0x943636, 0x386191, 0x808036, 0x676d73, 0x9c9c94, 0x4b704b], rng) };
       c.suv = !truck && ((Math.floor(x * 7) + Math.floor(z * 13)) % 10 + 10) % 10 < 3; if (c.suv) c.col = [0xe6d5c0, 0xd9c7b0, 0xc9b5a8, 0x9aa7b0, 0xb8452f, 0x4f6b52][((Math.floor(x) * 31 + Math.floor(z)) % 6 + 6) % 6];
@@ -1220,7 +1237,7 @@
 
     /* ---- Gas Station: canopy, shop and 4 Fuel Pump Stations (1x1x2) holding 1-10 L of Gasoline or Diesel ---- */
     function addGasStation(cx, cz) {
-      var gr = mulberry(((Math.floor(cx) * 83492791) ^ (Math.floor(cz) * 2654435761)) >>> 0), pxs = [-5.4, -1.8, 1.8, 5.4];
+      var gr = mulberry(((Math.floor(cx) * 83492791) ^ (Math.floor(cz) * 2654435761) ^ CSD) >>> 0), pxs = [-5.4, -1.8, 1.8, 5.4];
       put(walls, cx, -0.1, cz, 36, 0.5, 30, 0, 0x4a4d52); W.noGrass.push([cx - 18, cx + 18, cz - 15, cz + 15]);
       put(walls, cx, 5.2, cz - 5, 17, 0.5, 9.5, 0, 0xc23b2e); put(walls, cx, 4.9, cz - 5, 17.2, 0.12, 9.7, 0, 0xf2f2f2);
       [[-8, -9], [8, -9], [-8, -1], [8, -1]].forEach(function (p) { put(walls, cx + p[0], 2.5, cz + p[1], 0.5, 5, 0.5, 0, 0xd9d9d9); addBox(cx + p[0] - 0.25, cx + p[0] + 0.25, 0, 5, cz + p[1] - 0.25, cz + p[1] + 0.25, false); });
@@ -1243,7 +1260,7 @@
     /* Graveyards: fixed spots (about 2% of the blocks outside the city centre). Zombies also spawn from them. */
     W.graves = [];
     function addGraveyard(cx, cz, x0, x1, z0, z1) {
-      var gr = mulberry(((Math.floor(cx) * 73856093) ^ (Math.floor(cz) * 19349663)) >>> 0), hw = Math.min(x1 - x0, 44) / 2, hd = Math.min(z1 - z0, 44) / 2, gx, gz;
+      var gr = mulberry(((Math.floor(cx) * 73856093) ^ (Math.floor(cz) * 19349663) ^ CSD) >>> 0), hw = Math.min(x1 - x0, 44) / 2, hd = Math.min(z1 - z0, 44) / 2, gx, gz;
       put(walls, cx, 0.02, cz, hw * 2, 0.06, hd * 2, 0, 0x3b3a30);
       for (gx = -hw + 3; gx <= hw - 3; gx += 4.5) for (gz = -hd + 5; gz <= hd - 3; gz += 5) {
         if (gr() < 0.2) continue; var px = cx + gx + (gr() - 0.5) * 1.2, pz = cz + gz + (gr() - 0.5) * 1.2;
@@ -1271,7 +1288,7 @@
       } else if (zone === 'mid') {
         var roll = R();
         if (roll < 0.3 && curBiome !== 'jungle') tallBuilding(bx0 + 2, bx1 - 2, bz0 + 2, bz1 - 2, rr(10, 24));
-        else if (roll >= 0.9 && mulberry(((Math.floor(cx) * 668265263) ^ (Math.floor(cz) * 374761393)) >>> 0)() < 0.7) addGasStation(cx, cz);
+        else if (roll >= 0.9 && mulberry(((Math.floor(cx) * 668265263) ^ (Math.floor(cz) * 374761393) ^ CSD) >>> 0)() < 0.7) addGasStation(cx, cz);
         else if (roll < 0.9) { var mx2 = (bx0 + bx1) / 2, mz2 = (bz0 + bz1) / 2; [[mx2 - 12, mz2 - 12], [mx2 + 12, mz2 - 12], [mx2 - 12, mz2 + 12], [mx2 + 12, mz2 + 12]].forEach(function (q, qi) { if (R() < 0.85) house(q[0] + rr(-1.5, 1.5), q[1] + rr(-1.5, 1.5), qi < 2 ? 's' : 'n', 'mid'); }); }
       } else {
         var mx3 = (bx0 + bx1) / 2, mz3 = (bz0 + bz1) / 2;
@@ -1946,6 +1963,58 @@
         : [cylY(0.46, 0.46, 0.84, 0, 0.02, 0, 0x7a838d, 16), cylY(0.48, 0.48, 0.06, 0, -0.30, 0, 0x4a4f57, 16), cylY(0.48, 0.48, 0.06, 0, 0.02, 0, 0x4a4f57, 16), cylY(0.48, 0.48, 0.06, 0, 0.32, 0, 0x4a4f57, 16), cylY(0.30, 0.46, 0.08, 0, 0.47, 0, 0x6b737c, 16), cylY(0.12, 0.12, 0.10, 0, 0.53, 0, 0x2b2e33, 10), bx(0.14, 0.10, 0.14, 0, -0.38, 0.46, 0x9aa2ab), bx(0.05, 0.30, 0.05, 0.28, 0.05, 0.43, 0xd9e6f2), bx(0.08, 0.32, 0.03, 0.28, 0.05, 0.455, 0x3b5f8a)];
       return mergeGeos(P);
     }
+    function bxr(wd, h, d, x, y, z, ry, c) { var g = new THREE.BoxGeometry(wd, h, d); g.rotateY(ry); g.translate(x, y, z); return [g, c]; }
+    var gSeatB = mergeGeos([
+      bx(1.0, 0.10, 0.88, 0, 0.12, 0, 0x8a9099),
+      bx(0.09, 0.62, 0.09, -0.46, -0.2, -0.39, 0x17181b), bx(0.09, 0.62, 0.09, 0.46, -0.2, -0.39, 0x17181b), bx(0.09, 0.62, 0.09, -0.46, -0.2, 0.39, 0x17181b), bx(0.09, 0.62, 0.09, 0.46, -0.2, 0.39, 0x17181b),
+      bx(0.94, 0.05, 0.05, 0, -0.38, -0.39, 0x17181b), bx(0.94, 0.05, 0.05, 0, -0.38, 0.39, 0x17181b),
+      bx(0.30, 0.10, 0.22, 0, 0.22, 0, 0x3b3f46), cyl(0.2, 0.025, 0, 0.36, 0, 0xc9d0d8, 20), cyl(0.04, 0.07, 0, 0.36, 0, 0x2b2e33, 8), bx(0.05, 0.18, 0.05, 0.06, 0.28, -0.1, 0x2b2e33),
+      bxr(0.62, 0.04, 0.14, -0.28, 0.2, 0.28, 0.15, 0xb58a58), bxr(0.58, 0.04, 0.13, -0.22, 0.24, 0.3, -0.12, 0xc29a63), bxr(0.6, 0.04, 0.14, -0.3, 0.28, 0.27, 0.32, 0xa87c4b),
+      bxr(0.56, 0.012, 0.06, 0.2, 0.185, -0.3, 0.05, 0xe6cf6a), bx(0.012, 0.014, 0.03, 0.05, 0.19, -0.3, 0x333), bx(0.012, 0.014, 0.03, 0.15, 0.19, -0.3, 0x333), bx(0.012, 0.014, 0.03, 0.25, 0.19, -0.3, 0x333)
+    ]);
+    var gAsmB = mergeGeos([
+      bx(0.99, 0.42, 0.99, 0, -0.29, 0, 0x4a4f57), bx(0.99, 0.06, 0.99, 0, 0.0, 0, 0x6d737b),
+      bx(0.99, 0.02, 0.05, 0, 0.035, -0.47, 0xd8b021), bx(0.99, 0.02, 0.05, 0, 0.035, 0.47, 0xd8b021), bx(0.05, 0.02, 0.99, -0.47, 0.035, 0, 0xd8b021), bx(0.05, 0.02, 0.99, 0.47, 0.035, 0, 0xd8b021),
+      bx(0.90, 0.05, 0.04, 0, 0.07, -0.22, 0x9aa1aa), bx(0.90, 0.05, 0.04, 0, 0.07, 0.22, 0x9aa1aa),
+      bx(0.05, 0.3, 0.2, -0.3, 0.17, 0, 0x2b2e33), bx(0.05, 0.3, 0.2, 0.3, 0.17, 0, 0x2b2e33)
+    ]);
+    var gCraft2 = mergeGeos([
+      bx(0.98, 0.10, 0.86, 0, 0.14, 0, 0xb87333),
+      bx(0.98, 0.14, 0.86, 0, 0.02, 0, 0x7d838c),
+      bx(0.09, 0.6, 0.09, -0.45, -0.28, -0.37, 0x6d737b), bx(0.09, 0.6, 0.09, 0.45, -0.28, -0.37, 0x6d737b), bx(0.09, 0.6, 0.09, -0.45, -0.28, 0.37, 0x6d737b), bx(0.09, 0.6, 0.09, 0.45, -0.28, 0.37, 0x6d737b),
+      bx(0.9, 0.05, 0.05, 0, -0.44, 0, 0x6d737b), bx(0.9, 0.2, 0.04, 0, -0.1, -0.4, 0x6d737b),
+      bx(0.72, 0.2, 0.03, 0, -0.06, 0.45, 0x585d65), bx(0.03, 0.12, 0.06, -0.22, 0.04, 0.47, 0x2b2e33), bx(0.03, 0.12, 0.06, 0.18, 0.04, 0.47, 0x2b2e33),
+      bx(0.04, 0.2, 0.04, -0.22, -0.08, 0.5, 0x7a4a24), bx(0.14, 0.07, 0.07, -0.22, 0.04, 0.5, 0x9aa1aa),
+      bx(0.04, 0.2, 0.03, 0.18, -0.08, 0.5, 0xc6ccd3), bx(0.10, 0.06, 0.03, 0.18, 0.04, 0.5, 0xc6ccd3), bx(0.03, 0.06, 0.05, 0.14, 0.03, 0.5, 0xc6ccd3)
+    ]);
+    var bfz = [];
+    for (var bi = 0; bi < 10; bi++) bfz.push(bx(0.99, 0.065, 0.99, 0, -0.46 + bi * 0.1 * 1.0, 0, bi % 2 ? 0x7d838c : 0xa8442f));
+    var gBFurn = mergeGeos(bfz.concat([
+      bx(0.7, 0.9, 0.04, 0, -0.1, 0.5, 0x2b2e33), bx(0.5, 0.45, 0.02, 0, -0.18, 0.52, 0xff7a1a),
+      bx(0.34, 0.5, 0.34, 0.15, 0.62, -0.1, 0x7d838c), bx(0.4, 0.06, 0.4, 0.15, 0.9, -0.1, 0x4a4f57),
+      bx(0.2, 0.08, 0.04, -0.3, 0.36, 0.52, 0x4a4f57)
+    ]));
+    var gTiAnvil = mergeGeos([
+      bx(0.9, 0.16, 0.7, 0, -0.42, 0, 0x4f6f86), bx(0.5, 0.4, 0.4, 0, -0.16, 0, 0x5f86a3), bx(0.98, 0.2, 0.5, 0, 0.14, 0, 0x7fb0d0), bx(0.3, 0.14, 0.3, 0.55, 0.12, 0, 0x7fb0d0), bx(0.9, 0.03, 0.4, 0, 0.26, 0, 0xcfe6f5)
+    ]);
+
+    var gODist = mergeGeos([
+      bx(0.98, 0.1, 0.98, 0, -0.45, 0, 0x4a4f57), bx(0.9, 0.04, 0.9, 0, -0.38, 0, 0x2b2e33),
+      cylY(0.2, 0.2, 0.95, -0.22, 0.05, -0.18, 0x8a9099, 14), cylY(0.15, 0.15, 0.7, 0.24, -0.05, -0.18, 0x7d838c, 14), cylY(0.12, 0.12, 0.45, 0.0, -0.16, 0.26, 0xb07a3a, 12),
+      bx(0.08, 0.08, 0.5, 0.0, 0.2, -0.18, 0x3a3e44), bx(0.5, 0.05, 0.05, 0.0, 0.0, -0.18, 0x3a3e44), bx(0.05, 0.4, 0.05, 0.0, -0.1, 0.0, 0x3a3e44),
+      bx(0.12, 0.12, 0.06, -0.22, 0.5, -0.18, 0xc44a2a), bx(0.1, 0.06, 0.1, 0.35, -0.35, 0.3, 0x2f6fb0), bx(0.1, 0.06, 0.1, 0.1, -0.35, 0.4, 0xd8c030), bx(0.1, 0.06, 0.1, -0.15, -0.35, 0.4, 0x3aa05a)
+    ]);
+    var gIForge = mergeGeos([
+      bx(0.98, 0.5, 0.9, 0, -0.25, 0, 0x4a4f57), bx(0.7, 0.3, 0.04, 0, -0.2, 0.46, 0xff6a10), bx(0.8, 0.12, 0.6, 0, 0.05, 0, 0x2b2e33),
+      bx(0.3, 0.6, 0.3, 0.3, 0.3, -0.2, 0x6d737b), bx(0.34, 0.06, 0.34, 0.3, 0.62, -0.2, 0x2b2e33), bx(0.6, 0.18, 0.3, -0.15, 0.2, 0.15, 0x9aa1aa), bx(0.2, 0.1, 0.3, -0.55, 0.2, 0.15, 0x9aa1aa)
+    ]);
+    var gCraft3 = mergeGeos([
+      bx(0.96, 0.06, 0.8, 0, 0.02, 0, 0x6d747c), bx(0.98, 0.05, 0.82, 0, 0.08, 0, 0x2f343a), bx(0.06, 0.5, 0.06, -0.45, -0.25, -0.35, 0x2b2e33), bx(0.06, 0.5, 0.06, 0.45, -0.25, -0.35, 0x2b2e33), bx(0.06, 0.5, 0.06, -0.45, -0.25, 0.35, 0x2b2e33), bx(0.06, 0.5, 0.06, 0.45, -0.25, 0.35, 0x2b2e33),
+      bx(0.9, 0.04, 0.7, 0, -0.3, 0, 0x4a4f57), bx(0.9, 0.5, 0.03, 0, 0.3, -0.42, 0x8a9099), bx(0.1, 0.1, 0.04, -0.3, 0.45, -0.4, 0xc6ccd3), bx(0.14, 0.1, 0.04, 0.0, 0.45, -0.4, 0xe0a030), bx(0.04, 0.3, 0.04, 0.3, 0.3, -0.4, 0xd8d8d8), bx(0.25, 0.06, 0.12, -0.1, 0.12, 0.05, 0x3aa0d0)
+    ]);
+    VM[137] = inst(gODist, vPart(0.55, 0.35), 200, true, false); VM[138] = inst(gIForge, vPart(0.55, 0.35), 200, true, false); VM[139] = inst(gCraft3, vPart(0.55, 0.35), 200, true, false);
+    VM[132] = inst(gSeatB, vPart(0.55, 0.35), 200, true, false);
+    VM[133] = inst(gAsmB, vPart(0.55, 0.35), 200, true, false); VM[134] = inst(gCraft2, vPart(0.55, 0.35), 200, true, false); VM[135] = inst(gBFurn, vPart(0.55, 0.35), 200, true, false); VM[136] = inst(gTiAnvil, vPart(0.55, 0.35), 200, true, false);
     VM[126] = inst(gShaper, vPart(0.62, 0.30), 200, true, false); VM[127] = inst(gTanker, vPart(0.55, 0.35), 200, true, false);
     VM[128] = inst(tankGeo(true), vPart(0.8, 0.08), 200, true, false); VM[130] = inst(tankGeo(true), vPart(0.8, 0.08), 100, true, false);
     VM[129] = inst(tankGeo(false), vPart(0.45, 0.5), 200, true, false); VM[131] = inst(tankGeo(false), vPart(0.45, 0.5), 100, true, false);
@@ -1977,8 +2046,8 @@
     Object.keys(WZ.VARIANT).forEach(function (t) { var vr = WZ.VARIANT[t]; if (VM[vr[0]]) VM[t] = inst(shapeGeo(SHB[vr[1]]), VM[vr[0]].material, 400, true, false); });
     for (var vt0 = 1; vt0 <= 140; vt0++) if (VM[vt0]) VTYPES.push(vt0);
     for (var fi = 52; fi <= 71; fi++) { var fk = fi >= 70 ? 'bed' : FKIND[Math.floor((fi - 52) / 3)], fw = FWC[fi >= 70 ? fi - 69 : (fi - 52) % 3]; VM[fi] = inst(mergeBoxes(furnParts(fk, fw[0], fw[1], fw[2])), lam(0xffffff, { vertexColors: true }), 200, true, false); }
-    W.VSIZE = { 126: [3, 1, 2], 127: [3, 1, 2], 128: [2, 2, 2], 129: [2, 2, 2], 130: [4, 4, 2], 131: [4, 4, 2], 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
-    W.HPT = { 126: 90, 127: 90, 128: 70, 129: 120, 130: 160, 131: 260, 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
+    W.VSIZE = { 137: [2, 2, 3], 138: [3, 2, 2], 139: [3, 1, 2], 133: [5, 3, 1], 134: [3, 1, 2], 135: [2, 2, 3], 136: [2, 1, 1], 132: [3, 1, 2], 126: [3, 1, 2], 127: [3, 1, 2], 128: [2, 2, 2], 129: [2, 2, 2], 130: [4, 4, 2], 131: [4, 4, 2], 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
+    W.HPT = { 137: 160, 138: 170, 139: 130, 133: 150, 134: 110, 135: 140, 136: 130, 132: 90, 126: 90, 127: 90, 128: 70, 129: 120, 130: 160, 131: 260, 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
     Object.keys(WZ.VARIANT).forEach(function (t) { W.HPT[t] = WZ.ITEMS[WZ.VARIANT[t][3]].hp; });
     W.VM = VM;
     var vkeys = {}, vcount = 0; VTYPES.forEach(function (t) { vkeys[t] = []; }); W.MAX_VOX = 2600;

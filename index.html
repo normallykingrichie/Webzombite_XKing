@@ -7,7 +7,7 @@
 <meta name="description" content="Webzombite (Beta) by XKing — 3D open-world zombie survival, crafting, base building, and multiplayer in WebGL.">
 <meta property="og:title" content="Webzombite (Beta) - XKing">
 <meta property="og:description" content="3D open-world zombie survival, crafting, base building, and multiplayer in WebGL.">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -107,7 +107,7 @@
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=30';
+      s.src = files[i] + '?v=33';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }
