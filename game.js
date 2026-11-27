@@ -9,7 +9,7 @@
     return {
       unlock: function () { if (api && api.unlock) api.unlock(); },
       play: function (k, opt) { if (api && api.play) api.play(k, opt); },
-      vehOnce: function (k, n, o) { return api && api.vehOnce ? api.vehOnce(k, n, o) : false; },
+      vehOnce: function (k, n, o) { var ok = api && api.vehOnce ? api.vehOnce(k, n, o) : false; if (!ok && /^(open|close|belt|key|hb|hbr)$/.test(n) && api && api.play) api.play('click'); return ok; },
       vehEngine: function (key, o) { if (api && api.vehEngine) api.vehEngine(key, o); },
       vehPreload: function (k) { if (api && api.vehPreload) api.vehPreload(k); },
       setNight: function (n, uw) {
@@ -1837,7 +1837,7 @@
     var c = seat; if (!c) return false; var v = c.vs, cf = vcfg(c);
     if (code === 'KeyU') { openDash(); return true; }
     if (code === 'KeyX') { seatOut(); return true; }
-    if (code === 'Space') { v.hb = !v.hb; if (v.hb) v.v = 0; SFX.play('click'); say(v.hb ? 'Handbrake ON: the vehicle is locked in place. Press [Space] again to release.' : 'Handbrake released.'); return true; }
+    if (code === 'Space') { v.hb = !v.hb; if (v.hb) v.v = 0; SFX.vehOnce(seat.kind, v.hb ? 'hb' : 'hbr'); say(v.hb ? 'Handbrake ON: the vehicle is locked in place. Press [Space] again to release.' : 'Handbrake released.'); return true; }
     if (code === 'KeyR' || code === 'KeyF') {
       var n = gearNames(cf).length, ng = clamp(v.gear + (code === 'KeyR' ? 1 : -1), 0, n - 1);
       if (ng === v.gear) { say(code === 'KeyR' ? 'Already in the highest gear.' : 'Already in Reverse.', true); return true; }
@@ -1859,7 +1859,7 @@
       dashEl.innerHTML = '<div style="font-size:16px;margin-bottom:8px">🚗 Dashboard <span style="float:right;opacity:.6;font-weight:500">[U] close</span></div><div id="dgs"></div><div style="display:flex;align-items:center;gap:14px;margin-top:12px"><div id="dkey" style="width:74px;height:74px;border-radius:50%;border:4px solid #666;background:radial-gradient(circle,#222 30%,#111);display:flex;align-items:center;justify-content:center;font-size:30px;cursor:pointer">🔑</div><div id="dtxt" style="font-weight:500;font-size:13px;opacity:.9;max-width:230px"></div></div>';
       document.body.appendChild(dashEl);
       var dk = dashEl.querySelector('#dkey');
-      dk.addEventListener('mousedown', function (e) { e.preventDefault(); if (!seat) return; var v = seat.vs; if (v.eng) { v.eng = false; v.key = false; v.rpm = 0; SFX.play('click'); say('Engine off.'); } else if (!v.key) { v.key = true; SFX.play('click'); say('Key inserted. Now press and HOLD the key to crank the starter.'); } else crankHold = true; });
+      dk.addEventListener('mousedown', function (e) { e.preventDefault(); if (!seat) return; var v = seat.vs; if (v.eng) { v.eng = false; v.key = false; v.rpm = 0; SFX.vehOnce(seat.kind, 'off'); say('Engine off.'); } else if (!v.key) { v.key = true; SFX.vehOnce(seat.kind, 'key'); say('Key inserted. Now press and HOLD the key to crank the starter.'); } else crankHold = true; });
       document.addEventListener('mouseup', function () { crankHold = false; });
       dk.addEventListener('touchstart', function (e) { e.preventDefault(); dk.dispatchEvent(new MouseEvent('mousedown')); }, { passive: false }); dk.addEventListener('touchend', function () { crankHold = false; });
       document.addEventListener('keydown', function (e) { if (dashOpen && (e.code === 'KeyU' || e.code === 'Escape')) { e.preventDefault(); e.stopPropagation(); closeDash(); } }, true);
@@ -1896,6 +1896,7 @@
         var want = ratio === 0 ? 850 + thr * (cf.hot - 850) : Math.max(850, rpmW) + (thr && rpmW < 850 ? 400 : 0);
         v.rpm += (want - v.rpm) * Math.min(1, dt * (ratio === 0 ? 3 : 8)); v.rpm = Math.min(v.rpm, cf.maxRpm);
         if (v.rpm > cf.hot) v.heat += dt * (v.rpm - cf.hot) / (cf.maxRpm - cf.hot) * 0.5; else v.heat -= dt * 0.08; v.heat = clamp(v.heat, 0, 1);
+        c.ohT = (c.ohT || 0) - dt; if (v.heat >= 0.85 && c.ohT <= 0) { c.ohT = 8; SFX.vehOnce(c.kind, 'overheat'); }
         if (v.heat >= 1) carFail(c, 'The engine overheated and shut down! Let it cool before restarting.');
         var burn = (thr ? 0.03 + 0.1 * (v.rpm - 850) / (cf.maxRpm - 850) : 0.012) * (cf.tank / 15 > 2 ? 1.6 : 1); v.fuel -= burn * dt; partWear(c, dt); if (v.fuel <= 0) { v.fuel = 0; carFail(c, 'Out of fuel!'); }
         if (me && ratio && !cf.auto) {
@@ -1904,7 +1905,7 @@
         }
         if (cf.loud && !c.noiseT) c.noiseT = 0; if (cf.loud) { c.noiseT -= dt; if (c.noiseT <= 0) { c.noiseT = 2; for (j = 0; j < zombies.length; j++) { var zz = zombies[j]; if (zz && Math.hypot(zz.x - c.x, zz.z - c.z) < 160) zz.rush = false; } } }
       } else v.heat = Math.max(0, v.heat - dt * 0.05);
-      var dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < 70) SFX.vehPreload(c.kind); SFX.vehEngine('c' + (c.ix != null ? c.ix : Math.round(c.x) + '_' + Math.round(c.z)), { kind: c.kind, on: !!v.eng && !c.burnt, rpm: v.rpm / cf.maxRpm, inside: c === seat && !v.door, vol: c === seat ? 1 : Math.pow(Math.max(0, 1 - dd / 100), 1.5) });
+      var dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < 70) SFX.vehPreload(c.kind); SFX.vehEngine('c' + (c.ix != null ? c.ix : Math.round(c.x) + '_' + Math.round(c.z)), { kind: c.kind, on: !!v.eng && !c.burnt, rpm: v.rpm / cf.maxRpm, inside: c === seat ? (v.door ? 0.6 : 1) : 0, vol: c === seat ? 1 : Math.pow(Math.max(0, 1 - dd / 100), 1.5) });
       if (c !== seat) { if (v.v) { v.v = 0; } continue; }
       if (v.hb) v.v = 0;
       if (!me) { v.v *= Math.max(0, 1 - 2.5 * dt); if (Math.abs(v.v) < 0.05) v.v = 0; }

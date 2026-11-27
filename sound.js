@@ -423,44 +423,58 @@
       }
     }
   };
-  /* ---------- Vehicle engine audio (recorded sample mixes: starter / idle / high RPM / interior) ---------- */
-  var VNAMES = ['start', 'open', 'close', 'belt', 'idle', 'high', 'iidle', 'ihigh'], vbuf = {}, vvoice = {};
-  function vLoad(kind) {
-    if (vbuf[kind]) return; var c = ensure(); if (!c || !window.fetch) return; vbuf[kind] = {};
-    VNAMES.forEach(function (n) {
-      fetch('audio/veh/' + kind + '/' + n + '.mp3?v=34').then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
-        .then(function (b) { return new Promise(function (ok, no) { var p = c.decodeAudioData(b, ok, no); if (p && p.catch) p.catch(no); }); })
-        .then(function (buf) { vbuf[kind][n] = buf; }).catch(function () {});
-    });
+  /* ---------- Vehicle audio: ONE long mp3 per vehicle + a JSON cue sheet (audio/veh/vehicles.json) ---------- */
+  var vCues = null, vCuesP = null, vbuf = {}, vvoice = {}, VV = '?v=36';
+  function vCuesLoad() { if (vCuesP || !window.fetch) return; vCuesP = fetch('audio/veh/vehicles.json' + VV).then(function (r) { return r.json(); }).then(function (j) { vCues = j; }).catch(function () { vCues = {}; }); }
+  function vFile(file) {
+    var c = ensure(); if (!c || !window.fetch || vbuf[file] !== undefined) return; vbuf[file] = null;
+    fetch('audio/veh/' + file + '.mp3' + VV).then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(function (b) { return new Promise(function (ok, no) { var p = c.decodeAudioData(b, ok, no); if (p && p.catch) p.catch(no); }); })
+      .then(function (buf) { vbuf[file] = buf; }).catch(function () {});
   }
-  function vOnce(kind, n, opt) {
+  function vLoad(kind) { vCuesLoad(); if (!vCues) return; var cu = vCues[kind]; if (cu) vFile(cu.file); if (vCues.universal) vFile(vCues.universal.file); }
+  function vCue(kind, name) {
+    if (!vCues) return null; var c = vCues[kind], u = vCues.universal, src = c && c[name] ? [c.file, c[name]] : (u && u[name] ? [u.file, u[name]] : null);
+    if (!src) return null; vFile(src[0]); var b = vbuf[src[0]]; return b ? { buf: b, s: src[1][0], e: src[1][1] } : null;
+  }
+  function vOnce(kind, name, opt) {
     if (muted) return false; var c = ensure(); if (!c) return false; vLoad(kind);
-    var buf = vbuf[kind] && vbuf[kind][n]; if (!buf) return false;
-    var src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; g.gain.value = (opt && opt.vol != null ? opt.vol : 1) * (n === 'start' ? 0.9 : 0.8);
-    src.connect(g); g.connect(sfxGain); src.start(0); return true;
+    var q = vCue(kind, name); if (!q) return false;
+    var src = c.createBufferSource(), g = c.createGain(); src.buffer = q.buf; g.gain.value = (opt && opt.vol != null ? opt.vol : 1) * (name === 'start' ? 0.9 : name === 'overheat' ? 0.8 : 0.85);
+    src.connect(g); g.connect(sfxGain); src.start(0, q.s, Math.max(0.05, q.e - q.s)); return true;
   }
   function vVoice(key, kind) {
-    var c = ctx, v = vvoice[key]; if (v && v.kind === kind) return v;
-    if (v) vStop(key, true);
-    var b = vbuf[kind]; if (!b || !b.idle || !b.high || !b.iidle || !b.ihigh) return null;
-    v = { kind: kind, out: c.createGain(), srcs: {}, g: {} }; v.out.gain.value = 0; v.out.connect(sfxGain);
-    ['idle', 'high', 'iidle', 'ihigh'].forEach(function (n) { var s = c.createBufferSource(), g = c.createGain(); s.buffer = b[n]; s.loop = true; g.gain.value = 0; s.connect(g); g.connect(v.out); s.start(0, Math.random() * b[n].duration * 0.9); v.srcs[n] = s; v.g[n] = g; });
+    var v = vvoice[key]; if (v && v.kind === kind) return v; if (v) vStop(key, true);
+    var cu = vCues && vCues[kind]; if (!cu || !vbuf[cu.file]) return null; var c = ctx, buf = vbuf[cu.file];
+    v = { kind: kind, out: c.createGain(), L: {} }; v.out.gain.value = 0; v.out.connect(sfxGain);
+    ['int', 'ext'].forEach(function (p) {
+      var set = cu[p] || cu.int || cu.ext; if (!set) return;
+      ['idle', 'low', 'high'].forEach(function (lv) {
+        var seg = set[lv]; if (!seg) return; var s = c.createBufferSource(), g = c.createGain();
+        s.buffer = buf; s.loop = true; s.loopStart = seg[0]; s.loopEnd = seg[1]; g.gain.value = 0; s.connect(g); g.connect(v.out);
+        s.start(0, seg[0] + Math.random() * (seg[1] - seg[0]) * 0.9); v.L[p + lv] = { s: s, g: g };
+      });
+    });
     vvoice[key] = v; return v;
   }
   function vStop(key, now) {
-    var v = vvoice[key]; if (!v) return; delete vvoice[key];
-    var c = ctx, t = c.currentTime;
-    try { v.out.gain.cancelScheduledValues(t); v.out.gain.setTargetAtTime(0, t, now ? 0.01 : 0.15); } catch (e) {}
-    setTimeout(function () { for (var n in v.srcs) { try { v.srcs[n].stop(); } catch (e) {} } try { v.out.disconnect(); } catch (e) {} }, now ? 60 : 800);
+    var v = vvoice[key]; if (!v) return; delete vvoice[key]; var t = ctx.currentTime;
+    try { v.out.gain.cancelScheduledValues(t); v.out.gain.setTargetAtTime(0, t, now ? 0.01 : 0.12); } catch (e) {}
+    setTimeout(function () { for (var n in v.L) { try { v.L[n].s.stop(); } catch (e) {} } try { v.out.disconnect(); } catch (e) {} }, now ? 60 : 700);
   }
   function vEngine(key, o) {
     var c = ctx; if (!c) { if (!o.on) return; c = ensure(); if (!c) return; }
     if (!o.on || muted || !(o.vol > 0.01)) { vStop(key); return; }
     vLoad(o.kind); var v = vVoice(key, o.kind); if (!v) return;
-    var t = c.currentTime, r = Math.max(0, Math.min(1, o.rpm)), x = Math.max(0, Math.min(1, (r - 0.1) / 0.55)), wi = Math.cos(x * Math.PI / 2), wh = Math.sin(x * Math.PI / 2), inn = o.inside ? 1 : 0;
-    var ri = 0.82 + 0.55 * r, rh = 0.72 + 0.6 * r;
-    function set(n, gain, rate) { v.g[n].gain.setTargetAtTime(gain, t, 0.06); v.srcs[n].playbackRate.setTargetAtTime(rate, t, 0.08); }
-    set('idle', wi * (1 - inn), ri); set('high', wh * (1 - inn), rh); set('iidle', wi * inn, ri); set('ihigh', wh * inn, rh);
+    var t = c.currentTime, r = Math.max(0, Math.min(1, o.rpm)), inn = Math.max(0, Math.min(1, +o.inside || 0));
+    /* RPM layers: idle plateau -> low plateau -> high plateau, crossfaded; ramps are never looped */
+    var wi = Math.max(0, 1 - r / 0.32), wh = Math.max(0, Math.min(1, (r - 0.3) / 0.35)), wl = Math.max(0, 1 - wi - wh);
+    var rate = { idle: 0.9 + 0.35 * r, low: 0.85 + 0.45 * r, high: 0.8 + 0.4 * r };
+    ['int', 'ext'].forEach(function (p) {
+      var pg = p === 'int' ? inn : 1 - inn, I = v.L[p + 'idle'], L = v.L[p + 'low'], H = v.L[p + 'high'], a = wi, b = wl, d = wh;
+      if (!H) { b += d; d = 0; } if (!L) { a += b; b = 0; }
+      [[I, a, 'idle'], [L, b, 'low'], [H, d, 'high']].forEach(function (z) { if (!z[0]) return; z[0].g.gain.setTargetAtTime(Math.sqrt(z[1]) * pg, t, 0.08); z[0].s.playbackRate.setTargetAtTime(rate[z[2]], t, 0.1); });
+    });
     v.out.gain.setTargetAtTime(Math.min(1, o.vol) * 0.9, t, 0.1);
   }
 })(window.WZ);
