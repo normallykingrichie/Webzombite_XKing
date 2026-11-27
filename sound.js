@@ -302,6 +302,7 @@
 
   var stepSurface = 'city';
   WZ.SND = {
+    vehOnce: vOnce, vehEngine: vEngine, vehPreload: vLoad,
     unlock: function () {
       var c = ensure();
       if (c && !ambStarted) startAmbientLoop();
@@ -422,4 +423,44 @@
       }
     }
   };
+  /* ---------- Vehicle engine audio (recorded sample mixes: starter / idle / high RPM / interior) ---------- */
+  var VNAMES = ['start', 'open', 'close', 'belt', 'idle', 'high', 'iidle', 'ihigh'], vbuf = {}, vvoice = {};
+  function vLoad(kind) {
+    if (vbuf[kind]) return; var c = ensure(); if (!c || !window.fetch) return; vbuf[kind] = {};
+    VNAMES.forEach(function (n) {
+      fetch('audio/veh/' + kind + '/' + n + '.mp3?v=34').then(function (r) { if (!r.ok) throw 0; return r.arrayBuffer(); })
+        .then(function (b) { return new Promise(function (ok, no) { var p = c.decodeAudioData(b, ok, no); if (p && p.catch) p.catch(no); }); })
+        .then(function (buf) { vbuf[kind][n] = buf; }).catch(function () {});
+    });
+  }
+  function vOnce(kind, n, opt) {
+    if (muted) return false; var c = ensure(); if (!c) return false; vLoad(kind);
+    var buf = vbuf[kind] && vbuf[kind][n]; if (!buf) return false;
+    var src = c.createBufferSource(), g = c.createGain(); src.buffer = buf; g.gain.value = (opt && opt.vol != null ? opt.vol : 1) * (n === 'start' ? 0.9 : 0.8);
+    src.connect(g); g.connect(sfxGain); src.start(0); return true;
+  }
+  function vVoice(key, kind) {
+    var c = ctx, v = vvoice[key]; if (v && v.kind === kind) return v;
+    if (v) vStop(key, true);
+    var b = vbuf[kind]; if (!b || !b.idle || !b.high || !b.iidle || !b.ihigh) return null;
+    v = { kind: kind, out: c.createGain(), srcs: {}, g: {} }; v.out.gain.value = 0; v.out.connect(sfxGain);
+    ['idle', 'high', 'iidle', 'ihigh'].forEach(function (n) { var s = c.createBufferSource(), g = c.createGain(); s.buffer = b[n]; s.loop = true; g.gain.value = 0; s.connect(g); g.connect(v.out); s.start(0, Math.random() * b[n].duration * 0.9); v.srcs[n] = s; v.g[n] = g; });
+    vvoice[key] = v; return v;
+  }
+  function vStop(key, now) {
+    var v = vvoice[key]; if (!v) return; delete vvoice[key];
+    var c = ctx, t = c.currentTime;
+    try { v.out.gain.cancelScheduledValues(t); v.out.gain.setTargetAtTime(0, t, now ? 0.01 : 0.15); } catch (e) {}
+    setTimeout(function () { for (var n in v.srcs) { try { v.srcs[n].stop(); } catch (e) {} } try { v.out.disconnect(); } catch (e) {} }, now ? 60 : 800);
+  }
+  function vEngine(key, o) {
+    var c = ctx; if (!c) { if (!o.on) return; c = ensure(); if (!c) return; }
+    if (!o.on || muted || !(o.vol > 0.01)) { vStop(key); return; }
+    vLoad(o.kind); var v = vVoice(key, o.kind); if (!v) return;
+    var t = c.currentTime, r = Math.max(0, Math.min(1, o.rpm)), x = Math.max(0, Math.min(1, (r - 0.1) / 0.55)), wi = Math.cos(x * Math.PI / 2), wh = Math.sin(x * Math.PI / 2), inn = o.inside ? 1 : 0;
+    var ri = 0.82 + 0.55 * r, rh = 0.72 + 0.6 * r;
+    function set(n, gain, rate) { v.g[n].gain.setTargetAtTime(gain, t, 0.06); v.srcs[n].playbackRate.setTargetAtTime(rate, t, 0.08); }
+    set('idle', wi * (1 - inn), ri); set('high', wh * (1 - inn), rh); set('iidle', wi * inn, ri); set('ihigh', wh * inn, rh);
+    v.out.gain.setTargetAtTime(Math.min(1, o.vol) * 0.9, t, 0.1);
+  }
 })(window.WZ);

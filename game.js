@@ -9,6 +9,9 @@
     return {
       unlock: function () { if (api && api.unlock) api.unlock(); },
       play: function (k, opt) { if (api && api.play) api.play(k, opt); },
+      vehOnce: function (k, n, o) { return api && api.vehOnce ? api.vehOnce(k, n, o) : false; },
+      vehEngine: function (key, o) { if (api && api.vehEngine) api.vehEngine(key, o); },
+      vehPreload: function (k) { if (api && api.vehPreload) api.vehPreload(k); },
       setNight: function (n, uw) {
         lastNight = !!n;
         if (!api) return;
@@ -1454,7 +1457,7 @@
     return null;
   }
   function unkey(k) { var y = k % 64, r = Math.floor(k / 64), z = (r % 8192) - 2600, x = Math.floor(r / 8192) - 2600; return [x, y, z]; }
-  var ROCKITEM = { granite: 'granite_ore', andesite: 'andesite_ore', diorite: 'diorite_ore', calcite: 'calcite_ore', clay: 'clay_ore', zinc: 'zinc_ore', titanium: 'titanium_ore', permafrost: 'permafrost_ore', diamond: 'diamond', ruby: 'ruby', emerald: 'emerald', amethyst: 'amethyst', sapphire: 'sapphire' }, ROCKNAME = { granite: 'Granite Ore', andesite: 'Andesite Ore', diorite: 'Diorite Ore', calcite: 'Calcite Ore', clay: 'Clay Ore', titanium: 'Titanium Ore', permafrost: 'Permafrost Ore', diamond: 'Diamond Ore', ruby: 'Ruby Ore', emerald: 'Emerald Ore', amethyst: 'Amethyst Ore', sapphire: 'Sapphire Ore' };
+  var ROCKITEM = { granite: 'granite_ore', andesite: 'andesite_ore', diorite: 'diorite_ore', calcite: 'calcite_ore', clay: 'clay_ore', zinc: 'zinc_ore', titanium: 'titanium_ore', permafrost: 'permafrost_ore', diamond: 'diamond', ruby: 'ruby', emerald: 'emerald', amethyst: 'amethyst', sapphire: 'sapphire', topaz: 'topaz', amber: 'amber' }, ROCKNAME = { granite: 'Granite Ore', andesite: 'Andesite Ore', diorite: 'Diorite Ore', calcite: 'Calcite Ore', clay: 'Clay Ore', titanium: 'Titanium Ore', permafrost: 'Permafrost Ore', diamond: 'Diamond Ore', ruby: 'Ruby Ore', emerald: 'Emerald Ore', amethyst: 'Amethyst Ore', sapphire: 'Sapphire Ore', topaz: 'Topaz Ore', amber: 'Amber Ore' };
   var VNAME = { 51: 'Statue of God', 49: 'Liquiders Workbench', 50: 'Sewing Table', 44: 'Wooden Spike', 45: 'Sharp Palm Fibrous Root', 46: 'Iron Circular Barbed Wire', 47: 'Ivy Grass', 48: 'Titanium Barbed Wire', 43: 'Blast Smelter', 33: 'Smooth Granite Block', 34: 'Smooth Andesite Block', 35: 'Smooth Diorite Block', 36: 'Smooth Calcite Block', 37: 'Stone Bricks Block', 38: 'Red Bricks Block', 39: 'Granite Bricks Block', 40: 'Andesite Bricks Block', 41: 'Diorite Bricks Block', 42: 'Calcite Bricks Block', 29: 'Manual Pressing', 30: 'Manual Casing & Frame Crafter', 31: 'Trap Bench', 32: 'Mason Workbench', 16: 'Manual Milling', 17: 'Bomb Workbench', 18: 'Glass Kiln', 19: 'Crafting Workbench', 20: 'Working Workbench', 21: 'Wooden Chest', 22: 'Iron-Cased Chest', 23: 'Iron Chest', 24: 'Copper-Cased Chest', 25: 'Copper Chest', 26: 'Glass Block', 27: 'Cactus Block', 28: 'TNT Block', 10: 'Wood Plank Block', 11: 'Sawmill', 12: 'Turret Workbench', 13: 'Handmade Cannon', 14: 'Cannon', 15: 'Manual Cannon', 1: 'Wood Log Block', 2: 'Stone Block', 3: 'Smelting Furnace', 4: 'Cozy Bed', 5: 'Cozy Couch', 6: 'Sink', 7: 'Campfire', 8: 'Iron Anvil', 9: 'Computer Bench' };
   var VITEM = { 51: 'statue_god', 49: 'liquiders_workbench', 50: 'sewing_table', 44: 'wooden_spike', 45: 'sharp_palm_root', 46: 'iron_barbed_wire', 47: 'ivy_grass', 48: 'titanium_barbed_wire', 43: 'blast_smelter', 33: 'smooth_granite_block', 34: 'smooth_andesite_block', 35: 'smooth_diorite_block', 36: 'smooth_calcite_block', 37: 'stone_bricks_block', 38: 'red_bricks_block', 39: 'granite_bricks_block', 40: 'andesite_bricks_block', 41: 'diorite_bricks_block', 42: 'calcite_bricks_block', 29: 'manual_press', 30: 'casing_crafter', 31: 'trap_bench', 32: 'mason_bench', 16: 'manual_milling', 17: 'bomb_bench', 18: 'glass_kiln', 19: 'craft_bench', 20: 'work_bench', 21: 'wooden_chest', 22: 'ironcased_chest', 23: 'iron_chest', 24: 'coppercased_chest', 25: 'copper_chest', 26: 'glass_block', 27: 'cactus_block', 28: 'tnt_block', 10: 'wood_plank_block', 11: 'sawmill', 12: 'turret_bench', 13: 'handmade_cannon', 14: 'cannon_turret', 15: 'manual_cannon', 1: 'wood_block', 2: 'stone_block', 3: 'furnace', 4: 'bed_block', 5: 'couch_block', 6: 'sink_block', 7: 'campfire', 8: 'anvil_block', 9: 'computer_bench' };
 
@@ -1733,11 +1736,11 @@
     if (e.burnt) { say('This vehicle is a burnt wreck now.', true); return; }
     var v = e.vs;
     if (e.crate && !seat) { var qq = carLocal(e, P.x, P.z), hh = carHalf(e); if (qq.lz < -hh[1] + 0.3 && Math.abs(qq.lx) < hh[0] + 1.2) { openCargo(e); return; } }
-    if (!v.door) { v.door = true; SFX.play('click'); say('Door opened. Press [E] again to sit in the driver seat.'); return; }
+    if (!v.door) { v.door = true; SFX.vehOnce(c.kind, 'open'); say('Door opened. Press [E] again to sit in the driver seat.'); return; }
     seatIn(e);
   }
   function seatIn(c) {
-    if (seat) return; seat = c; c.vs.seated = true; c.vs.door = true; manning = null; P.vx = P.vz = P.vy = 0; keys = {}; lmb = false;
+    if (seat) return; seat = c; c.vs.seated = true; c.vs.door = true; setTimeout(function () { SFX.vehOnce(c.kind, 'belt'); }, 450); manning = null; P.vx = P.vz = P.vy = 0; keys = {}; lmb = false;
     var a = carAng(c); P.yaw = a + Math.PI; seatPose(c);
     if (!driveEl) { driveEl = document.createElement('div'); driveEl.style.cssText = 'position:fixed;right:18px;bottom:96px;z-index:30;background:rgba(10,12,16,.72);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:8px 14px;font:600 15px system-ui,sans-serif;text-align:right;pointer-events:none'; document.body.appendChild(driveEl); }
     driveEl.style.display = 'block'; SFX.play('click');
@@ -1828,7 +1831,7 @@
     if (W.relocCar) W.relocCar(c); W.setCar(c, true); seat = null; if (driveEl) driveEl.style.display = 'none'; SFX.play('click'); if (why) say(why, true);
   }
   var OSPECG = { suv: [4.4, 1.9], sedan: [4.4, 1.9], mustang: [4.4, 1.9], truck: [7.6, 2.7] };
-  function closeDoorOut(c) { if (c.vs && c.vs.door && !seat) { c.vs.door = false; SFX.play('click'); say('Door closed.'); } else if (c.vs && !c.vs.door) { c.vs.door = true; SFX.play('click'); say('Door opened.'); } }
+  function closeDoorOut(c) { if (c.vs && c.vs.door && !seat) { c.vs.door = false; SFX.vehOnce(c.kind, 'close'); say('Door closed.'); } else if (c.vs && !c.vs.door) { c.vs.door = true; SFX.vehOnce(c.kind, 'open'); say('Door opened.'); } }
   /* key presses while sitting: [U] dashboard, [X] leave, [R] gear up, [F] gear down */
   function carKey(code) {
     var c = seat; if (!c) return false; var v = c.vs, cf = vcfg(c);
@@ -1885,7 +1888,7 @@
       /* starter */
       if (c === seat && crankHold && v.key && !v.eng) {
         if (v.blown) { crankHold = false; say('The engine is destroyed. It needs a new ' + cf.engine + '.', true); }
-        else { v.crank += dt / 1.5; v.rpm = v.crank * 850 * (0.9 + 0.2 * Math.random());
+        else { if (v.crank === 0) SFX.vehOnce(c.kind, 'start'); v.crank += dt / 1.5; v.rpm = v.crank * 850 * (0.9 + 0.2 * Math.random());
           if (v.crank >= 1) { crankHold = false; v.crank = 0; if (v.heat > 0.8) { v.rpm = 0; say('The engine is too hot to start. Let it cool down.', true); } else if (v.fuel <= 0.01) { v.rpm = 0; say('The engine cranks but there is no fuel. Fill the tank at a Fuel Pump Station.', true); } else if (!partsOf(c).eng) { v.rpm = 0; say('No engine installed! Put one back with the Disassemble Wrench.', true); } else { v.eng = true; v.rpm = 850; SFX.play('craft'); say('Engine started! The vehicle is still in ' + gearName(c) + '. Shift with [R]/[F], then hold [W].' + (cf.loud ? ' The roaring V8 attracts zombies!' : '')); } } }
       } else if (!v.eng && v.crank > 0) { v.crank = Math.max(0, v.crank - dt * 2); v.rpm = v.crank * 850; } else if (!v.eng) v.rpm = Math.max(0, v.rpm - 2000 * dt);
       if (v.eng) {
@@ -1901,6 +1904,7 @@
         }
         if (cf.loud && !c.noiseT) c.noiseT = 0; if (cf.loud) { c.noiseT -= dt; if (c.noiseT <= 0) { c.noiseT = 2; for (j = 0; j < zombies.length; j++) { var zz = zombies[j]; if (zz && Math.hypot(zz.x - c.x, zz.z - c.z) < 160) zz.rush = false; } } }
       } else v.heat = Math.max(0, v.heat - dt * 0.05);
+      var dd = Math.hypot(c.x - P.x, c.z - P.z); if (dd < 70) SFX.vehPreload(c.kind); SFX.vehEngine('c' + (c.ix != null ? c.ix : Math.round(c.x) + '_' + Math.round(c.z)), { kind: c.kind, on: !!v.eng && !c.burnt, rpm: v.rpm / cf.maxRpm, inside: c === seat && !v.door, vol: c === seat ? 1 : Math.pow(Math.max(0, 1 - dd / 100), 1.5) });
       if (c !== seat) { if (v.v) { v.v = 0; } continue; }
       if (v.hb) v.v = 0;
       if (!me) { v.v *= Math.max(0, 1 - 2.5 * dt); if (Math.abs(v.v) < 0.05) v.v = 0; }
@@ -2127,7 +2131,7 @@
   function vehSave() { return (W.ocars || []).map(function (c) { var v = c.vs; return [c.kind, Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100, ((Math.round(carAng(c) / (Math.PI / 2)) % 4) + 4) % 4, c.col, Math.round(c.hp), c.burnt ? 1 : 0, Math.round(v.fuel * 100) / 100, v.fuelT, Math.round(v.odo), v.gear, v.blown ? 1 : 0, c.crate ? (c.store || {}) : 0, partSave(c)]; }); }
   function vehLoad(a) { (a || []).forEach(function (r) { var c = W.addOwnedCar(r[0], r[1], r[2], r[3] * Math.PI / 2, r[4], r[5]); var cf2 = VCFG[r[0]] || VCFG.suv; c.max = cf2.hp; c.burnt = !!r[6]; c.vs.fuel = r[7] || 0; c.vs.fuelT = r[8] || 'gasoline'; c.vs.odo = r[9] || 0; c.vs.blown = !!r[11]; if (r[12]) { c.crate = true; c.store = r[12]; } partLoad(c, r[13]); if (c.burnt || c.crate) W.setCar(c, true); }); }
   function interact() {
-    if (seat) { var vv = seat.vs; vv.door = !vv.door; SFX.play('click'); say(vv.door ? 'Door opened. [X] leave the seat.' : 'Door closed. Press [U] for the dashboard.'); return; }
+    if (seat) { var vv = seat.vs; vv.door = !vv.door; SFX.vehOnce(seat.kind, vv.door ? 'open' : 'close'); say(vv.door ? 'Door opened. [X] leave the seat.' : 'Door closed. Press [U] for the dashboard.'); return; }
     var cpx = nearCorpse(2.6); if (cpx) { lootCorpse(cpx); return; }
     if (W.statue && !ugOn && Math.hypot(P.x - W.statue.x, P.z - W.statue.z) < 3.6) { useStatue(); return; }
     var ht0 = aim(3.6); if (ht0 && ht0.kind === 'ent' && ht0.e.k === 'tank') { tankUse(ht0.e); return; }
@@ -3011,13 +3015,14 @@
     stnList().forEach(function (sn) {
       var rs = WZ.RECIPES.filter(function (r) { return r.st === sn[0] && !r.pot && revealed(r); }); if (!rs.length) return; shown += rs.length;
       out += '<h2 style="margin-top:12px">' + (sn[0] === 'hand' ? '✋ Handmade' : '📍 ' + sn[1] + ' (nearby)') + '</h2>';
-      if (sn[0] === 'furnace' || sn[0] === 'campfire' || sn[0] === 'blast' || sn[0] === 'cpot') out += '<div class="m" style="color:var(--muted);font-size:.78rem;margin-bottom:6px">Fuel in your bag: ' + fuelHtml() + (heatQ.length ? '<br>🔥 Jobs queued: ' + heatQ.length + ' &middot; progress ' + Math.round(heatGot / heatQ[0].r.heat * 100) + '%' : '') + '</div>';
+      if (sn[0] === 'furnace' || sn[0] === 'campfire' || sn[0] === 'blast' || sn[0] === 'cmold' || sn[0] === 'cpot') out += '<div class="m" style="color:var(--muted);font-size:.78rem;margin-bottom:6px">Fuel in your bag: ' + fuelHtml() + (heatQ.length ? '<br>🔥 Jobs queued: ' + heatQ.length + ' &middot; progress ' + Math.round(heatGot / heatQ[0].r.heat * 100) + '%' : '') + '</div>';
       out += rs.map(function (r) {
         var o = ITEMS[r.out[0]], can = hasAll(r), note = '';
         if (r.dur) note += '<br>⏳ Takes ' + r.dur + ' s in the background';
         if (r.heat) note += '<br>🔥 Needs ' + r.heat + ' heat power (burn fuel)';
         if (r.puz && r.puz.k === 'img') note += '<br>🧩 Picture puzzle &middot; Tier ' + r.tier + ' (' + r.puz.n + '×' + r.puz.n + ')';
         else if (r.puz && r.puz.k === 'mask') note += '<br>🧩 Shape puzzle';
+        else if (r.puz && r.puz.k === 'draw') note += '<br>✏️ Drawing minigame: trace the ' + r.puz.pat;
         else if (r.puz && r.puz.k === 'saw') note += '<br>📏 Sawing minigame (a failed cut gives Failed Craft Wood)';
         else if (r.puz && r.puz.k === 'crank') note += '<br>🔧 Crank minigame: ' + r.puz.n + ' turns';
         else if (r.puz && r.puz.k === 'wire') note += '<br>🔌 Wire minigame';
@@ -3036,7 +3041,7 @@
   function setBar(txt, f) { var e = $('#eat'); if (!e || eatT > 0) return; e.style.display = 'block'; $('#eat i').style.width = clamp(f * 100, 0, 100) + '%'; $('#eat span').textContent = txt; }
   function heatTick(dt) {
     if (!heatQ.length) { heatGot = 0; return; }
-    var j = heatQ[0], isF = j.r.st === 'furnace' || j.r.st === 'blast', at = j.r.st === 'blast' ? (nearArr(W.blasts) || nearArr(W.bfurns)) : (isF ? (nearArr(W.furn) || nearArr(W.blasts) || nearArr(W.bfurns)) : j.r.st === 'cpot' ? nearArr(W.cpots) : nearArr(W.camps) || nearArr(W.cpots)), need = j.r.heat, hm = isF && nearArr(W.blasts) ? 2 : 1;
+    var j = heatQ[0], isF = j.r.st === 'furnace' || j.r.st === 'blast' || j.r.st === 'cmold', at = j.r.st === 'cmold' ? nearArr(W.cmolds) : j.r.st === 'blast' ? (nearArr(W.blasts) || nearArr(W.bfurns)) : (isF ? (nearArr(W.furn) || nearArr(W.blasts) || nearArr(W.bfurns)) : j.r.st === 'cpot' ? nearArr(W.cpots) : nearArr(W.camps) || nearArr(W.cpots)), need = j.r.heat, hm = isF && nearArr(W.blasts) ? 2 : 1;
     if (!at) { setBar('Too far from the ' + (j.r.st === 'furnace' ? 'furnace' : 'campfire') + ' - heating paused', heatGot / need); return; }
     var guard = 0;
     while (heatGot < need && dt > 1e-6 && guard++ < 6) {
@@ -3249,6 +3254,7 @@
     if (k === 'wire') { wire = { r: r, order: [0, 1, 2, 3, 4].sort(function () { return Math.random() - 0.5; }), sel: -1, done: {} }; SFX.play('click'); renderWireGame(); return; }
     if (k === 'crank') { mg = { r: r, k: 'crank', n: r.puz.n, turns: 0, ang: 0, last: null, msg: '' }; }
     else if (k === 'saw') { mg = { r: r, k: 'saw', ph: Math.random() * 6, pts: [], down: false, msg: '' }; }
+    else if (k === 'draw') { mg = { r: r, k: 'draw', pat: r.puz.pat, strokes: [], down: false, msg: '' }; }
     else {
       var n = k === 'img' ? r.puz.n : 5, mask = k === 'img' ? function () { return true; } : MASKS[r.puz.shape], cells = [];
       for (var rr = 0; rr < n; rr++) for (var cc = 0; cc < n; cc++) if (mask(rr, cc)) cells.push([rr, cc]);
@@ -3268,6 +3274,22 @@
       var h = mg.cells[t]; g.drawImage(mg.pic, h[1] * cs, h[0] * cs, cs, cs, c[1] * cs, c[0] * cs, cs, cs); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 2; g.strokeRect(c[1] * cs + 1, c[0] * cs + 1, cs - 2, cs - 2);
     });
     var pv = $('#mgp'); if (pv) { var pg = pv.getContext('2d'); pg.clearRect(0, 0, 120, 120); var ps = 120 / mg.n; mg.cells.forEach(function (c) { pg.drawImage(mg.pic, c[1] * 360 / mg.n, c[0] * 360 / mg.n, 360 / mg.n, 360 / mg.n, c[1] * ps, c[0] * ps, ps, ps); }); }
+  }
+  var DRAWP = { nail: [[[170, 50], [350, 50]], [[260, 50], [260, 225]]], screw: [[[190, 50], [330, 50]], [[260, 50], [260, 225]], [[225, 90], [295, 108]], [[225, 130], [295, 148]], [[225, 170], [295, 188]]], bolt: [[[215, 75], [240, 40], [290, 40], [315, 75], [290, 108], [240, 108], [215, 75]], [[245, 108], [245, 225]], [[275, 108], [275, 225]], [[245, 225], [275, 225]]] };
+  function drawPts(pat) { var tp = []; DRAWP[pat].forEach(function (sg) { for (var i = 0; i < sg.length - 1; i++) { var a = sg[i], b = sg[i + 1], n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8)); for (var q = 0; q < n; q++) tp.push([a[0] + (b[0] - a[0]) * q / n, a[1] + (b[1] - a[1]) * q / n]); } }); return tp; }
+  function drawDraw() {
+    var cv = $('#mgc'); if (!cv || !mg || mg.k !== 'draw') return; var g = cv.getContext('2d'); g.fillStyle = '#2a2d33'; g.fillRect(0, 0, 520, 260); g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 3; g.setLineDash([7, 7]); DRAWP[mg.pat].forEach(function (sg) { g.beginPath(); sg.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.stroke(); }); g.setLineDash([]);
+    g.strokeStyle = '#e3b02a'; g.lineWidth = 4; mg.strokes.forEach(function (st) { g.beginPath(); st.forEach(function (p, i) { if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.stroke(); });
+  }
+  function drawEval() {
+    var tp = drawPts(mg.pat), all = []; mg.strokes.forEach(function (st) { st.forEach(function (p) { all.push(p); }); });
+    if (all.length < 12) return { ok: false, msg: 'Draw the whole shape first.' };
+    var cov = tp.filter(function (t) { return all.some(function (p) { return Math.hypot(p[0] - t[0], p[1] - t[1]) < 16; }); }).length / tp.length;
+    var prec = all.filter(function (p) { return tp.some(function (t) { return Math.hypot(p[0] - t[0], p[1] - t[1]) < 20; }); }).length / all.length;
+    if (cov < 0.8) return { ok: false, msg: 'Not complete enough (' + Math.round(cov * 100) + '% covered). Try again.' };
+    if (prec < 0.75) return { ok: false, msg: 'Too messy (' + Math.round(prec * 100) + '% on the line). Try again.' };
+    return { ok: true };
   }
   function sawY(x) { if (mg.r.puz.flat) return 90; var d = mg.r.puz.d; return 90 + Math.sin(x / (95 - d * 14) + mg.ph) * (12 + d * 9); }
   function drawSaw() {
@@ -3290,6 +3312,7 @@
   function renderMg() {
     var r = mg.r, o = ITEMS[r.out[0]], h = '<div class="inv-wrap"><div class="top"><h2 style="margin:0">' + o.ic + ' ' + esc(o.name) + (r.tier ? ' &middot; Tier ' + r.tier : '') + '</h2><button class="btn" data-mcancel="1">Give up</button></div><div class="box" style="grid-column:1/-1"><p class="m" style="color:var(--muted)">' + (mp.role === 'solo' ? 'Solo: world time runs at half speed while you work. ' : 'Multiplayer: the world keeps running at full speed! ') + (mg.k === 'crank' ? 'Drag the crank handle in circles (or press Turn crank). Each full circle counts as one turn.' : mg.k === 'saw' ? 'Hold the mouse and draw along the dotted line, from the left red mark to the right one. Small slips are fine; big mistakes ruin the wood.' : 'Slide the pieces into the empty gap to rebuild the picture. Click a piece next to the gap. Giving up costs nothing.') + '</p>';
     if (mg.k === 'crank') h += '<div style="text-align:center"><canvas id="mgc" width="300" height="300" style="max-width:100%;border-radius:50%;cursor:grab;touch-action:none;background:#2a2d33"></canvas><p class="m" style="color:#e3b02a" id="mgturn"></p><button class="btn" id="mgturnbtn">Turn crank</button></div>';
+    else if (mg.k === 'draw') h += '<canvas id="mgc" width="520" height="260" style="max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none"></canvas><p class="m" style="color:#e3b02a">' + esc(mg.msg || 'Hold the mouse button and trace the dotted ' + mg.pat + ' outline, then press Finish.') + '</p><button class="btn primary" id="mgfin">Finish</button> <button class="btn" id="mgclr">Clear</button>';
     else if (mg.k === 'saw') h += '<canvas id="mgc" width="520" height="180" style="max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none"></canvas><p class="m" style="color:#e3b02a">' + esc(mg.msg || '') + '</p>';
     else h += '<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start"><canvas id="mgc" width="360" height="360" style="max-width:100%;border-radius:8px;cursor:pointer"></canvas><div><div class="m" style="color:var(--muted)">Target picture</div><canvas id="mgp" width="120" height="120" style="border-radius:6px"></canvas></div></div>';
     $('#inv').innerHTML = h + '</div></div>';
@@ -3304,6 +3327,13 @@
       cv.onpointerup = function () { if (mg) mg.last = null; };
       $('#mgturnbtn').onclick = function () { SFX.play('click'); addAng(Math.PI / 2); };
       drawC();
+    } else if (mg.k === 'draw') {
+      drawDraw(); var dpos = function (ev) { var b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * 520 / b.width, (ev.clientY - b.top) * 260 / b.height]; };
+      cv.onpointerdown = function (ev) { mg.down = true; mg.strokes.push([dpos(ev)]); try { cv.setPointerCapture(ev.pointerId); } catch (e) { } drawDraw(); };
+      cv.onpointermove = function (ev) { if (mg.down) { mg.strokes[mg.strokes.length - 1].push(dpos(ev)); drawDraw(); } };
+      cv.onpointerup = function () { if (mg) mg.down = false; };
+      $('#mgclr').onclick = function () { mg.strokes = []; mg.msg = ''; SFX.play('click'); renderMg(); };
+      $('#mgfin').onclick = function () { var res = drawEval(); if (res.ok) { var r0 = mg.r; mg = null; SFX.play('craft'); say('Nicely drawn!'); if (hasAll(r0) && stationOk(r0)) craftNow(r0); else say('Missing materials.', true); renderInv(); } else { mg.msg = res.msg; mg.strokes = []; SFX.play('hit'); renderMg(); } };
     } else if (mg.k === 'saw') {
       drawSaw(); var pos = function (ev) { var b = cv.getBoundingClientRect(); return [(ev.clientX - b.left) * 520 / b.width, (ev.clientY - b.top) * 180 / b.height]; };
       cv.onmousedown = function (ev) { mg.down = true; mg.pts = [pos(ev)]; drawSaw(); };
@@ -3345,7 +3375,7 @@
   /* ---- Station crafting UI: one themed screen per station (list + detail panel), fuel slot for heat stations ---- */
   var invTab = 'bag', crSel = null, crScroll = 0, seenRec = {}, fuelSl = { id: null, n: 0 };
   var STIC = { iforge: '🏭', craft3: '🛠️', craft2: '🛠️', tanvil: '⚒️', seatb: '💺', bfurn: '🏭', asmb: '🏗️', odist: '🛢️', hand: '✋', sawmill: '🪚', furnace: '🔥', campfire: '🏕️', anvil: '🔨', sink: '🚿', turret: '🎯', computer: '💻', milling: '⚙️', bomb: '💣', kiln: '🏺', craft: '🛠️', work: '🧰', press: '🗜️', casing: '🔩', trapb: '🪤', mason: '🧱', blast: '🌋', liquiders: '🧪', shaper: '⚒️', tanker: '🛢️', vbench: '🚗', sewing: '🧵', cutting: '✂️', tablecraft: '🪑', distill: '⚗️', wfilter: '💧', cpot: '🍲' };
-  var HEATST = { furnace: 1, campfire: 1, blast: 1, cpot: 1 };
+  var HEATST = { furnace: 1, campfire: 1, blast: 1, cpot: 1, cmold: 1 };
   var FUELIC = ['charcoal', 'coal', 'wood', 'ib_lpg'];
   function crRecs(sn) {
     return WZ.RECIPES.filter(function (r) { if (r.st !== sn || r.pot) return false; if (!stationOk(r)) return false; if (revealed(r)) seenRec[r.id] = 1; return seenRec[r.id]; });
@@ -3358,6 +3388,7 @@
     if (r.heat) note.push('🔥 Needs ' + r.heat + ' heat power (burns fuel from the fuel slot)');
     if (r.puz && r.puz.k === 'img') note.push('🧩 Picture puzzle · Tier ' + r.tier + ' (' + r.puz.n + '×' + r.puz.n + ')');
     else if (r.puz && r.puz.k === 'mask') note.push('🧩 Shape puzzle');
+    else if (r.puz && r.puz.k === 'draw') note.push('✏️ Drawing minigame: trace the ' + r.puz.pat);
     else if (r.puz && r.puz.k === 'saw') note.push('📏 Sawing minigame (a failed cut gives Failed Craft Wood)');
     else if (r.puz && r.puz.k === 'crank') note.push('🔧 Crank minigame: ' + r.puz.n + ' turns');
     else if (r.puz && r.puz.k === 'wire') note.push('🔌 Wire minigame');
@@ -3671,7 +3702,7 @@
       screen('<div class="card"><h1><b>Webzombite</b></h1><p>Could not start the 3D view.</p><pre style="white-space:pre-wrap;font-size:12px;opacity:.85">' + esc(e && e.message ? e.message : e) + '</pre><div class="row"><a class="btn sm" href="' + esc(C.coreUrl || '../index.html') + '">Back to XKing Core</a></div></div>');
     }
   }
-  window.WZ.debug = function () { return { heroOn: heroOn, heroDash: heroDash, dashCdv: function () { return dashCd; }, setAcc: function (i, id) { acc[i] = id; }, aggroPlayer: aggroPlayer, wrenchTick: wrenchTick, wrenchHover: wrenchHover, wrenchClick: wrenchClick, wrHover: function (k) { wrHover = PBOX(wrCar).filter(function (b) { return b.k === k; })[0]; }, pmetaV: function () { return pmeta; }, partsOf: partsOf, onBench: onBench, openOd: openOd, odClick: odClick, odTick: odTick, stationOk: stationOk, unkeyX: 0, mountCrate: mountCrate, openCargo: openCargo, placeZombie: placeZombie, zlist: function () { return zombies; }, zdbg: function () { return { seat: !!seat, door: seat && seat.vs.door, touch: zombies.map(function (z) { return seat && zTouchesCar(z, seat); }), rad: zombies.map(function (z) { return z.rad; }), dead: dead, surf: onSurface(P.x) }; }, placeVeh: function (k, x, z, a) { var c = W.addOwnedCar(k, x, z, a, 0x4f6b52); c.max = c.hp = vcfg(c).hp; c.vs.fuelT = vcfg(c).fuelT; c.vs.fuel = 10; return c; }, seatIn: seatIn, carUse: carUse, carKey: carKey, openDash: openDash, closeDash: closeDash, seatState: function () { return seat ? seat.vs : null; }, pumpUse: pumpUse, startFill: startFill, setCrank: function (b) { crankHold = b; }, tankUse: tankUse, jobs: function () { return jobs; }, startJob: startJob, openPot: openPot, potTick: potTick, gunState: function () { return [gunRel, gunRelMax, gunPend, gunClip, sel]; }, give: give, farmUse: farmUse, farmTick: farmTick, setHot: function (i, id) { hot[i] = id; sel = i; }, getInv: function () { return inv; }, creativeToggle: creativeToggle, makeZombie: makeZombie, zombiesList: function () { return zombies; }, eatTick: eatTick, explodeAt: explodeAt, setBleed: setBleed, bleedTick: bleedTick, throwBomb: throwBomb, tntLocal: tntLocal, fuseTick: fuseTick, openChest: openChest, chestE: function () { return chestE; }, renderChest: renderChest, applySearchEnt: applySearchEnt, openMysteryBox: openMysteryBox, status: status, roomFor: roomFor, count: count, takeRaw: takeRaw, openInv: openInv, closeInv: closeInv, renderInv: renderInv, recipesHtml: recipesHtml, revealed: revealed, startMg: startMg, mgs: function () { return mg; }, mgSolved: mgSolved, drawMg: drawMg, heatQ: function () { return heatQ; }, queueHeat: queueHeat, heatTick: heatTick, loadTurret: loadTurret, turretTick: turretTick, turretAt: turretAt, toggleManning: toggleManning, manualTick: manualTick, damageVoxLocal: damageVoxLocal, slotsUsed: slotsUsed, slotCap: slotCap, corpses: corpses, sawEval: sawEval, craftNow: craftNow, interact: interact, setLmb: function (v) { lmb = v; }, snapshot: snapshot, showPause: showPause, gfx: gfx, applyGfx: applyGfx, dorm: dorm, DU: DU, DF: DF, dAdd: dAdd, dormTick: dormTick, hydrate: hydrate, placeZombie: placeZombie, spawnZombie: spawnZombie, enterUG: enterUG, exitUG: exitUG, awardKill: awardKill, coins: function () { return coins; }, bf: bf, tier: function () { return worldTier(clockInfo(T).day); }, bloodFlag: bloodFlag, applyCarHit: applyCarHit, killZombie: killZombie, stepZombie: stepZombie, scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
+  window.WZ.debug = function () { return { startMg: startMg, getMg: function () { return mg; }, drawEval: drawEval, drawPts: drawPts, heroOn: heroOn, heroDash: heroDash, dashCdv: function () { return dashCd; }, setAcc: function (i, id) { acc[i] = id; }, aggroPlayer: aggroPlayer, wrenchTick: wrenchTick, wrenchHover: wrenchHover, wrenchClick: wrenchClick, wrHover: function (k) { wrHover = PBOX(wrCar).filter(function (b) { return b.k === k; })[0]; }, pmetaV: function () { return pmeta; }, partsOf: partsOf, onBench: onBench, openOd: openOd, odClick: odClick, odTick: odTick, stationOk: stationOk, unkeyX: 0, mountCrate: mountCrate, openCargo: openCargo, placeZombie: placeZombie, zlist: function () { return zombies; }, zdbg: function () { return { seat: !!seat, door: seat && seat.vs.door, touch: zombies.map(function (z) { return seat && zTouchesCar(z, seat); }), rad: zombies.map(function (z) { return z.rad; }), dead: dead, surf: onSurface(P.x) }; }, placeVeh: function (k, x, z, a) { var c = W.addOwnedCar(k, x, z, a, 0x4f6b52); c.max = c.hp = vcfg(c).hp; c.vs.fuelT = vcfg(c).fuelT; c.vs.fuel = 10; return c; }, seatIn: seatIn, carUse: carUse, carKey: carKey, openDash: openDash, closeDash: closeDash, seatState: function () { return seat ? seat.vs : null; }, pumpUse: pumpUse, startFill: startFill, setCrank: function (b) { crankHold = b; }, tankUse: tankUse, jobs: function () { return jobs; }, startJob: startJob, openPot: openPot, potTick: potTick, gunState: function () { return [gunRel, gunRelMax, gunPend, gunClip, sel]; }, give: give, farmUse: farmUse, farmTick: farmTick, setHot: function (i, id) { hot[i] = id; sel = i; }, getInv: function () { return inv; }, creativeToggle: creativeToggle, makeZombie: makeZombie, zombiesList: function () { return zombies; }, eatTick: eatTick, explodeAt: explodeAt, setBleed: setBleed, bleedTick: bleedTick, throwBomb: throwBomb, tntLocal: tntLocal, fuseTick: fuseTick, openChest: openChest, chestE: function () { return chestE; }, renderChest: renderChest, applySearchEnt: applySearchEnt, openMysteryBox: openMysteryBox, status: status, roomFor: roomFor, count: count, takeRaw: takeRaw, openInv: openInv, closeInv: closeInv, renderInv: renderInv, recipesHtml: recipesHtml, revealed: revealed, startMg: startMg, mgs: function () { return mg; }, mgSolved: mgSolved, drawMg: drawMg, heatQ: function () { return heatQ; }, queueHeat: queueHeat, heatTick: heatTick, loadTurret: loadTurret, turretTick: turretTick, turretAt: turretAt, toggleManning: toggleManning, manualTick: manualTick, damageVoxLocal: damageVoxLocal, slotsUsed: slotsUsed, slotCap: slotCap, corpses: corpses, sawEval: sawEval, craftNow: craftNow, interact: interact, setLmb: function (v) { lmb = v; }, snapshot: snapshot, showPause: showPause, gfx: gfx, applyGfx: applyGfx, dorm: dorm, DU: DU, DF: DF, dAdd: dAdd, dormTick: dormTick, hydrate: hydrate, placeZombie: placeZombie, spawnZombie: spawnZombie, enterUG: enterUG, exitUG: exitUG, awardKill: awardKill, coins: function () { return coins; }, bf: bf, tier: function () { return worldTier(clockInfo(T).day); }, bloodFlag: bloodFlag, applyCarHit: applyCarHit, killZombie: killZombie, stepZombie: stepZombie, scene: scene, renderer: renderer, camera: camera, P: P, zombies: zombies, inv: inv, equip: equip, acc: acc, W: W, mp: mp, status: status, give: give, makeZombie: makeZombie, curItem: curItem, setSel: function (i) { sel = i; renderHotbar(); }, setT: function (v) { T = v; }, hot: hot, T: function () { return T; }, mode: function () { return mode; }, die: die, startFish: startFish, aimWater: aimWater }; };
   window.WZ.started = true;
   boot();
 })();
