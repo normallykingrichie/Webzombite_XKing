@@ -168,7 +168,8 @@
       '#xk-layer{position:absolute;left:0;top:0;width:0;height:0;z-index:20}' +
       '.xk-sp{position:absolute;box-sizing:border-box;max-width:100vw;overflow:hidden;border-radius:8px;background:transparent;border:2px solid transparent}' +
       '.xk-sp.xk-fixed{position:fixed;z-index:45}' +
-      '.xk-sp iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;z-index:2}' +
+      '.xk-sp iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;color-scheme:light;z-index:2}' +
+      '.xk-sp.xk-blocked iframe{visibility:hidden}' +
       '.xk-sp-bg{position:absolute;inset:0;z-index:1;display:none;align-items:center;justify-content:center;text-align:center;padding:6px;font:600 12px/1.3 system-ui,Segoe UI,Roboto,sans-serif;color:#f2efe6;background:#14161a;text-decoration:none;overflow:hidden}' +
       '.xk-sp-bg u{display:block;margin-top:4px;color:#e3b02a}' +
       '.xk-sp.xk-blocked{border:2px dashed #e3b02a;animation:xkpulse 1.8s ease-in-out infinite}' +
@@ -249,10 +250,13 @@
     if (now() - netChecked < 60000) return;
     netChecked = now();
     var done = false;
-    fetch(u, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' }).then(function () { netBlocked = false; done = true; refreshBlocked(); }, function () { netBlocked = true; done = true; refreshBlocked(); });
+    /* two tries before we call it blocked, so a single network hiccup is never reported as an adblocker */
+    var probe = function (n) { fetch(u, { method: 'GET', mode: 'no-cors', cache: 'no-store', credentials: 'omit' }).then(function () { netBlocked = false; done = true; refreshBlocked(); }, function () { if (n < 1) { setTimeout(function () { probe(n + 1); }, 2500); } else { netBlocked = true; done = true; refreshBlocked(); } }); };
+    probe(0);
   }
   function refreshBlocked() {
-    var nb = !!(baitBlocked() || netBlocked);
+    var bb = baitBlocked(), nb = !!(bb || netBlocked);
+    if (nb !== blocked) { try { console.info('[XKAds] adblock ' + (nb ? 'detected' : 'cleared') + ' (bait hidden: ' + bb + ', network probe failed: ' + netBlocked + ')'); } catch (e) {} }
     if (nb !== blocked) {
       blocked = nb;
       document.documentElement.classList.toggle('xk-adblock', blocked);
