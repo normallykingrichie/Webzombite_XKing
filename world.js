@@ -98,6 +98,7 @@
     }
     W.addBox = addBox;
 
+    W.isSh = function (t) { return (t >= 87 && t <= 125) || (t >= 141 && t <= 179); }; W.isNew = function (t) { return t >= 141 && t <= 179; };
     var vox = new Map(), VMAX = 40, info = { top: 0, bottom: 0, vox: null, box: null };
     function vk(x, y, z) { return ((x + 2600) * 8192 + (z + 2600)) * 64 + y; }
     W.vkey = vk;
@@ -110,9 +111,9 @@
       }
       if (vox.size) {
         var ix0 = Math.floor(x0), ix1 = Math.ceil(x1) - 1, iy0 = Math.max(0, Math.floor(y0)), iy1 = Math.ceil(y1) - 1, iz0 = Math.floor(z0), iz1 = Math.ceil(z1) - 1, ix, iy, iz, key;
-        for (ix = ix0; ix <= ix1; ix++) for (iz = iz0; iz <= iz1; iz++) for (iy = iy0; iy <= iy1; iy++) {
-          key = vk(ix, iy, iz); var rv0 = vox.get(key);
-          if (rv0 && (rv0.t >= 87 && rv0.t <= 125)) { var sb = W.shapeBoxes(rv0.t, rv0.rot, ix, iy, iz), sj, q; for (sj = 0; sj < sb.length; sj++) { q = sb[sj]; if (x1 > q[0] && x0 < q[3] && y1 > q[1] && y0 < q[4] && z1 > q[2] && z0 < q[5]) { found = true; if (q[4] > info.top) info.top = q[4]; if (q[1] < info.bottom) info.bottom = q[1]; info.vox = key; } } continue; }
+        for (ix = ix0; ix <= ix1; ix++) for (iz = iz0; iz <= iz1; iz++) for (iy = iy0 - 1; iy <= iy1; iy++) {
+          if (iy < 0) continue; key = vk(ix, iy, iz); var rv0 = vox.get(key); if (iy < iy0 && !(rv0 && W.isNew(rv0.t))) continue;
+          if (rv0 && (W.isSh(rv0.t))) { var rvA = (rv0.anc != null && W.isNew(rv0.t)) ? (vox.get(rv0.anc) || rv0) : rv0, sb = W.shapeBoxes(rv0.t, rvA.rot, ix, (rv0.anc != null && W.isNew(rv0.t)) ? iy - 1 : iy, iz), sj, q; for (sj = 0; sj < sb.length; sj++) { q = sb[sj]; if (x1 > q[0] && x0 < q[3] && y1 > q[1] && y0 < q[4] && z1 > q[2] && z0 < q[5]) { found = true; if (q[4] > info.top) info.top = q[4]; if (q[1] < info.bottom) info.bottom = q[1]; info.vox = key; } } continue; }
           if (rv0 && !(rv0.t >= 44 && rv0.t <= 48)) { found = true; if (iy + 1 > info.top) info.top = iy + 1; if (iy < info.bottom) info.bottom = iy; info.vox = key; }
         }
       }
@@ -1017,10 +1018,10 @@
     }
 
     function addBlockEnt(x, y, z, t, sz) {
-      var kind = (t >= 87 && t <= 125) ? null : WZ.TANK && WZ.TANK[t] ? 'tank' : t >= 79 && t <= 84 ? 'farm' : WZ.GST[t] ? 'gstation' : t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 51 ? 'godstatue' : t >= 70 ? 'bed' : t >= 67 || (t >= 64 && t <= 66) ? 'lamp' : t >= 61 ? 'sofa' : t >= 58 ? 'sofa' : t >= 55 ? 'table' : t >= 52 ? 'seat' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
+      var kind = W.isNew(t) ? (WZ.VARIANT[t][1] !== 4 ? 'door' : null) : W.isSh(t) ? null : WZ.TANK && WZ.TANK[t] ? 'tank' : t >= 79 && t <= 84 ? 'farm' : WZ.GST[t] ? 'gstation' : t === 3 ? 'furnace' : t === 4 ? 'bed' : t === 5 ? 'couch' : t === 6 ? 'sink' : t === 7 ? 'campfire' : t === 8 ? 'anvil' : t === 9 ? 'computer' : t === 11 ? 'sawmill' : t === 12 ? 'tbench' : (t >= 13 && t <= 15) ? 'turret' : t === 16 ? 'milling' : t === 17 ? 'bomb' : t === 18 ? 'kiln' : t === 19 ? 'craft' : t === 20 ? 'work' : t === 49 ? 'liquiders' : t === 50 ? 'sewing' : t === 51 ? 'godstatue' : t >= 70 ? 'bed' : t >= 67 || (t >= 64 && t <= 66) ? 'lamp' : t >= 61 ? 'sofa' : t >= 58 ? 'sofa' : t >= 55 ? 'table' : t >= 52 ? 'seat' : t === 43 ? 'blast' : t === 29 ? 'press' : t === 30 ? 'casing' : t === 31 ? 'trapb' : t === 32 ? 'mason' : (t >= 21 && t <= 25) ? 'chest' : null;
       if (!kind) return null;
-      var w = sz ? sz.w : 1, d = sz ? sz.d : 1, h = sz ? sz.h : 1;
-      var e = { k: kind, x: x + w / 2, z: z + d / 2, y: y, r: Math.max(w, d) / 2 + 0.4, h: h, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z, sw: w, sd: d };
+      var w = sz ? sz.w : 1, d = sz ? sz.d : 1, h = sz ? sz.h : 1; if (kind === 'door' && WZ.VARIANT[t][1] === 3) h = 2;
+      var e = { k: kind, x: x + w / 2, z: z + d / 2, y: y, r: kind === 'door' ? 0.62 : Math.max(w, d) / 2 + 0.4, h: h, clean: true, alive: true, dyn: true, vx: x, vy: y, vz: z, sw: w, sd: d };
       addEnt(e); W.bents.push(e);
       if (t >= 79 && t <= 84) { e.farm = WZ.FARM[t]; e.fn = e.farm[2]; e.fm = { tilled: !!e.farm[3], hoe: 0, wet: 0, crops: [] }; W.farms.push(e); }
       else if (WZ.GST[t]) { e.stk = WZ.GST[t][0]; W[WZ.GST[t][2]].push(e); }
@@ -1082,6 +1083,65 @@
     var carWh = inst(whFullG, lam(0xffffff, { vertexColors: true, roughness: 0.65, metalness: 0.25 }), 9000, true, false);
 
     /* Sedan (+Z forward, bottom y=0, 1.9 x 4.4 footprint) */
+    /* ---- Hollow vehicle shells: thin paint panels + pillars (frame), furnished interior, separate translucent glass ---- */
+    var CARX = (function () {
+      var PI = Math.PI, TAN = 0xc9976a, TAN2 = 0xb07d52, BLK = 0x15171a, DK = 0x24262b, WOOD = 0xa8561f, RED = 0xa01818, GRY = 0x3a3d42;
+      function ring(cx, cy, cz, R, t, col, hub, tilt) {
+        var out = [], i, g, a, L = 2 * R * Math.tan(PI / 8) + t;
+        for (i = 0; i < 8; i++) { a = i * PI / 4; g = new THREE.BoxGeometry(L, t, t); g.rotateZ(a + PI / 2); g.translate(R * Math.cos(a), R * Math.sin(a), 0); g.rotateX(tilt); g.translate(cx, cy, cz); out.push([g, col]); }
+        g = new THREE.BoxGeometry(2 * R, t * 0.7, t * 0.7); g.rotateX(tilt); g.translate(cx, cy, cz); out.push([g, hub]);
+        g = new THREE.BoxGeometry(t * 0.7, R * 1.0, t * 0.7); g.rotateX(tilt); g.translate(cx, cy - R * 0.5, cz); out.push([g, hub]);
+        g = new THREE.BoxGeometry(R * 0.5, R * 0.5, t * 1.6); g.rotateX(tilt); g.translate(cx, cy, cz); out.push([g, DK]);
+        return out;
+      }
+      function seat(x, z, y, w, back) { return [bx(w, 0.16, 0.6, x, y, z, TAN), bx(w, 0.5, 0.14, x, y + 0.33, z - 0.34, TAN2), bx(w * 0.6, 0.14, 0.1, x, y + 0.66, z - 0.34, TAN)]; }
+      /* sides: two thin paint walls */
+      function sides(h, y, len, z, X) { return [bx(0.07, h, len, -X, y, z, 0xffffff), bx(0.07, h, len, X, y, z, 0xffffff)]; }
+      var S = {}, B, D, G;
+      /* ---------- Sedan / Mustang (Mercedes 230CE-style coupe) ---------- */
+      B = sides(0.63, 0.585, 4.28, 0, 0.89).concat([
+        bx(1.82, 0.07, 1.14, 0, 0.9, 1.6, 0xffffff), bx(1.82, 0.07, 0.98, 0, 0.9, -1.67, 0xffffff),
+        bx(1.82, 0.62, 0.07, 0, 0.58, 2.14, 0xffffff), bx(1.82, 0.62, 0.07, 0, 0.58, -2.14, 0xffffff),
+        bx(1.76, 0.06, 0.96, 0, 1.52, -0.14, 0xffffff)]);
+      [-0.86, 0.86].forEach(function (X) { B.push(strut(1.02, 0.9, 0.34, 1.52, 0.09, 0.09, X, 0xffffff), strut(-1.18, 0.9, -0.62, 1.52, 0.1, 0.09, X, 0xffffff), bx(0.09, 0.62, 0.1, X, 1.21, -0.12, 0xffffff)); });
+      D = [bx(1.8, 0.06, 4.28, 0, 0.28, 0, 0x191b1e), bx(1.72, 0.03, 2.4, 0, 0.32, 0.0, RED),
+        bx(1.74, 0.62, 0.06, 0, 0.58, 1.0, BLK), bx(1.74, 0.62, 0.06, 0, 0.58, -1.18, BLK),
+        bx(1.72, 0.22, 0.34, 0, 0.8, 0.8, BLK), bx(1.2, 0.05, 0.05, 0, 0.9, 0.64, WOOD), bx(0.4, 0.12, 0.05, 0.42, 0.88, 0.62, DK),
+        bx(0.3, 0.2, 1.0, 0, 0.42, 0.05, DK), bx(0.05, 0.3, 0.05, 0, 0.7, 0.2, 0x9aa2ab), bx(0.09, 0.09, 0.09, 0, 0.88, 0.2, BLK),
+        bx(0.04, 0.4, 1.5, -0.86, 0.66, 0.05, DK), bx(0.04, 0.4, 1.5, 0.86, 0.66, 0.05, DK), bx(0.05, 0.06, 0.9, -0.85, 0.74, 0.1, WOOD), bx(0.05, 0.06, 0.9, 0.85, 0.74, 0.1, WOOD),
+        bx(1.74, 0.04, 0.9, 0, 1.47, -0.14, 0x8c8678)];
+      D = D.concat(seat(0.42, -0.1, 0.48, 0.58), seat(-0.42, -0.1, 0.48, 0.58), seat(0, -0.88, 0.48, 1.5), ring(0.42, 1.04, 0.5, 0.22, 0.045, WOOD, 0xd7d9dd, -0.5));
+      G = [strut(1.02, 0.9, 0.34, 1.52, 0.025, 1.62, 0, 0xffffff), strut(-1.18, 0.9, -0.62, 1.52, 0.025, 1.62, 0, 0xffffff)];
+      [-0.915, 0.915].forEach(function (X) { G.push(prism([[-1.1, 0.92], [-0.66, 1.5], [-0.2, 1.5], [-0.2, 0.92]], 0.03, X, 0xffffff), prism([[-0.05, 0.92], [-0.05, 1.5], [0.3, 1.5], [0.96, 0.92]], 0.03, X, 0xffffff)); });
+      S.sedan = { b: B, d: D, g: G };
+      /* ---------- Scout II SUV ---------- */
+      B = sides(0.65, 0.6, 4.2, 0, 0.89).concat([
+        bx(1.82, 0.07, 1.3, 0, 0.95, 1.45, 0xffffff), bx(1.84, 0.65, 0.07, 0, 0.6, 2.1, 0xffffff), bx(1.84, 0.4, 0.07, 0, 0.7, -2.1, 0xffffff),
+        bx(1.82, 0.07, 1.9, 0, 1.74, -1.0, 0xffffff), bx(1.82, 0.32, 0.07, 0, 1.08, -1.97, 0xffffff), bx(1.82, 0.4, 0.07, 0, 1.2, -2.1, 0xffffff)]);
+      [-0.89, 0.89].forEach(function (X) { B.push(strut(0.78, 0.92, -0.1, 1.72, 0.1, 0.1, X, 0xffffff), bx(0.1, 0.8, 0.14, X, 1.32, -0.9, 0xffffff), bx(0.1, 0.8, 0.12, X, 1.32, -1.93, 0xffffff)); });
+      D = [bx(1.8, 0.06, 4.2, 0, 0.28, 0, 0x191b1e), bx(1.7, 0.03, 3.4, 0, 0.32, -0.3, 0x2b2c30),
+        bx(1.74, 0.65, 0.06, 0, 0.6, 0.78, BLK), bx(1.72, 0.24, 0.34, 0, 0.82, 0.6, BLK), bx(0.9, 0.05, 0.05, -0.25, 0.94, 0.45, 0xb9bdc2),
+        bx(0.3, 0.22, 1.0, 0, 0.42, -0.1, GRY), bx(0.05, 0.3, 0.05, 0, 0.7, 0.05, 0x9aa2ab), bx(0.09, 0.09, 0.09, 0, 0.88, 0.05, BLK),
+        bx(0.04, 0.5, 1.6, -0.85, 0.7, -0.2, GRY), bx(0.04, 0.5, 1.6, 0.85, 0.7, -0.2, GRY), bx(0.05, 0.1, 0.8, -0.84, 0.8, -0.1, WOOD), bx(0.05, 0.1, 0.8, 0.84, 0.8, -0.1, WOOD)];
+      D = D.concat(seat(0.42, 0.1, 0.48, 0.58), seat(-0.42, 0.1, 0.48, 0.58), seat(0, -0.95, 0.48, 1.5), ring(0.42, 1.06, 0.4, 0.23, 0.05, BLK, 0x9aa2ab, -0.5));
+      G = [strut(0.78, 0.92, -0.1, 1.72, 0.025, 1.64, 0, 0xffffff), bx(1.5, 0.42, 0.03, 0, 1.52, -1.97, 0xffffff)];
+      [-0.915, 0.915].forEach(function (X) { G.push(prism([[-0.82, 0.94], [-0.82, 1.7], [-0.16, 1.7], [0.7, 0.94]], 0.03, X, 0xffffff), prism([[-1.88, 0.94], [-1.88, 1.7], [-1.0, 1.7], [-1.0, 0.94]], 0.03, X, 0xffffff)); });
+      S.suv = { b: B, d: D, g: G };
+      /* ---------- GMC Brigadier cargo truck ---------- */
+      B = sides(1.15, 1.12, 2.25, 2.55, 1.2).concat([
+        bx(2.44, 1.15, 0.07, 0, 1.12, 3.66, 0xffffff), bx(2.44, 0.07, 0.5, 0, 1.69, 3.44, 0xffffff), bx(2.3, 0.07, 1.8, 0, 2.46, 2.32, 0xffffff), bx(2.3, 0.9, 0.06, 0, 1.95, 1.42, 0xffffff),
+        bx(0.07, 2.1, 4.95, -1.3, 2.08, -1.18, 0xdedbd2), bx(0.07, 2.1, 4.95, 1.3, 2.08, -1.18, 0xdedbd2), bx(2.6, 2.1, 0.07, 0, 2.08, -3.65, 0xdedbd2), bx(2.6, 2.1, 0.07, 0, 2.08, 1.3, 0xdedbd2),
+        bx(2.62, 0.07, 4.95, 0, 3.15, -1.18, 0xdedbd2), bx(2.6, 0.07, 4.95, 0, 1.0, -1.18, 0xdedbd2)]);
+      [-1.13, 1.13].forEach(function (X) { B.push(bx(0.12, 0.8, 0.13, X, 2.07, 3.18, 0xffffff), bx(0.12, 0.8, 0.13, X, 2.07, 1.5, 0xffffff), bx(0.1, 0.8, 0.12, X, 2.07, 2.3, 0xffffff)); });
+      D = [bx(2.3, 0.06, 2.25, 0, 0.98, 2.55, 0x191b1e), bx(2.2, 0.03, 2.1, 0, 1.02, 2.5, RED),
+        bx(2.2, 0.4, 0.36, 0, 1.5, 3.0, BLK), bx(1.5, 0.05, 0.05, 0, 1.72, 2.82, WOOD), bx(0.5, 0.3, 0.7, 0, 1.2, 2.4, DK), bx(0.06, 0.5, 0.06, 0, 1.6, 2.5, 0x9aa2ab), bx(0.1, 0.1, 0.1, 0, 1.88, 2.5, BLK),
+        bx(0.05, 0.6, 1.6, -1.1, 1.35, 2.3, GRY), bx(0.05, 0.6, 1.6, 1.1, 1.35, 2.3, GRY), bx(0.06, 0.1, 1.0, -1.08, 1.5, 2.3, WOOD), bx(0.06, 0.1, 1.0, 1.08, 1.5, 2.3, WOOD)];
+      D = D.concat(seat(0.55, 2.45, 1.15, 0.7), seat(-0.55, 2.45, 1.15, 0.7), ring(0.55, 1.86, 2.78, 0.27, 0.06, TAN2, 0xd7d9dd, -0.35));
+      G = [bx(2.0, 0.72, 0.03, 0, 2.07, 3.2, 0xffffff), bx(0.03, 0.72, 1.45, -1.14, 2.07, 2.35, 0xffffff), bx(0.03, 0.72, 1.45, 1.14, 2.07, 2.35, 0xffffff), bx(0.03, 0.36, 1.4, -1.22, 1.38, 2.3, 0xffffff), bx(0.03, 0.36, 1.4, 1.22, 1.38, 2.3, 0xffffff)];
+      S.truck = { b: B, d: D, g: G };
+      function ng(list) { return list.filter(function (it) { return it[1] !== 0x263e52 && it[1] !== 0x38525e && it[1] !== 0x293f52; }); }
+      return { s: S, ng: ng };
+    })();
     var SEDAN_BODY = [
       bx(1.86, 0.56, 4.32, 0, 0.52, 0, 0xffffff),
       bx(1.74, 0.14, 1.48, 0, 0.85, 1.24, 0xffffff),
@@ -1105,8 +1165,8 @@
       [-0.76, 0.76].forEach(function (X) { SEDAN_BODY.push(strut(P[0][0], P[0][1], P[1][0], P[1][1], 0.1, 0.1, X - 0.05, 0xffffff), strut(P[2][0], P[2][1], P[3][0], P[3][1], 0.1, 0.1, X - 0.05, 0xffffff), strut(-0.12, 0.9, -0.12, 1.5, 0.1, 0.1, X - 0.05, 0xffffff)); });
       SEDAN_BODY.push(prism([[-1.3, 0.88], [-1.18, 0.9], [-0.7, 1.46], [-0.6, 1.46], [-1.1, 0.88]], 1.62, 0, 0xffffff)); })();
     for (var sgi = 0; sgi < 5; sgi++) SEDAN_DET.push(bx(0.84, 0.025, 0.03, 0, 0.46 + sgi * 0.04, 2.19, 0x9aa2ab));
-    var sedanBody = inst(mergeGeos(SEDAN_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.34, metalness: 0.35 }), 1300, true, true);
-    var sedanDet  = inst(mergeGeos(SEDAN_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.42, metalness: 0.28 }), 1300, true, false);
+    var sedanBody = inst(mergeGeos(CARX.s.sedan.b), lam(0xffffff, { vertexColors: true, roughness: 0.34, metalness: 0.35 }), 1300, true, true);
+    var sedanDet  = inst(mergeGeos(CARX.ng(SEDAN_DET).concat(CARX.s.sedan.d)),  lam(0xffffff, { vertexColors: true, roughness: 0.42, metalness: 0.28 }), 1300, true, false);
 
     /* Scout II SUV (+Z forward, bottom y=0, 1.9 x 4.4 footprint) */
     var SUV_BODY = [bx(1.85, 0.68, 4.2, 0, 0.56, 0, 0xffffff), bx(1.8, 0.12, 1.35, 0, 0.98, 1.4, 0xffffff), bx(1.9, 0.08, 0.9, 0, 0.93, 1.42, 0xffffff)], SUV_DET = [];
@@ -1122,8 +1182,8 @@
     SUV_BODY.push(bx(0.5, 0.06, 1.15, 0, 1.06, 1.45, 0xffffff), bx(0.16, 0.1, 1.3, -0.93, 0.92, 1.35, 0xffffff), bx(0.16, 0.1, 1.3, 0.93, 0.92, 1.35, 0xffffff), bx(0.16, 0.1, 1.3, -0.93, 0.92, -1.35, 0xffffff), bx(0.16, 0.1, 1.3, 0.93, 0.92, -1.35, 0xffffff), bx(0.44, 0.4, 0.05, -0.78, 0.74, 2.09, 0xffffff), bx(0.44, 0.4, 0.05, 0.78, 0.74, 2.09, 0xffffff));
     SUV_DET.push(bx(1.16, 0.44, 0.04, 0, 0.7, 2.1, 0x9ea3ab), bx(0.05, 0.08, 2.0, -0.94, 0.26, -0.7, 0x8a8d92), bx(0.05, 0.08, 2.0, 0.94, 0.26, -0.7, 0x8a8d92), bx(0.04, 0.05, 0.2, -0.93, 1.02, -0.2, 0xb9bdc2), bx(0.04, 0.05, 0.2, 0.93, 1.02, -0.2, 0xb9bdc2), bx(0.04, 0.05, 0.2, -0.93, 1.02, -1.4, 0xb9bdc2), bx(0.04, 0.05, 0.2, 0.93, 1.02, -1.4, 0xb9bdc2), bx(0.12, 0.1, 0.06, -0.78, 0.38, 2.14, 0xf4ead0), bx(0.12, 0.1, 0.06, 0.78, 0.38, 2.14, 0xf4ead0), bx(0.4, 0.2, 0.04, 0, 0.5, -2.26, 0xe9e6d6));
     for (var gi = 0; gi < 7; gi++) SUV_DET.push(bx(0.03, 0.3, 0.02, -0.42 + gi * 0.14, 0.7, 2.16, 0xcfd3d8));
-    var suvBody = inst(mergeGeos(SUV_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.38, metalness: 0.3 }), 1300, true, true);
-    var suvDet  = inst(mergeGeos(SUV_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.46, metalness: 0.25 }), 1300, true, false);
+    var suvBody = inst(mergeGeos(CARX.s.suv.b), lam(0xffffff, { vertexColors: true, roughness: 0.38, metalness: 0.3 }), 1300, true, true);
+    var suvDet  = inst(mergeGeos(CARX.ng(SUV_DET).concat(CARX.s.suv.d)),  lam(0xffffff, { vertexColors: true, roughness: 0.46, metalness: 0.25 }), 1300, true, false);
 
     /* Heavy Cargo Truck (+Z forward, bottom y=0, 2.7 x 7.6 footprint) */
     var TRUCK_BODY = [
@@ -1144,12 +1204,15 @@
       bx(0.46, 0.54, 0.96, -1.18, 0.65, 0.55, 0x626870), bx(0.46, 0.54, 0.96, 1.18, 0.65, 0.55, 0x626870)
     ];
     for (var tgi = 0; tgi < 5; tgi++) TRUCK_DET.push(bx(1.24, 0.03, 0.03, 0, 0.88 + tgi * 0.08, 3.70, 0xa8aeb6));
-    var truckBody = inst(mergeGeos(TRUCK_BODY), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 1400, true, true);
-    var truckDet  = inst(mergeGeos(TRUCK_DET),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 1400, true, false);
+    var truckBody = inst(mergeGeos(CARX.s.truck.b), lam(0xffffff, { vertexColors: true, roughness: 0.44, metalness: 0.3 }), 1400, true, true);
+    var truckDet  = inst(mergeGeos(CARX.ng(TRUCK_DET).concat(CARX.s.truck.d)),  lam(0xffffff, { vertexColors: true, roughness: 0.5, metalness: 0.28 }), 1400, true, false);
     var carCrateM = inst(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff, { roughness: 0.85, metalness: 0.02 }), 128, true, true);
     var CRATEP = { suv: [-1.0, 1.72], sedan: [-0.7, 1.45], mustang: [-0.7, 1.4], truck: [-2.5, 1.7] };
     var carDoorM = inst(new THREE.BoxGeometry(1, 1, 1), lam(0xffffff, { roughness: 0.38, metalness: 0.3 }), 128, true, true);
-    var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet]; W.CARM = CARM;
+    var GLM = new THREE.MeshStandardMaterial({ color: 0x7db4e0, transparent: true, opacity: 0.3, roughness: 0.08, metalness: 0.15, depthWrite: false, side: THREE.DoubleSide });
+    var sedanGl = inst(mergeGeos(CARX.s.sedan.g), GLM, 1300, true, false), suvGl = inst(mergeGeos(CARX.s.suv.g), GLM, 1300, true, false), truckGl = inst(mergeGeos(CARX.s.truck.g), GLM, 1400, true, false);
+    [sedanGl, suvGl, truckGl].forEach(function (m) { m.renderOrder = 3; m.castShadow = false; m.receiveShadow = false; });
+    var CARM = [sedanBody, sedanDet, suvBody, suvDet, truckBody, truckDet, sedanGl, suvGl, truckGl]; W.CARM = CARM;
     W.cars = [];
     /* Owned (whole) vehicles use their own instanced meshes that are never baked into static chunks, so they move freely and stay visible */
     function ownMesh(m, cap) { var o = inst(m.geometry, m.material, cap, true, !!m.instanceColor); o.castShadow = m.castShadow; o.receiveShadow = m.receiveShadow; if (m.customDepthMaterial) o.customDepthMaterial = m.customDepthMaterial; return o; }
@@ -1180,17 +1243,17 @@
       function at(lx, lz) { return [c.x + sn * lz + cs * lx, c.z + cs * lz - sn * lx]; }
       if (c.truck) {
         put(MS[4], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
-        if (!c.burnt) put(MS[5], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
+        put(MS[8], c.x, y0, c.z, 1, 1, 1, ry, null, ci); if (!c.burnt) put(MS[5], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var twPos = [[-1.18, 2.45], [1.18, 2.45], [-1.18, -0.95], [1.18, -0.95], [-1.18, -2.55], [1.18, -2.55]];
         for (j = 0; j < 6; j++) { var tw = at(twPos[j][0], twPos[j][1]); if (O) putWh(mW, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, c, j, 6 * ci + j); else put(mW, tw[0], y0, tw[1], 1.28, 1.32, 1.32, ry, null, 6 * ci + j); }
       } else if (c.suv) {
         put(MS[2], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
-        if (!c.burnt) put(MS[3], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
+        put(MS[7], c.x, y0, c.z, 1, 1, 1, ry, null, ci); if (!c.burnt) put(MS[3], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var swPos = [[-0.93, 1.35], [0.93, 1.35], [-0.93, -1.35], [0.93, -1.35]];
         for (j = 0; j < 4; j++) { var sw = at(swPos[j][0], swPos[j][1]); if (O) putWh(mW, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, c, j, 6 * ci + j); else put(mW, sw[0], y0, sw[1], 1.08, 1.26, 1.26, ry, null, 6 * ci + j); }
       } else {
         put(MS[0], c.x, y0, c.z, 1, 1, 1, ry, bcol, ci);
-        if (!c.burnt) put(MS[1], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
+        put(MS[6], c.x, y0, c.z, 1, 1, 1, ry, null, ci); if (!c.burnt) put(MS[1], c.x, y0, c.z, 1, 1, 1, ry, null, ci);
         var cwPos = [[-0.90, 1.38], [0.90, 1.38], [-0.90, -1.38], [0.90, -1.38]];
         for (j = 0; j < 4; j++) { var cw = at(cwPos[j][0], cwPos[j][1]); if (O) putWh(mW, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, c, j, 6 * ci + j); else put(mW, cw[0], y0, cw[1], 0.96, 1.02, 1.02, ry, null, 6 * ci + j); }
       }
@@ -2039,16 +2102,33 @@
       var G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); G.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); G.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); G.setIndex(idx); return G;
     }
     /* local boxes [x0,y0,z0,x1,y1,z1] (cell centre = 0,0,0) for shape si (0 stair, 1 slab, 2 layer); stair rises toward +z before rotation */
-    var SHB = [[[-0.5, -0.5, -0.5, 0.5, 0, 0.5], [-0.5, 0, 0, 0.5, 0.5, 0.5]], [[-0.5, -0.5, -0.5, 0.5, 0, 0.5]], [[-0.5, -0.5, -0.5, 0.5, -0.25, 0.5]]];
+    var SHB = [[[-0.5, -0.5, -0.5, 0.5, 0, 0.5], [-0.5, 0, 0, 0.5, 0.5, 0.5]], [[-0.5, -0.5, -0.5, 0.5, 0, 0.5]], [[-0.5, -0.5, -0.5, 0.5, -0.25, 0.5]],
+      [[-0.5, -0.5, -0.07, 0.5, 1.5, 0.07], [0.3, 0.3, 0.07, 0.42, 0.5, 0.17], [0.3, 0.3, -0.17, 0.42, 0.5, -0.07]],
+      [[-0.5, -0.5, -0.1, -0.3, 0.8, 0.1], [0.3, -0.5, -0.1, 0.5, 0.8, 0.1], [-0.3, -0.2, -0.04, 0.3, -0.06, 0.04], [-0.3, 0.2, -0.04, 0.3, 0.34, 0.04]],
+      [[-0.5, -0.5, -0.1, -0.35, 0.8, 0.1], [0.35, -0.5, -0.1, 0.5, 0.8, 0.1], [-0.35, -0.38, -0.04, 0.35, -0.24, 0.04], [-0.35, 0.05, -0.04, 0.35, 0.19, 0.04], [-0.35, 0.5, -0.04, 0.35, 0.64, 0.04], [-0.2, -0.5, -0.03, -0.14, 0.6, 0.03], [0.14, -0.5, -0.03, 0.2, 0.6, 0.03], [-0.03, -0.5, -0.03, 0.03, 0.6, 0.03]]];
+    /* door/gate transform: opened ones swing 90 deg around the hinge edge (local x = -0.5); bit 2 of rot = open */
+    function shXf(t, x, y, z, rot) {
+      var a = (rot & 3) * Math.PI / 2, vr = WZ.VARIANT[t];
+      if ((rot & 4) && vr && vr[1] !== 4) { var a2 = a - Math.PI / 2, hx = x + 0.5 - 0.5 * Math.cos(a), hz = z + 0.5 + 0.5 * Math.sin(a); return [hx + 0.5 * Math.cos(a2), y + 0.5, hz - 0.5 * Math.sin(a2), a2]; }
+      return [x + 0.5, y + 0.5, z + 0.5, a];
+    }
+    W.shXf = shXf;
     W.shapeBoxes = function (t, rot, ix, iy, iz) {
       var vr = WZ.VARIANT[t], bx = SHB[vr[1]], out = [], r = rot || 0, i, b, x0, z0, x1, z1;
+      if (vr[1] >= 3) {
+        var open = (r & 4) !== 0;
+        if (vr[1] === 4 || !open) return [[ix, iy, iz, ix + 1, iy + (vr[1] === 3 ? 2 : 1.3), iz + 1]];
+        if (vr[1] === 5) return [];
+        var xf = shXf(t, ix, iy, iz, r), hxs = Math.abs(Math.sin(xf[3])) > 0.5 ? [0.07, 0.5] : [0.5, 0.07];
+        return [[xf[0] - hxs[0], iy, xf[2] - hxs[1], xf[0] + hxs[0], iy + 2, xf[2] + hxs[1]]];
+      }
       for (i = 0; i < bx.length; i++) { b = bx[i]; x0 = b[0]; x1 = b[3]; z0 = b[2]; z1 = b[5];
         if (vr[1] === 0 && i === 1) { if (r === 1) { x0 = 0; x1 = 0.5; z0 = -0.5; z1 = 0.5; } else if (r === 2) { z0 = -0.5; z1 = 0; } else if (r === 3) { x0 = -0.5; x1 = 0; z0 = -0.5; z1 = 0.5; } }
         out.push([ix + 0.5 + x0, iy + 0.5 + b[1], iz + 0.5 + z0, ix + 0.5 + x1, iy + 0.5 + b[4], iz + 0.5 + z1]); }
       return out;
     };
     Object.keys(WZ.VARIANT).forEach(function (t) { var vr = WZ.VARIANT[t]; if (VM[vr[0]]) VM[t] = inst(shapeGeo(SHB[vr[1]]), VM[vr[0]].material, 400, true, false); });
-    for (var vt0 = 1; vt0 <= 140; vt0++) if (VM[vt0]) VTYPES.push(vt0);
+    for (var vt0 = 1; vt0 <= 179; vt0++) if (VM[vt0]) VTYPES.push(vt0);
     for (var fi = 52; fi <= 71; fi++) { var fk = fi >= 70 ? 'bed' : FKIND[Math.floor((fi - 52) / 3)], fw = FWC[fi >= 70 ? fi - 69 : (fi - 52) % 3]; VM[fi] = inst(mergeBoxes(furnParts(fk, fw[0], fw[1], fw[2])), lam(0xffffff, { vertexColors: true }), 200, true, false); }
     W.VSIZE = { 140: [2, 2, 1], 137: [3, 2, 4], 138: [3, 2, 3], 139: [3, 2, 2], 133: [5, 3, 1], 134: [3, 1, 2], 135: [2, 2, 3], 136: [2, 1, 1], 132: [3, 1, 2], 126: [3, 1, 2], 127: [3, 1, 2], 128: [2, 2, 2], 129: [2, 2, 2], 130: [4, 4, 2], 131: [4, 4, 2], 86: [2, 2, 3], 85: [2, 1, 2], 79: [1, 1, 1], 80: [2, 2, 1], 81: [3, 3, 1], 82: [1, 1, 1], 83: [2, 2, 1], 84: [3, 3, 1], 72: [2, 1, 1], 73: [2, 1, 1], 74: [2, 1, 2], 75: [2, 1, 2], 76: [2, 1, 2], 77: [3, 1, 2], 78: [3, 1, 2], 70: [2, 1, 1], 71: [2, 1, 1], 55: [2, 1, 1], 56: [2, 1, 1], 57: [2, 1, 1], 58: [2, 1, 1], 59: [2, 1, 1], 60: [2, 1, 1], 51: [1, 1, 3], 49: [3, 1, 2], 50: [3, 2, 2], 43: [1, 1, 2], 29: [2, 1, 2], 30: [3, 1, 2], 31: [2, 1, 2], 32: [3, 1, 2], 3: [1, 1, 2], 4: [2, 1, 1], 5: [2, 1, 1], 6: [1, 1, 2], 7: [2, 2, 2], 9: [3, 1, 2], 11: [3, 1, 2], 16: [3, 2, 2], 17: [2, 1, 2], 18: [2, 2, 3], 19: [3, 1, 2], 20: [2, 1, 2], 21: [2, 1, 1], 22: [2, 1, 1], 23: [2, 1, 1], 24: [2, 1, 1], 25: [2, 1, 1] };
     W.HPT = { 140: 120, 137: 160, 138: 170, 139: 130, 133: 150, 134: 110, 135: 140, 136: 130, 132: 90, 126: 90, 127: 90, 128: 70, 129: 120, 130: 160, 131: 260, 86: 90, 85: 90, 79: 40, 80: 40, 81: 40, 82: 40, 83: 40, 84: 40, 72: 90, 73: 90, 74: 90, 75: 90, 76: 90, 77: 90, 78: 90, 52: 50, 53: 50, 54: 50, 55: 50, 56: 50, 57: 50, 58: 50, 59: 50, 60: 50, 61: 50, 62: 50, 63: 50, 64: 50, 65: 50, 66: 50, 67: 50, 68: 50, 69: 50, 70: 55, 71: 55, 1: 30, 2: 90, 3: 80, 4: 50, 5: 45, 6: 60, 7: 40, 8: 120, 9: 70, 10: 36, 11: 90, 12: 80, 13: 150, 14: 275, 15: 500, 16: 90, 17: 90, 18: 100, 19: 90, 20: 90, 21: 80, 22: 150, 23: 285, 24: 120, 25: 185, 26: 20, 27: 24, 28: 20, 29: 90, 30: 100, 31: 90, 32: 100, 33: 75, 34: 75, 35: 75, 36: 75, 37: 100, 38: 100, 39: 90, 40: 90, 41: 90, 42: 90, 43: 120, 44: 40, 45: 60, 46: 200, 47: 25, 48: 400, 49: 100, 50: 90 };
@@ -2067,11 +2147,11 @@
       }
       if (arr.length >= VM[t].instanceMatrix.count) return false;
       var vsz = W.VSIZE[t], bx = vsz ? vsz[0] : 1, bz = vsz ? vsz[1] : 1, by = vsz ? vsz[2] : 1;
-      var r0 = (t >= 87 && t <= 125) ? (rot || 0) : (rot ? 1 : 0);
+      var r0 = (W.isSh(t)) ? (rot || 0) : (rot ? 1 : 0);
       var w = sz ? sz.w : (r0 ? bz : bx), d = sz ? sz.d : (r0 ? bx : bz), h = sz ? sz.h : by;
       var idx = arr.length, rec = { t: t, hp: hp, idx: idx, rot: r0 };
       arr.push([x, y, z, r0]); vox.set(k, rec);
-      put(VM[t], x + w / 2, y + h / 2, z + d / 2, bx, by, bz, r0 * Math.PI / 2, null, idx);
+      if (W.isNew(t)) { var xf0 = shXf(t, x, y, z, r0); put(VM[t], xf0[0], xf0[1], xf0[2], 1, 1, 1, xf0[3], null, idx); } else put(VM[t], x + w / 2, y + h / 2, z + d / 2, bx, by, bz, r0 * Math.PI / 2, null, idx);
       VM[t].count = arr.length; vcount++;
       if (t >= 3 && t !== 10) rec.ent = addBlockEnt(x, y, z, t, { w: w, d: d, h: h });
       return true;
@@ -2081,7 +2161,7 @@
     W.setShaped = function (x, y, z, t, hp, rot) { return W.setVox(x, y, z, t, hp, null, null, rot || 0); };
     /* multi-cell blocks: all cells share the anchor's single full-footprint mesh; rot swaps X/Z footprint */
     W.canPlaceBig = function (x, y, z, t, rot) {
-      var sz = W.VSIZE[t] || [1, 1, 1], w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], out = [];
+      var sz = W.VSIZE[t] || [1, 1, 1], w = rot ? sz[1] : sz[0], d = rot ? sz[0] : sz[1], h = sz[2], out = []; if (W.isNew(t)) { sz = [1, 1, WZ.VARIANT[t][1] === 3 ? 2 : 1]; w = 1; d = 1; h = sz[2]; }
       for (var dx = 0; dx < w; dx++) for (var dz = 0; dz < d; dz++) for (var dy = 0; dy < h; dy++) {
         var cx = x + dx, cy = y + dy, cz = z + dz; if (cy >= VMAX || vox.has(vk(cx, cy, cz)) || Math.abs(cx) > MAPH + 2 || Math.abs(cz) > MAPH + 2) return null;
         if (!(dx === 0 && dy === 0 && dz === 0) && W.hit(cx + 0.02, cx + 0.98, cy + 0.02, cy + 0.98, cz + 0.02, cz + 0.98)) return null;
@@ -2090,13 +2170,21 @@
       return out;
     };
     W.setBig = function (x, y, z, t, hp, rot) {
-      if (t >= 87 && t <= 125) return W.setShaped(x, y, z, t, hp, rot); var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
+      if (W.isNew(t) && WZ.VARIANT[t][1] === 3) { var dc = W.canPlaceBig(x, y, z, t, rot); if (!dc) return false; if (!W.setShaped(x, y, z, t, hp, rot)) return false; var ak0 = vk(x, y, z), rec0 = vox.get(ak0), uk = vk(x, y + 1, z); vox.set(uk, { t: t, hp: hp, idx: -1, anc: ak0 }); vcount++; rec0.cells = [ak0, uk]; return true; }
+      if (W.isSh(t)) return W.setShaped(x, y, z, t, hp, rot); var sz = W.VSIZE[t]; if (!sz) return W.setVox(x, y, z, t, hp);
       var cells = W.canPlaceBig(x, y, z, t, rot); if (!cells) return false;
       var r0 = rot ? 1 : 0, w = r0 ? sz[1] : sz[0], d = r0 ? sz[0] : sz[1], h = sz[2], ak = vk(x, y, z);
       if (!W.setVox(x, y, z, t, hp, null, { w: w, d: d, h: h }, r0)) return false;
       var rec = vox.get(ak); rec.cells = [ak]; rec.rot = r0;
       for (var i = 1; i < cells.length; i++) { var c = cells[i]; if (W.setVox(c[0], c[1], c[2], t, hp, ak)) rec.cells.push(vk(c[0], c[1], c[2])); }
       return true;
+    };
+    W.toggleDoor = function (x, y, z) {
+      var rec = W.getVox(x, y, z); if (!rec || !W.isNew(rec.t) || WZ.VARIANT[rec.t][1] === 4) return null;
+      var a = vkeys[rec.t][rec.idx]; if (!a) return null; var nr = (rec.rot || 0) ^ 4; rec.rot = nr; a[3] = nr;
+      var xf = shXf(rec.t, a[0], a[1], a[2], nr); put(VM[rec.t], xf[0], xf[1], xf[2], 1, 1, 1, xf[3], null, rec.idx); VM[rec.t].instanceMatrix.needsUpdate = true;
+      if (rec.cells && rec.cells[1] != null) { var up = vox.get(rec.cells[1]); if (up) up.rot = nr; }
+      return (nr & 4) !== 0;
     };
     W.getVox = function (x, y, z) { var r = vox.get(vk(x, y, z)); if (r && r.anc != null) return vox.get(r.anc) || null; return r || null; };
     function rmCell(k) {
@@ -2109,7 +2197,8 @@
         if (lr) lr.idx = v.idx;
         var vsz = W.VSIZE[v.t], lbx = vsz ? vsz[0] : 1, lbz = vsz ? vsz[1] : 1, lby = vsz ? vsz[2] : 1;
         var lrot = last[3] != null ? last[3] : (lr && lr.rot ? lr.rot : 0);
-        var lw = (v.t >= 87 && v.t <= 125) ? 1 : (lrot ? lbz : lbx), ld = (v.t >= 87 && v.t <= 125) ? 1 : (lrot ? lbx : lbz), lh = lby;
+        var lw = (W.isSh(v.t)) ? 1 : (lrot ? lbz : lbx), ld = (W.isSh(v.t)) ? 1 : (lrot ? lbx : lbz), lh = lby;
+        if (W.isNew(v.t)) { var xf1 = shXf(v.t, last[0], last[1], last[2], lrot); put(m, xf1[0], xf1[1], xf1[2], 1, 1, 1, xf1[3], null, v.idx); } else
         put(m, last[0] + lw / 2, last[1] + lh / 2, last[2] + ld / 2, lbx, lby, lbz, lr && lr.yawA != null ? lr.yawA : lrot * Math.PI / 2, null, v.idx);
       }
       m.count = arr.length; m.instanceMatrix.needsUpdate = true; vox.delete(k); vcount--;
@@ -2126,7 +2215,7 @@
       vox.forEach(function (v) {
         if (v.anc != null) return;
         var a = vkeys[v.t][v.idx], p = (((a[0] + 4096) * 8192 + (a[2] + 4096)) * 64 + a[1]) * 512 + (v.t - 1);
-        if (v.cells || (v.t >= 87 && v.t <= 125)) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
+        if (v.cells || (W.isSh(v.t))) out.push([p, Math.max(1, Math.round(v.hp)), v.rot || 0]);
         else out.push(Math.round(v.hp) < W.HPT[v.t] ? [p, Math.max(1, Math.round(v.hp))] : p);
       });
       return out;

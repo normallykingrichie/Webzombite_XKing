@@ -12,6 +12,7 @@
       vehOnce: function (k, n, o) { var ok = api && api.vehOnce ? api.vehOnce(k, n, o) : false; if (!ok && /^(open|close|belt|key|hb|hbr)$/.test(n) && api && api.play) api.play('click'); return ok; },
       vehEngine: function (key, o) { if (api && api.vehEngine) api.vehEngine(key, o); },
       vehPreload: function (k) { if (api && api.vehPreload) api.vehPreload(k); },
+      music: function (n) { return api && api.music ? api.music(n) : null; },
       setNight: function (n, uw) {
         lastNight = !!n;
         if (!api) return;
@@ -187,7 +188,7 @@
   }
   function applySave(s, worldOnly) {
     if (!s || (s.v !== 3 && s.v !== 4)) return false; ptLoad(s.pt);
-    if ((s.cs || 0) !== (W.citySeed || 0)) { alert('This world uses a different city seed. The page reloads now; load the save again afterwards.'); cityReload(s.cs || 0, null); return false; }
+    if ((s.cs || 0) !== (W.citySeed || 0)) { alert('This world uses a different city seed. The page reloads now; load the save again afterwards.'); cityReload(s.cs || 0, { noStart: 1, name: playerName, diff: wDiff, time: wTime, seed: ($('#inpSeed') && $('#inpSeed').value) || '', creative: creative }); return false; }
     wDiff = s.df | 0; wTime = s.tm | 0; baseSeed = s.sd != null ? s.sd : 20261116; T = s.t || 0; epoch = epochOf(T); W.resetWorld(curSeed(baseSeed, epoch)); W.voxLoad(s.b || [], s.v); farmLoad(s.fm); voxVer++; vehLoad(s.ov); (s.od || []).forEach(function (a) { var L = W.odists || []; for (var i = 0; i < L.length; i++) if (L[i].vx === a[0] && L[i].vy === a[1] && L[i].vz === a[2]) L[i].od = a[3]; }); (s.pm || []).forEach(function (L, i) { if (W.pumps[i]) W.pumps[i].L = L; }); (s.tk || []).forEach(function (a) { for (var i = 0; i < W.tanks.length; i++) { var e = W.tanks[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) { e.tkL = a[3]; e.tkLiq = a[4]; } } }); jobs = (s.jb || []).map(function (a) { return { id: a[0], left: a[1], half: !!a[2] }; }); (s.tb || []).forEach(function (a) { for (var ti = 0; ti < W.tables.length; ti++) { var te = W.tables[ti]; if (te.alive && te.vx === a[0] && te.vy === a[1] && te.vz === a[2] && ITEMS[a[3]]) setTableOn(te, a[3]); } }); (s.ch || []).forEach(function (a) { for (var i = 0; i < W.chests.length; i++) { var e = W.chests[i]; if (e.alive && e.vx === a[0] && e.vy === a[1] && e.vz === a[2]) e.box = a[3] || {}; } }); (s.tu || []).forEach(function (a) { var te = turretAt(a[0], a[1], a[2]); if (te) te.ammo = a[3] | 0; });
     bf = Array.isArray(s.bf) ? [s.bf[0] | 0, s.bf[1] | 0, s.bf[2] | 0] : [0, 0, 0];
     (s.tr || []).forEach(function (a) { var t = W.trees[a[0]]; if (!t) return; t.hp = a[1]; t.given = a[2]; t.respawn = a[3]; if (t.hp <= 0) W.setTree(t, false); });
@@ -496,8 +497,8 @@
     function syncName() { playerName = ($('#inpName').value || '').trim().slice(0, 16) || 'Survivor'; }
     $('#bSignOut').onclick = function (ev) { ev.preventDefault(); if (userId) signOut(); else askLogin(); };
     $('#bCreative').onclick = creativeToggle;
-    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); if (cityReload(pendSeed || 0, { name: playerName, diff: wDiff, time: wTime, seed: $('#inpSeed').value })) return; leaveRoom(); newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); enterGame(); say('World seed: ' + baseSeed + '. 30 seconds of safe time have started! Gather materials quickly.'); };
-    try { var au = sessionStorage.getItem('wz_auto'); if (au) { sessionStorage.removeItem('wz_auto'); au = JSON.parse(au); $('#inpName').value = au.name || ''; $('#selDiff').value = au.diff; $('#selTime').value = au.time; $('#inpSeed').value = au.seed || ''; setTimeout(function () { var bs = $('#bSolo'); if (bs) bs.click(); }, 50); } } catch (e) {}
+    $('#bSolo').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); if (cityReload(pendSeed || 0, { name: playerName, diff: wDiff, time: wTime, seed: $('#inpSeed').value, creative: creative, room: ($('#inpRoom') && $('#inpRoom').value) || '' })) return; leaveRoom(); newWorld(); newPlayerState(0); coins = 0; kc = {}; T = 0; spawnT = 3; clearZombies(); enterGame(); say('World seed: ' + baseSeed + '. 30 seconds of safe time have started! Gather materials quickly.'); };
+    try { var au = sessionStorage.getItem('wz_auto'); if (au) { sessionStorage.removeItem('wz_auto'); au = JSON.parse(au); $('#inpName').value = au.name || ''; $('#selDiff').value = au.diff; $('#selTime').value = au.time; $('#inpSeed').value = au.seed || ''; if (au.room) $('#inpRoom').value = au.room; if (au.creative) { creative = true; $('#bCreative').textContent = 'Creative Mode: ON (click to turn off)'; } if (!au.noStart) setTimeout(function () { var bs = $('#bSolo'); if (bs) bs.click(); }, 50); } } catch (e) {}
     $('#bHost').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); syncOpts(); hostRoom(false); };
     $('#bJoin').onclick = function () { SFX.unlock(); SFX.play('click'); syncName(); var c = Net.normalizeCode($('#inpRoom').value); if (c.length !== 6) { $('#menuErr').textContent = 'Enter exactly 6 letters/numbers for the room code.'; return; } joinRoom(c); };
     $('#inpRoom').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') $('#bJoin').click(); });
@@ -1190,7 +1191,7 @@
   }
   /* ---------------- HUD & Minimap ---------------- */
   /* ---------------- First-person viewmodel (hands + held item) and visible own body ---------------- */
-  var gunRel = 0, gunRelMax = 1, gunKick = 0, gunClip = {}, gunPend = null, vm = null, vmItem = null, vmL = null, vmR = null, vmSwing = 0, vmT = 0, vmId = '', body = null, bodyLegs = [], emoTex = {};
+  var gunRel = 0, gunRelMax = 1, gunKick = 0, gunClip = {}, gunPend = null, vm = null, vmItem = null, vmL = null, vmR = null, vmSwing = 0, vmT = 0, vmIt = 0, vmId = '', body = null, bodyLegs = [], emoTex = {};
   var vmScene = null, vmCam = null, vmSun = null, vmHemi = null;
   function emojiTex(ic) {
     if (emoTex[ic]) return emoTex[ic]; var cv = document.createElement('canvas'); cv.width = cv.height = 128; var g2 = cv.getContext('2d');
@@ -1362,8 +1363,10 @@
     else if (kind === 'two') { vmR.position.set(0.2, -0.27 + bob, -0.42); vmR.rotation.set(-0.3, 0.45, 0); vmL.position.set(-0.2, -0.27 + bob, -0.42); vmL.rotation.set(-0.3, -0.45, 0); vmItem.position.set(0, -0.4 + bob, -0.66); vmItem.rotation.set(0, 0, 0); }
     else if (kind === 'gun') { var rl = gunRel > 0 ? Math.sin((1 - gunRel / gunRelMax) * Math.PI) : 0, kick = gunKick; vmR.position.set(0.3, -0.3 + bob - rl * 0.22, -0.42 + kick * 0.08); vmR.rotation.set(-0.15 + kick * 0.5 + rl * 0.5, 0.05, 0); vmItem.position.set(0.3, -0.27 + bob - rl * 0.2, -0.5 + kick * 0.08); vmItem.rotation.set(kick * 0.6 + rl * 0.9, 0.05 - rl * 0.3, -rl * 0.5); }
     else { vmR.position.set(0.36, -0.28 + bob - sw * 0.05, -0.42 - sw * 0.12); vmR.rotation.set(-0.28 - sw * 1.1, 0.14, 0); vmItem.position.set(0.34, -0.26 + bob - sw * 0.1, -0.64 - sw * 0.1); vmItem.rotation.set(-0.14 - sw * 1.0, 0.08, -0.26 + sw * 0.5); }
-    vmL.visible = kind === 'two';
-    if (body) { body.visible = show; body.position.set(P.x + Math.sin(P.yaw) * 0.3, P.y, P.z + Math.cos(P.yaw) * 0.3); body.rotation.y = P.yaw; var ph = Math.sin(vmT * 1.5) * 0.7 * Math.min(1, spd / 3); bodyLegs[0].rotation.x = ph; bodyLegs[1].rotation.x = -ph; }
+    vmL.visible = kind === 'two'; vmIt += dt; var mvk = Math.min(1, spd / 3.5), idk = 1 - mvk;
+    vm.position.set(Math.cos(vmT * 0.5) * 0.02 * mvk + Math.sin(vmIt * 0.9) * 0.004 * idk, -Math.abs(Math.sin(vmT)) * 0.025 * mvk + Math.sin(vmIt * 1.5) * 0.005 * idk, 0);
+    vm.rotation.z = Math.sin(vmT * 0.5) * 0.03 * mvk + Math.sin(vmIt * 0.8) * 0.01 * idk; vm.rotation.x = Math.sin(vmT) * 0.012 * mvk + Math.sin(vmIt * 1.5 + 1) * 0.006 * idk;
+    if (body) { body.visible = show; body.position.set(P.x + Math.sin(P.yaw) * 0.3, P.y, P.z + Math.cos(P.yaw) * 0.3); body.rotation.y = P.yaw; var ph = Math.sin(vmT * 1.5) * 0.7 * Math.min(1, spd / 3); bodyLegs[0].rotation.x = ph; bodyLegs[1].rotation.x = -ph; body.position.y += Math.abs(ph) * 0.05; }
   }
   function renderHotbar() {
     var h = '';
@@ -1586,7 +1589,7 @@
   }
   function placeBlock() {
     var id = hot[sel], it = id ? ITEMS[id] : null; if (it && it.veh && count(id) > 0) { placeVehicle(id, it); return; } if (it && it.vcrate && count(id) > 0) { mountCrate(id); return; } if (!it || it.type !== 'block' || count(id) < 1) return;
-    var h = aim(5); if (!h || !h.prev) return; var c = h.prev; camera.getWorldDirection(DIR); var rot = Math.abs(DIR.x) > Math.abs(DIR.z) ? 1 : 0; if (it.vox >= 87 && it.vox <= 125) rot = it.shape === 'stair' ? (Math.abs(DIR.x) > Math.abs(DIR.z) ? (DIR.x > 0 ? 1 : 3) : (DIR.z > 0 ? 0 : 2)) : 0;
+    var h = aim(5); if (!h || !h.prev) return; var c = h.prev; camera.getWorldDirection(DIR); var rot = Math.abs(DIR.x) > Math.abs(DIR.z) ? 1 : 0; if (W.isSh(it.vox) && it.shape !== 'door' && it.shape !== 'fence' && it.shape !== 'gate') rot = it.shape === 'stair' ? (Math.abs(DIR.x) > Math.abs(DIR.z) ? (DIR.x > 0 ? 1 : 3) : (DIR.z > 0 ? 0 : 2)) : 0;
     var cells = W.canPlaceBig(c[0], c[1], c[2], it.vox, rot); if (!cells) { say('Not enough room for this block here.', true); return; }
     if (W.voxCount() + cells.length >= W.MAX_VOX) { say('Block limit reached.', true); return; }
     for (var ci = 0; ci < cells.length; ci++) {
@@ -1736,7 +1739,7 @@
     if (e.burnt) { say('This vehicle is a burnt wreck now.', true); return; }
     var v = e.vs;
     if (e.crate && !seat) { var qq = carLocal(e, P.x, P.z), hh = carHalf(e); if (qq.lz < -hh[1] + 0.3 && Math.abs(qq.lx) < hh[0] + 1.2) { openCargo(e); return; } }
-    if (!v.door) { v.door = true; SFX.vehOnce(c.kind, 'open'); say('Door opened. Press [E] again to sit in the driver seat.'); return; }
+    if (!v.door) { v.door = true; SFX.vehOnce(e.kind, 'open'); say('Door opened. Press [E] again to sit in the driver seat.'); return; }
     seatIn(e);
   }
   function seatIn(c) {
@@ -2131,6 +2134,17 @@
   }
   function vehSave() { return (W.ocars || []).map(function (c) { var v = c.vs; return [c.kind, Math.round(c.x * 100) / 100, Math.round(c.z * 100) / 100, ((Math.round(carAng(c) / (Math.PI / 2)) % 4) + 4) % 4, c.col, Math.round(c.hp), c.burnt ? 1 : 0, Math.round(v.fuel * 100) / 100, v.fuelT, Math.round(v.odo), v.gear, v.blown ? 1 : 0, c.crate ? (c.store || {}) : 0, partSave(c)]; }); }
   function vehLoad(a) { (a || []).forEach(function (r) { var c = W.addOwnedCar(r[0], r[1], r[2], r[3] * Math.PI / 2, r[4], r[5]); var cf2 = VCFG[r[0]] || VCFG.suv; c.max = cf2.hp; c.burnt = !!r[6]; c.vs.fuel = r[7] || 0; c.vs.fuelT = r[8] || 'gasoline'; c.vs.odo = r[9] || 0; c.vs.blown = !!r[11]; if (r[12]) { c.crate = true; c.store = r[12]; } partLoad(c, r[13]); if (c.burnt || c.crate) W.setCar(c, true); }); }
+  function doorUse(x, y, z, fromNet) {
+    var v = W.getVox(x, y, z); if (!v || !W.isNew(v.t)) return;
+    if (mp.role === 'client' && !fromNet) { Net.send({ t: 'dooruse', x: x, y: y, z: z }); return; }
+    if (!(v.rot & 4)) { /* closing: refuse if the player or a zombie stands in the cell */
+      var ay = v.cells && WZ.VARIANT[v.t][1] === 3 ? 2 : 1;
+      if (P.x + 0.3 > x && P.x - 0.3 < x + 1 && P.z + 0.3 > z && P.z - 0.3 < z + 1 && P.y + 1.8 > y && P.y < y + ay) { say('Something is in the way.', true); return; }
+      for (var zi = 0; zi < zombies.length; zi++) { var zz = zombies[zi]; if (Math.abs(zz.x - x - 0.5) < 0.9 && Math.abs(zz.z - z - 0.5) < 0.9 && zz.y < y + ay && zz.y + zz.h > y) { say('Something is in the way.', true); return; } }
+    }
+    var o = W.toggleDoor(x, y, z); if (o == null) return; voxVer++; SFX.play('click');
+    if (mp.role === 'host') Net.send({ t: 'vox', op: 3, x: x, y: y, z: z });
+  }
   function interact() {
     if (seat) { var vv = seat.vs; vv.door = !vv.door; SFX.vehOnce(seat.kind, vv.door ? 'open' : 'close'); say(vv.door ? 'Door opened. [X] leave the seat.' : 'Door closed. Press [U] for the dashboard.'); return; }
     var cpx = nearCorpse(2.6); if (cpx) { lootCorpse(cpx); return; }
@@ -2140,6 +2154,7 @@
     var bid = hot[sel]; if ((bid === 'iron_bucket' || bid === 'titanium_bucket') && count(bid) > 0) { var sc = scoopTarget(); if (sc) { if (sc === 'lava' && bid === 'iron_bucket') { say('An Iron Bucket would melt! Only a Titanium Bucket can carry Lava.', true); return; } take(bid, 1); give('ib_' + sc, 1); say('Filled the bucket with ' + WZ.LIQ[sc][0] + '.'); SFX.play('click'); return; } }
     var h = aim(3.6); if (!h || h.kind !== 'ent') return; var e = h.e;
     if (e.k === 'farm') { farmUse(e); return; }
+    if (e.k === 'door') { doorUse(e.vx, e.vy, e.vz); return; }
     if (e.k === 'car') { carUse(e); return; }
     if (e.k === 'pump') { pumpUse(e); return; }
     if (e.k === 'tank') { tankUse(e); return; }
@@ -2645,6 +2660,14 @@
     var tents = null;
     if (type === 'mutanoider') { tents = []; for (var tI = 0; tI < 10; tI++) { var pv2 = new THREE.Group(); pv2.position.set(-0.3 + tI * 0.0667, 1.0 + (tI % 2) * 0.3, 0.2); g.add(pv2); bx(0.08, 0.9, 0.08, m.tent, 0, -0.45, 0, pv2); bx(0.05, 0.4, 0.05, m.tent, 0, -1.05, 0, pv2); tents.push(pv2); } }
     if (type === 'mutant') { tents = []; [[-0.14, 1.35], [0.14, 1.35], [-0.28, 1.1], [0.28, 1.1]].forEach(function (p) { var pv = new THREE.Group(); pv.position.set(p[0], p[1], 0.2); g.add(pv); bx(0.08, 0.85, 0.08, m.tent, 0, -0.42, 0, pv); bx(0.05, 0.3, 0.05, m.tent, 0, -0.95, 0, pv); tents.push(pv); }); }
+    if (!SP && (type === 'hardzombie' || type === 'tough' || type === 'brute' || type === 'big' || type === 'berserk' || type === 'pfwalker' || type === 'bomber')) {
+      var XT = { hardzombie: 4, tough: 2, brute: 2, big: 2 }[type] || 0, TM = new THREE.MeshStandardMaterial({ color: 0x5d3a52, roughness: 0.6 });
+      if (XT) { tents = tents || []; for (var xi = 0; xi < XT; xi++) { var xp = new THREE.Group(); xp.position.set((xi - (XT - 1) / 2) * 0.17 * wide, 1.28 - (xi % 2) * 0.22, 0.2); g.add(xp); bx(0.07, 0.8, 0.07, TM, 0, -0.4, 0, xp); bx(0.045, 0.35, 0.045, TM, 0, -0.95, 0, xp); tents.push(xp); } }
+      if (type === 'berserk' || type === 'pfwalker' || type === 'bomber') {
+        var WM = new THREE.MeshStandardMaterial({ color: type === 'berserk' ? 0x7a1d1d : type === 'pfwalker' ? 0xbfe8ff : 0x4a3f2a, side: THREE.DoubleSide, roughness: 0.7, transparent: type === 'pfwalker', opacity: type === 'pfwalker' ? 0.75 : 1 });
+        wings = wings || []; [-1, 1].forEach(function (sd) { var pv = new THREE.Group(); pv.position.set(sd * 0.2, 1.38, 0.18); g.add(pv); bx(0.7, 0.05, 0.05, TM, sd * 0.35, 0.02, 0, pv); bx(0.62, 0.02, 0.5, WM, sd * 0.33, -0.22, 0, pv); bx(0.04, 0.04, 0.04, WM, sd * 0.7, 0, 0, pv); wings.push({ g: pv, sd: sd }); });
+      }
+    }
     if (type === 'miner') { bx(0.38, 0.17, 0.38, MAT_YEL, 0, 1.74, 0); bx(0.1, 0.1, 0.06, EYE, 0, 1.78, -0.2); }
     if (type === 'programmer') bx(0.36, 0.14, 0.05, MAT_GLASS, 0, 1.58, -0.19);
     if (type === 'zfish') { bx(0.2, 0.12, 0.3, MAT_GLASS, 0, 0.6, 0.35); }
@@ -2727,6 +2750,12 @@
   function ann(msg) { say(msg, true); if (mp.role === 'host') Net.send({ t: 'ann', msg: msg }); }
   function bossAlive(type) { var ti = ZTYPES.indexOf(type), i; for (i = 0; i < zombies.length; i++) if (zombies[i].type === type) return true; for (i = 0; i < dorm.n; i++) if ((DU[i * 8] & 31) === ti) return true; return false; }
   /* boss rule: Gigantus Zombie appears ONCE when day 10 starts (tier 1->2); Armored-Full Zombie Mk-1 ONCE at tier 3 (day 30, tier 2->3); Mutanoiders Zombos ONCE at tier 4 (day 60, tier 3->4). bf[i]: 0 not spawned, 1 alive, 2 dead */
+  var bmT = 0, bmCur = null;
+  function bossMusic(dt) {
+    bmT -= dt; if (bmT > 0) return; bmT = 1; var best = null, bd = 1e9;
+    for (var i = 0; i < zombies.length; i++) { var z = zombies[i]; if (z.def && (z.def.boss || z.def.rarity === 'boss')) { var d = Math.hypot(z.x - P.x, z.z - P.z); if (d < bd) { bd = d; best = z.type; } } }
+    var want = best && bd < (bmCur === best ? 95 : 70) ? best : null; if (want !== bmCur) { bmCur = want; SFX.music(want); if (want) say('Boss theme: ' + ({ gigantus: 'Colossus March', armored: 'Steel Protocol', mutanoider: 'Mutant Hive', hardzombie: 'Final Hardening' }[want] || '') + ' (original XKing score)'); }
+  }
   function bossLogic(dt) {
     bossT -= dt; if (bossT > 0) return; bossT = 3; var day = clockInfo(T).day, tg = targets(); if (!tg.length) return;
     [['gigantus', 2, 'GIGANTUS ZOMBIE has appeared! The world is entering Tier 2...'], ['armored', 3, 'ARMORED-FULL ZOMBIE Mk-1 has appeared! The world is entering Tier 3...'], ['mutanoider', 4, 'MUTANOIDERS ZOMBOS has risen! A winged, tentacled horror walks the land. The world is entering Tier 4...']].slice(0, 3).forEach(function (b, bi) {
@@ -2740,10 +2769,20 @@
     SFX.play('boom'); scene.remove(z.g); var i = zombies.indexOf(z); if (i >= 0) zombies.splice(i, 1); delete zMap[z.id];
   }
   function updateZombieVisuals(z, dt) {
-    if (z.spl) { for (var si = 0; si < 8; si++) { var sl2 = z.spl[si]; sl2.g.rotation.y = sl2.base + Math.sin(z.anim * 1.4 + sl2.i * 1.7) * 0.28; } } else { var sw = Math.sin(z.anim) * 0.7; z.legs[0].rotation.x = sw; z.legs[1].rotation.x = -sw;
-    z.arms[0].rotation.x = 1.35 + Math.sin(z.anim * 0.5) * 0.15; z.arms[1].rotation.x = 1.35 - Math.sin(z.anim * 0.5) * 0.15; }
-    if (z.wings) z.wings.forEach(function (w) { var tgW = z.guard > 0 ? w.sd * 1.5 : -w.sd * (0.6 + Math.sin(z.anim * 0.7) * 0.2); w.g.rotation.y += (tgW - w.g.rotation.y) * Math.min(1, dt * 8); });
-    if (z.tents) for (var ti2 = 0; ti2 < z.tents.length; ti2++) { var tt = z.tents[ti2], tg2 = z.guard > 0 ? 1.05 + Math.sin(z.anim * 0.8 + ti2) * 0.1 : -0.55 + Math.sin(z.anim * 0.6 + ti2 * 1.3) * 0.35; tt.rotation.x += (tg2 - tt.rotation.x) * Math.min(1, dt * 8); tt.rotation.z = (ti2 < 2 ? 1 : 1.6) * (ti2 % 2 ? 0.25 : -0.25); }
+    if (z.it == null) { z.it = rnd() * 10; z.pa = z.anim; z.mvS = 0; z.g.rotation.order = 'YXZ'; z.sc0 = z.g.scale.y; } z.it += dt;
+    var mvd = Math.abs(z.anim - z.pa) > 0.0008; z.pa = z.anim; z.mvS += ((mvd ? 1 : 0) - z.mvS) * Math.min(1, dt * 6); var mS = z.mvS, iS = 1 - mS, ft = z.it;
+    if (z.spl) { for (var si = 0; si < 8; si++) { var sl2 = z.spl[si]; sl2.g.rotation.y = sl2.base + Math.sin(z.anim * 1.4 + sl2.i * 1.7 + ft * 1.3 * iS) * (0.28 * mS + 0.06 * iS + 0.1 * mS); } z.g.position.y += Math.sin(ft * 2) * 0.01 * iS; }
+    else {
+      var sw = Math.sin(z.anim) * 0.75 * mS; z.legs[0].rotation.x = sw + Math.sin(ft * 1.1) * 0.03 * iS; z.legs[1].rotation.x = -sw - Math.sin(ft * 1.1) * 0.03 * iS;
+      var as = Math.sin(z.anim) * 0.22 * mS, ai = Math.sin(ft * 1.3) * 0.09 * iS;
+      z.arms[0].rotation.x = 1.35 - as + ai + Math.sin(z.anim * 0.5 + 1) * 0.1 * mS; z.arms[1].rotation.x = 1.35 + as - ai + Math.sin(z.anim * 0.5) * 0.1 * mS;
+      z.arms[0].rotation.z = -0.08 - Math.sin(ft * 0.9) * 0.05 - Math.sin(z.anim) * 0.07 * mS; z.arms[1].rotation.z = 0.08 + Math.sin(ft * 1.1 + 2) * 0.05 + Math.sin(z.anim) * 0.07 * mS;
+      if (z.type !== 'floater') z.g.position.y += Math.abs(Math.sin(z.anim)) * 0.07 * mS + Math.sin(ft * 1.7) * 0.012 * iS;
+      z.g.rotation.x = -0.08 * mS - 0.04 * iS + Math.sin(ft * 0.8) * 0.02 * iS; z.g.rotation.z = Math.sin(z.anim * 0.5) * 0.07 * mS + Math.sin(ft * 0.7) * 0.03 * iS;
+      z.g.scale.y = z.sc0 * (1 + Math.sin(ft * 1.7) * 0.012 * iS);
+    }
+    if (z.wings) z.wings.forEach(function (w) { var tgW = z.guard > 0 ? w.sd * 1.5 : -w.sd * (0.6 + Math.sin(z.it * (2.2 + 2.2 * z.mvS)) * 0.28); w.g.rotation.y += (tgW - w.g.rotation.y) * Math.min(1, dt * 8); });
+    if (z.tents) for (var ti2 = 0; ti2 < z.tents.length; ti2++) { var tt = z.tents[ti2], tg2 = z.guard > 0 ? 1.05 + Math.sin(z.it * 2 + ti2) * 0.1 : -0.55 + Math.sin(z.it * 1.7 + ti2 * 1.3) * 0.38; tt.rotation.x += (tg2 - tt.rotation.x) * Math.min(1, dt * 8); tt.rotation.z = (ti2 < 2 ? 1 : 1.6) * (ti2 % 2 ? 0.25 : -0.25); }
     if (z.flash > 0) { z.flash -= dt; if (!z.flashing) { z.flashing = true; z.swaps.forEach(function (s) { s.mesh.material = FLASH_MAT; }); } }
     else if (z.flashing) { z.flashing = false; z.swaps.forEach(function (s) { s.mesh.material = s.orig; }); }
   }
@@ -2838,7 +2877,7 @@
     if (T < 30) return; /* first 30 seconds of a new world: no zombies spawn */
     spawnT -= dt;
     var cap = zombieCap(), interval = (Math.max(1.2, 6 - T / 120) / 0.9) * (isNight ? 0.8 : 1) / (bloodOn ? 2 : 1);
-    mineLogic(dt); bossLogic(dt); dormTick(dt);
+    mineLogic(dt); bossLogic(dt); dormTick(dt); bossMusic(dt);
     var hostile = dormCount(true); for (var hz = 0; hz < zombies.length; hz++) { var zt = zombies[hz]; if (zt.type !== 'miner' && zt.type !== 'zfish' && zt.type !== 'drowned' && !zt.def.boss) hostile++; }
     if (spawnT <= 0 && hostile < cap) { spawnZombie(); spawnT = interval; }
     for (var j = zombies.length - 1; j >= 0; j--) { var zz = zombies[j]; zz.g.visible = entVisible(zz.x, zz.z); stepZombie(zz, dt); }
@@ -2864,12 +2903,12 @@
     bx(0.36, 0.44, 0.16, pack, 0, 1.06, 0.2);
     bx(0.32, 0.32, 0.32, skin, 0, 1.56, 0);
     bx(0.24, 0.08, 0.03, MAT_GLASS, 0, 1.58, -0.165);
-    var lL = new THREE.Group(), lR = new THREE.Group(), aR = new THREE.Group(); lL.position.set(-0.13, 0.7, 0); lR.position.set(0.13, 0.7, 0); aR.position.set(0.35, 1.35, 0); g.add(lL); g.add(lR); g.add(aR);
+    var lL = new THREE.Group(), lR = new THREE.Group(), aR = new THREE.Group(), aL = new THREE.Group(); lL.position.set(-0.13, 0.7, 0); lR.position.set(0.13, 0.7, 0); aR.position.set(0.35, 1.35, 0); aL.position.set(-0.35, 1.35, 0); g.add(lL); g.add(lR); g.add(aR); g.add(aL);
     bx(0.2, 0.56, 0.22, pants, 0, -0.28, 0, lL); bx(0.21, 0.15, 0.25, MAT_BOOT, 0, -0.625, -0.02, lL);
     bx(0.2, 0.56, 0.22, pants, 0, -0.28, 0, lR); bx(0.21, 0.15, 0.25, MAT_BOOT, 0, -0.625, -0.02, lR);
-    bx(0.14, 0.22, 0.14, shirt, -0.35, 1.24, 0); bx(0.13, 0.38, 0.13, skin, -0.35, 0.94, 0);
+    bx(0.14, 0.22, 0.14, shirt, 0, -0.1, 0, aL); bx(0.13, 0.38, 0.13, skin, 0, -0.4, 0, aL);
     bx(0.14, 0.22, 0.14, shirt, 0, -0.1, 0, aR); bx(0.13, 0.38, 0.13, skin, 0, -0.4, 0, aR);
-    var tag = makeNameSprite(name, slot); g.add(tag.sprite); var psh = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); psh.rotation.x = -Math.PI / 2; psh.position.y = 0.05; psh.scale.set(0.9, 0.9, 1); psh.visible = gfx.shadow; g.add(psh); scene.add(g); return { g: g, lL: lL, lR: lR, aR: aR, anim: 0, tag: tag, sh: psh };
+    var tag = makeNameSprite(name, slot); g.add(tag.sprite); var psh = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); psh.rotation.x = -Math.PI / 2; psh.position.y = 0.05; psh.scale.set(0.9, 0.9, 1); psh.visible = gfx.shadow; g.add(psh); scene.add(g); return { g: g, lL: lL, lR: lR, aR: aR, aL: aL, anim: 0, it: Math.random() * 9, mv: 0, tag: tag, sh: psh };
   }
   function removePeer(pid) { var pr = mp.peers[pid]; if (!pr) return; if (pr.mesh) { scene.remove(pr.mesh.g); if (pr.mesh.tag && pr.mesh.tag.tex) pr.mesh.tag.tex.dispose(); } delete mp.peers[pid]; }
   function stepPeers(dt) {
@@ -2878,9 +2917,13 @@
       var pr = mp.peers[pid]; if (now - pr.lastSeen > 9000) { say(pr.name + ' left the room.'); removePeer(pid); continue; }
       var dx = pr.tx - pr.x, dz = pr.tz - pr.z, spd = Math.hypot(dx, dz); pr.x += dx * f; pr.y += (pr.ty - pr.y) * f; pr.z += dz * f;
       pr.mesh.g.visible = !pr.dead && entVisible(pr.x, pr.z); pr.mesh.g.position.set(pr.x, pr.y, pr.z); pr.mesh.g.rotation.y = pr.tyaw;
-      if (spd > 0.02) { pr.mesh.anim += dt * 10; var sw = Math.sin(pr.mesh.anim) * 0.65; pr.mesh.lL.rotation.x = sw; pr.mesh.lR.rotation.x = -sw; }
-      else { pr.mesh.lL.rotation.x *= 0.8; pr.mesh.lR.rotation.x *= 0.8; }
-      if (pr.sw > 0) { pr.sw -= dt; pr.mesh.aR.rotation.x = -1.4; } else pr.mesh.aR.rotation.x *= 0.8;
+      var pm = pr.mesh, mvo = spd > 0.02; pm.it += dt; pm.mv += ((mvo ? 1 : 0) - pm.mv) * Math.min(1, dt * 7); if (mvo) pm.anim += dt * 10;
+      var swp = Math.sin(pm.anim) * 0.7 * pm.mv, idl = 1 - pm.mv;
+      pm.lL.rotation.x = swp; pm.lR.rotation.x = -swp;
+      pm.aL.rotation.x = -swp * 0.8 + Math.sin(pm.it * 1.5) * 0.06 * idl; pm.aL.rotation.z = -0.05 - Math.sin(pm.it * 1.1) * 0.04 * idl;
+      if (pr.sw > 0) { pr.sw -= dt; pm.aR.rotation.x = -1.4; } else { pm.aR.rotation.x += ((swp * 0.8 + Math.sin(pm.it * 1.5 + 1) * 0.06 * idl) - pm.aR.rotation.x) * Math.min(1, dt * 12); }
+      pm.aR.rotation.z = 0.05 + Math.sin(pm.it * 1.2) * 0.04 * idl;
+      pm.g.rotation.order = 'YXZ'; pm.g.position.y += Math.abs(Math.sin(pm.anim)) * 0.07 * pm.mv + Math.sin(pm.it * 1.6) * 0.008 * idl; pm.g.rotation.x = -0.06 * pm.mv; pm.g.rotation.z = Math.sin(pm.anim) * 0.035 * pm.mv + Math.sin(pm.it * 0.8) * 0.012 * idl;
     }
     if (mp.role === 'client' && mp.lastHostSeen && now - mp.lastHostSeen > 9500) { say('Host disconnected. Continuing solo.', true); leaveRoom(); }
   }
@@ -2942,6 +2985,7 @@
       else if (msg.t === 'dmgVox') damageVoxLocal(msg.x, msg.y, msg.z, msg.dmg || 2, msg.f);
       else if (msg.t === 'hitEnt') { var e = (msg.k === 'tree' ? W.trees : msg.k === 'car' ? W.cars : W.rocks)[msg.idx]; if (e && e.alive) { if (msg.k === 'car') applyCarHit(e, msg.bd || 1, msg.f); else applyEntHit(e, msg.bd || 1, msg.f); } }
       else if (msg.t === 'search') { var se = (msg.k === 'pile' ? W.piles : W.crates)[msg.idx]; if (se) applySearchEnt(se, msg.f); }
+      else if (msg.t === 'dooruse') { doorUse(msg.x, msg.y, msg.z, true); }
       else if (msg.t === 'place') {
         if (!W.getVox(msg.x, msg.y, msg.z) && !W.hit(msg.x + 0.02, msg.x + 0.98, msg.y + 0.02, msg.y + 0.98, msg.z + 0.02, msg.z + 0.98) && W.setBig(msg.x, msg.y, msg.z, msg.vt, msg.hp, msg.rot || 0)) {
           voxVer++; Net.send({ t: 'vox', op: 1, x: msg.x, y: msg.y, z: msg.z, vt: msg.vt, hp: msg.hp, rot: msg.rot || 0 });
@@ -2963,6 +3007,7 @@
         if (msg.op === 1) { if (!W.getVox(msg.x, msg.y, msg.z) && W.setBig(msg.x, msg.y, msg.z, msg.vt, msg.hp, msg.rot || 0)) voxVer++; }
         else if (msg.op === 0) { if (W.getVox(msg.x, msg.y, msg.z)) { W.delVox(msg.x, msg.y, msg.z); voxVer++; } }
         else if (msg.op === 2) { var hv = W.getVox(msg.x, msg.y, msg.z); if (hv) hv.hp = msg.hp; }
+        else if (msg.op === 3) { W.toggleDoor(msg.x, msg.y, msg.z); voxVer++; }
       } else if (msg.t === 'ent') {
         if (msg.k === 'tree') { var tr = W.trees[msg.idx]; if (tr) { tr.hp = msg.hp; tr.given = msg.given; if (tr.alive !== msg.alive) W.setTree(tr, msg.alive); } }
         else if (msg.k === 'rock') { var rk = W.rocks[msg.idx]; if (rk) { rk.hp = msg.hp; rk.given = msg.given; if (rk.alive !== msg.alive) W.setRock(rk, msg.alive); } }

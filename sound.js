@@ -300,8 +300,86 @@
     }
   }
 
+  /* ---- Boss music: original procedural compositions (generated live with Web Audio, no samples = no copyright issue). One distinct track per boss. ---- */
+  var MUS = { gain: null, cur: null, timer: null, step: 0, next: 0, tracks: null };
+  var N = function (m) { return 440 * Math.pow(2, (m - 69) / 12); };
+  function mTone(c, o) { /* o: f, t, d, type, g, a(attack), lp, det, slide */
+    var osc = c.createOscillator(), g = c.createGain(), f = null;
+    osc.type = o.type || 'sawtooth'; osc.frequency.setValueAtTime(o.f, o.t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.slide), o.t + o.d);
+    if (o.det) osc.detune.value = o.det;
+    g.gain.setValueAtTime(0.0001, o.t); g.gain.linearRampToValueAtTime(o.g, o.t + (o.a || 0.01)); g.gain.exponentialRampToValueAtTime(0.0001, o.t + o.d);
+    if (o.lp) { f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; osc.connect(f); f.connect(g); } else osc.connect(g);
+    g.connect(MUS.gain); osc.start(o.t); osc.stop(o.t + o.d + 0.05);
+  }
+  function mNoise(c, t, d, g0, hp, lp) {
+    var src = c.createBufferSource(); src.buffer = noiseWhite || (noiseWhite = (function () { var b = c.createBuffer(1, c.sampleRate, c.sampleRate), x = b.getChannelData(0); for (var i = 0; i < x.length; i++) x[i] = Math.random() * 2 - 1; return b; })()); src.loop = true;
+    var g = c.createGain(), f = c.createBiquadFilter(); f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = hp || lp || 2000;
+    g.gain.setValueAtTime(g0, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); src.connect(f); f.connect(g); g.connect(MUS.gain); src.start(t, Math.random()); src.stop(t + d + 0.05);
+  }
+  function kick(c, t, g, lo) { mTone(c, { f: 150, slide: lo || 40, t: t, d: 0.22, type: 'sine', g: g, a: 0.002 }); }
+  function snare(c, t, g) { mNoise(c, t, 0.16, g, 1400); mTone(c, { f: 190, t: t, d: 0.1, type: 'triangle', g: g * 0.5, a: 0.002 }); }
+  function hat(c, t, g) { mNoise(c, t, 0.05, g, 7000); }
+  /* each track: bpm, step(c, s, t, spb) where s = 16th step counter, spb = seconds per 16th */
+  MUS.tracks = {
+    /* 1. Gigantus Zombie - "Colossus March": slow, heavy, D minor, sub drone + war-drum hits + brass-like stabs */
+    gigantus: { name: 'Colossus March', bpm: 66, step: function (c, s, t, sp) {
+      var b = s % 32, root = [38, 38, 41, 36][Math.floor(s / 32) % 4];
+      if (b === 0) mTone(c, { f: N(root - 12), t: t, d: sp * 30, type: 'sine', g: 0.34, a: 0.4 });
+      if (b % 8 === 0) { kick(c, t, 0.9, 32); mNoise(c, t, 0.4, 0.25, 0, 220); }
+      if (b === 6 || b === 22) kick(c, t, 0.55, 36);
+      if (b === 16) snare(c, t, 0.45);
+      if (b === 0 || b === 12 || b === 24) { [0, 7, 12].forEach(function (iv) { mTone(c, { f: N(root + 12 + iv), t: t, d: sp * 5, type: 'sawtooth', g: 0.07, a: 0.06, lp: 900, det: iv * 2 - 6 }); }); }
+      if (b === 28) mTone(c, { f: N(root + 24), t: t, d: sp * 3, type: 'square', g: 0.05, a: 0.02, lp: 1400 });
+    } },
+    /* 2. Armored-Full Zombie Mk-1 - "Steel Protocol": 118 bpm industrial, E phrygian, square arps, metal clanks */
+    armored: { name: 'Steel Protocol', bpm: 118, step: function (c, s, t, sp) {
+      var b = s % 16, bar = Math.floor(s / 16) % 4, root = [40, 40, 41, 38][bar], arp = [0, 3, 7, 12, 7, 3, 1, 5];
+      if (b % 4 === 0) kick(c, t, 0.8, 45);
+      if (b === 4 || b === 12) snare(c, t, 0.42);
+      if (b % 2 === 1) hat(c, t, 0.12);
+      mTone(c, { f: N(root - 12), t: t, d: sp * 1.8, type: 'sawtooth', g: b % 2 ? 0.1 : 0.16, a: 0.005, lp: 420 });
+      mTone(c, { f: N(root + 12 + arp[s % 8]), t: t, d: sp * 1.2, type: 'square', g: 0.05, a: 0.004, lp: 2400 });
+      if (b === 2 || b === 10) { mTone(c, { f: 1180 + (b === 10 ? 220 : 0), t: t, d: 0.35, type: 'triangle', g: 0.08, a: 0.002, lp: 5000 }); mNoise(c, t, 0.12, 0.1, 3500); }
+    } },
+    /* 3. Mutanoiders Zombos - "Mutant Hive": 5/4 feel (20 steps), chromatic wobble, tritone pad, detuned FM-ish bleeps */
+    mutanoider: { name: 'Mutant Hive', bpm: 92, step: function (c, s, t, sp) {
+      var b = s % 20, bar = Math.floor(s / 20) % 4, root = [43, 43, 42, 46][bar];
+      if (b === 0 || b === 6 || b === 12 || b === 16) kick(c, t, b === 0 ? 0.85 : 0.55, 38);
+      if (b === 9) snare(c, t, 0.4); if (b === 18) { snare(c, t, 0.3); hat(c, t, 0.15); }
+      if (b % 3 === 1) hat(c, t, 0.1);
+      if (b === 0) { mTone(c, { f: N(root), t: t, d: sp * 18, type: 'sawtooth', g: 0.05, a: 0.5, lp: 600, det: -14 }); mTone(c, { f: N(root + 6), t: t, d: sp * 18, type: 'sawtooth', g: 0.045, a: 0.6, lp: 600, det: 14 }); }
+      var wob = [0, 1, 6, 5, 1, 0, 8, 6][s % 8]; mTone(c, { f: N(root + 12 + wob), slide: N(root + 11 + wob), t: t, d: sp * 1.5, type: 'sawtooth', g: 0.065, a: 0.01, lp: 700 + 500 * Math.abs(Math.sin(s * 0.7)), det: (s % 2 ? 22 : -22) });
+      if (b === 4 || b === 14) mTone(c, { f: N(root + 31), slide: N(root + 24), t: t, d: 0.25, type: 'sine', g: 0.07, a: 0.005 });
+    } },
+    /* 4. Hard Zombie - "Final Hardening": 150 bpm fast, A minor power chords + double-time hats + rising lead */
+    hardzombie: { name: 'Final Hardening', bpm: 150, step: function (c, s, t, sp) {
+      var b = s % 16, bar = Math.floor(s / 16) % 8, root = [45, 45, 41, 43, 45, 45, 48, 43][bar];
+      if (b % 4 === 0 || b === 10) kick(c, t, 0.85, 42);
+      if (b === 4 || b === 12) snare(c, t, 0.5);
+      hat(c, t, b % 2 ? 0.14 : 0.08);
+      if (b % 2 === 0) { mTone(c, { f: N(root - 12), t: t, d: sp * 1.9, type: 'sawtooth', g: 0.15, a: 0.004, lp: 520 }); }
+      if (b === 0 || b === 3 || b === 6 || b === 8 || b === 11 || b === 14) [0, 7, 12].forEach(function (iv) { mTone(c, { f: N(root + iv), t: t, d: sp * 2.4, type: 'sawtooth', g: 0.05, a: 0.004, lp: 1700, det: iv ? 5 : -5 }); });
+      var lead = [12, 15, 19, 24, 19, 15, 17, 20][(s >> 1) % 8]; if (b % 2 === 1 || bar > 3) mTone(c, { f: N(root + 12 + lead), t: t, d: sp * 1.4, type: 'square', g: 0.045, a: 0.004, lp: 3000 });
+    } }
+  };
+  function musTick() {
+    var c = ctx, tr = MUS.cur && MUS.tracks[MUS.cur]; if (!c || !tr) return;
+    var sp = 60 / tr.bpm / 4; if (MUS.next < c.currentTime) MUS.next = c.currentTime + 0.05;
+    while (MUS.next < c.currentTime + 0.35) { try { tr.step(c, MUS.step, MUS.next, sp); } catch (e) {} MUS.step++; MUS.next += sp; }
+  }
+  function musicSet(name) {
+    var c = ensure(); if (!c) return null; name = name && MUS.tracks[name] ? name : null;
+    if (!MUS.gain) { MUS.gain = c.createGain(); MUS.gain.gain.value = 0; MUS.gain.connect(compNode); }
+    if (name === MUS.cur) return name;
+    var now = c.currentTime;
+    if (!name) { MUS.gain.gain.cancelScheduledValues(now); MUS.gain.gain.setTargetAtTime(0, now, 0.8); MUS.cur = null; if (MUS.timer) { clearInterval(MUS.timer); MUS.timer = null; } return null; }
+    MUS.cur = name; MUS.step = 0; MUS.next = now + 0.1; MUS.gain.gain.cancelScheduledValues(now); MUS.gain.gain.setTargetAtTime(0.7 * Math.max(0.2, cfg.ambient + 0.35), now, 0.6);
+    if (!MUS.timer) MUS.timer = setInterval(musTick, 90); return name;
+  }
+  function musicName(n) { return MUS.tracks[n] ? MUS.tracks[n].name : ''; }
   var stepSurface = 'city';
   WZ.SND = {
+    music: musicSet, musicName: musicName,
     vehOnce: vOnce, vehEngine: vEngine, vehPreload: vLoad,
     unlock: function () {
       var c = ensure();
@@ -424,7 +502,7 @@
     }
   };
   /* ---------- Vehicle audio: ONE long mp3 per vehicle + a JSON cue sheet (audio/veh/vehicles.json) ---------- */
-  var vCues = null, vCuesP = null, vbuf = {}, vvoice = {}, VV = '?v=36';
+  var vCues = null, vCuesP = null, vbuf = {}, vvoice = {}, VV = '?v=38';
   function vCuesLoad() { if (vCuesP || !window.fetch) return; vCuesP = fetch('audio/veh/vehicles.json' + VV).then(function (r) { return r.json(); }).then(function (j) { vCues = j; }).catch(function () { vCues = {}; }); }
   function vFile(file) {
     var c = ensure(); if (!c || !window.fetch || vbuf[file] !== undefined) return; vbuf[file] = null;

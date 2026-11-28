@@ -7,7 +7,7 @@
 <meta name="description" content="Webzombite (Beta) by XKing — 3D open-world zombie survival, crafting, base building, and multiplayer in WebGL.">
 <meta property="og:title" content="Webzombite (Beta) - XKing">
 <meta property="og:description" content="3D open-world zombie survival, crafting, base building, and multiplayer in WebGL.">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=38">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -86,7 +86,7 @@
     var t = e.target;
     if (t && t.tagName === 'SCRIPT') {
       var src = t.getAttribute('src') || '';
-      if (src.indexOf('three.min.js') >= 0) return;
+      if (src.indexOf('three.min.js') >= 0 || src.indexOf('ads.js') >= 0) return;
       show('Could not load file: ' + src + '\nCheck that all game assets are available next to index.html.');
     } else if (!t || t === window) {
       show((e.message || 'Script error') + (e.filename ? '\n' + e.filename.split('/').pop() + ':' + e.lineno : ''));
@@ -107,7 +107,7 @@
     function next(i) {
       if (window.__wzFatal || i >= files.length) return;
       var s = document.createElement('script');
-      s.src = files[i] + '?v=36';
+      s.src = files[i] + '?v=38';
       s.onload = function () { next(i + 1); };
       s.onerror = function () {
         if (files[i] === 'vendor/supabase.js') { next(i + 1); return; }
@@ -136,5 +136,7 @@
   ], 0);
 })();
 </script>
+<script>window.XK_ADS_PAGE='wz';</script>
+<script src="ads.js?v=1" defer></script>
 </body>
 </html>
