@@ -219,7 +219,7 @@
     if (sl.loaded || !adsOk() || !configured(sl.name)) return;
     if (remaining(sl) > 0) return;               /* 20 s gate: sync()/pump() will retry */
     sl.iframe = document.createElement('iframe');
-    sl.iframe.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
+    sl.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
     sl.iframe.setAttribute('referrerpolicy', 'no-referrer');
     sl.iframe.setAttribute('title', 'Advertisement');
     sl.iframe.setAttribute('scrolling', 'no');
