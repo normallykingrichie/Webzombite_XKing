@@ -14,23 +14,31 @@
         - or paste any other network's full HTML snippet into html: '<script ...></script>' (this overrides key/invokeUrl)
      native: either html: '...snippet...' or src: 'https://....../invoke.js' + containerId: 'container-KEY'; height = pixels
      smartlink: the Direct/Smart link used by the "Visit Sponsor" button (opens in a new tab only when the visitor clicks).
-     popunder: optional popunder script URL (loaded on the Ads Bath page only, after cookie consent).
+     popunder: optional popunder script URL (loaded on the Ads Bath page only, after the cookie choice).
      donateUrl: where "donate to us" should go (leave '' to show the text only).
      ===================================================================== */
   var USER = window.XK_ADS || {};
+  /* Adsterra keys are separate per site: tree = XKing Link Tree, core = XKing Core (+ Ads Bath), wz = Webzombite (+ its wiki, no native banner). */
+  var SITE_KEYS = {
+    tree: { b160: '0073ccb911da1eb2494e21c750818dfc', b300: '038868eef264297bc29a60307e318e26', b320: '42d13ab9a9b8c068d8dd20c7ecd3260c', b728: '738fa0aa756710615a83b9a05dc9d56c', nat: '185557d95ea551f13abf82df54122d2b' },
+    core: { b160: 'ced25a2dbff9d85328d810404e9cafe8', b300: '73b5c73e6bb0dbed7859151f4b18a507', b320: '1f7ea4128643edc0520b54009685231e', b728: '262901fcaf126c3d968ec9f355f0021e', nat: '8533a323eb98df19dd75e210d8932ceb' },
+    wz:   { b160: '38dfb3d9becf31393b5de5b4de6fb466', b300: 'a1af82653b739ff38440ab7ed6cee2e7', b320: '6701efc8fc4438b1496a6eb5e308ba75', b728: '727ca4a423191b1791bbd2055568e038', nat: '' }
+  };
+  var SITE = ({ tree: 'tree', wz: 'wz', wiki: 'wz' })[window.XK_ADS_PAGE] || 'core', SK = SITE_KEYS[SITE];
+  function bn(k) { return { key: k, invokeUrl: 'https://bauval.org/22/' + k, html: '' }; }
   var DEFAULT_CFG = {
     slots: {
-      banner160x600: { key: '', invokeUrl: '', html: '' },
-      banner300x250: { key: '', invokeUrl: '', html: '' },
-      banner728x90:  { key: '', invokeUrl: '', html: '' },
-      banner320x50:  { key: '', invokeUrl: '', html: '' },
-      native:        { src: '', containerId: '', html: '', height: 140 }
+      banner160x600: bn(SK.b160),
+      banner300x250: bn(SK.b300),
+      banner728x90:  bn(SK.b728),
+      banner320x50:  bn(SK.b320),
+      native:        SK.nat ? { src: 'https://bauval.org/21/' + SK.nat, containerId: 'container-' + SK.nat, html: '', height: 140 } : { src: '', containerId: '', html: '', height: 140 }
     },
-    bannerHost: 'https://www.highperformanceformat.com/',
+    bannerHost: 'https://bauval.org/22/',
     smartlink: '',
     popunder: '',
     donateUrl: '',
-    minReloadMs: 20000,
+    minReloadMs: SITE === 'wz' ? 30000 : 20000,
     blockedText: 'Consider support us by deactive your adblocker or donate to us!'
   };
 
@@ -73,15 +81,21 @@
   function emit(ev, a) { (handlers[ev] || []).forEach(function (f) { try { f(a); } catch (e) {} }); }
 
   /* ---------------- consent ---------------- */
+  /* 'granted' = we may keep a cookie/setting so we remember you. 'denied' = "no cookies, thanks": we store NOTHING (only a per-tab session note) and the ads still show. */
+  var memConsent = null;
   function consent() {
-    var v = lsGet(KEY_CONSENT) || getCookie(COOKIE);
+    var v = memConsent; try { v = v || sessionStorage.getItem(KEY_CONSENT); } catch (e) {}
+    v = v || lsGet(KEY_CONSENT) || getCookie(COOKIE);
     return v === 'granted' || v === 'denied' ? v : null;
   }
+  function adsOk() { return true; }
   function setConsent(v) {
-    lsSet(KEY_CONSENT, v); setCookie(COOKIE, v);
+    memConsent = v;
+    if (v === 'granted') { lsSet(KEY_CONSENT, v); setCookie(COOKIE, v); try { sessionStorage.removeItem(KEY_CONSENT); } catch (e) {} }
+    else { try { localStorage.removeItem(KEY_CONSENT); } catch (e) {} try { document.cookie = COOKIE + '=; Max-Age=0; path=/'; } catch (e) {} try { sessionStorage.setItem(KEY_CONSENT, v); } catch (e) {} }
     var b = $('#xk-consent'); if (b) b.remove();
     emit('consent', v);
-    if (v === 'granted') { boot2(); } else { sync(); }
+    boot2();
   }
 
   /* ---------------- slot configuration ---------------- */
@@ -201,7 +215,7 @@
     return Math.max(0, last + (CFG.minReloadMs | 0) - now());
   }
   function tryLoad(sl) {
-    if (sl.loaded || consent() !== 'granted' || !configured(sl.name)) return;
+    if (sl.loaded || !adsOk() || !configured(sl.name)) return;
     if (remaining(sl) > 0) return;               /* 20 s gate: sync()/pump() will retry */
     sl.iframe = document.createElement('iframe');
     sl.iframe.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation');
@@ -231,7 +245,7 @@
   }
   function netCheck() {
     var u = firstNetworkUrl();
-    if (!u || consent() !== 'granted' || !window.fetch || navigator.onLine === false) return;
+    if (!u || !adsOk() || !window.fetch || navigator.onLine === false) return;
     if (now() - netChecked < 60000) return;
     netChecked = now();
     var done = false;
@@ -261,7 +275,7 @@
     s.left = Math.round(x) + 'px'; s.top = Math.round(y) + 'px'; s.width = w + 'px'; s.height = h + 'px'; s.right = 'auto'; s.bottom = 'auto';
   }
   function setShown(sl, show) {
-    var want = !!show && consent() === 'granted' && configured(sl.name);
+    var want = !!show && adsOk() && configured(sl.name);
     if (want) tryLoad(sl);
     var vis = want && liveFor(sl);
     sl.box.hidden = !vis;
@@ -273,7 +287,7 @@
   function syncEdges() {
     var keys = ['bottom728', 'bottom320', 'left160', 'right160', 'right300'], k;
     var vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    var off = consent() !== 'granted' || (P.hide && P.hide());
+    var off = !adsOk() || (P.hide && P.hide());
     var want = {}, accepted = [];
     var cr = P.content ? rectOf($(P.content)) : null;
     if (cr && (cr.width === 0 || cr.height === 0)) cr = null;
@@ -348,7 +362,7 @@
       sl.host = el;
       var w = name === 'native' ? Math.min(el.clientWidth || avail, 760) : SIZES[name][0];
       var h = name === 'native' ? (parseInt(slotCfg('native').height, 10) || 140) : SIZES[name][1];
-      var vis = setShown(sl, consent() === 'granted');
+      var vis = setShown(sl, adsOk());
       if (vis) {
         el.style.height = (h + 4) + 'px'; el.style.margin = '12px 0';
         var r = el.getBoundingClientRect();
@@ -372,9 +386,8 @@
   function showConsent() {
     if ($('#xk-consent')) return;
     var d = document.createElement('div'); d.id = 'xk-consent'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Cookie consent');
-    d.innerHTML = '<p><b>Cookies &amp; ads.</b> XKing is free because of ads. With your OK, we and our ad partners load advertising scripts that may use cookies' +
-      (PAGE === 'bath' ? ' and your Ads Bath timer only counts after you accept' : '') + '. Declining keeps all ads off.</p>' +
-      '<div class="xk-cb"><button type="button" class="xk-ok" data-xk-c="granted">Accept</button><button type="button" data-xk-c="denied">Decline</button></div>';
+    d.innerHTML = '<p><b>Cookies (optional).</b> XKing is free because of ads. Accept lets us keep a small cookie to remember your choice. Prefer none? Just pick <b>No cookies</b>: we will not store any cookies or settings, and everything still works, ads included (our ad partners may still use their own).</p>' +
+      '<div class="xk-cb"><button type="button" class="xk-ok" data-xk-c="granted">Accept cookies</button><button type="button" data-xk-c="denied">Ahh, no cookies please</button></div>';
     document.body.appendChild(d);
     d.addEventListener('click', function (e) { var b = e.target.closest('[data-xk-c]'); if (b) setConsent(b.getAttribute('data-xk-c')); });
     var bar = document.body.classList.contains('xk-bar-90') ? 98 : document.body.classList.contains('xk-bar-50') ? 58 : 0;
@@ -385,7 +398,7 @@
   var popDone = false;
   function popunder() {
     var u = safeUrl(CFG.popunder);
-    if (popDone || !u || !P.popunder || consent() !== 'granted' || blocked) return;
+    if (popDone || !u || !P.popunder || consent() === null || blocked) return;
     popDone = true;
     var s = document.createElement('script'); s.src = u; s.async = true; s.setAttribute('data-cfasync', 'false'); document.head.appendChild(s);
   }
@@ -394,7 +407,7 @@
   function sponsorUrl() { return safeUrl(CFG.smartlink); }
   function openSponsor() {
     var u = sponsorUrl();
-    if (!u || consent() !== 'granted') return false;
+    if (!u) return false;
     var w = window.open(u, '_blank', 'noopener,noreferrer');
     return !!w || true;
   }
@@ -411,7 +424,7 @@
     injectCss();
     var c = consent();
     if (c === null && (anyConfigured() || P.alwaysConsent)) showConsent();
-    if (c === 'granted') boot2(); else { baitBlocked(); sync(); }
+    boot2();
     var t = 0;
     window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(sync, 120); });
     window.addEventListener('scroll', function () { /* inline slots live in document coordinates: nothing to do */ }, { passive: true });
@@ -419,7 +432,7 @@
     document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-xk-ads-settings]')) { e.preventDefault(); showConsent(); } });
     var mt = 0;
     try { new MutationObserver(function () { clearTimeout(mt); mt = setTimeout(sync, 250); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
-    timerId = setInterval(function () { if (consent() === 'granted') { baitBlocked(); refreshBlocked(); netCheck(); } else { sync(); } }, 2000);
+    timerId = setInterval(function () { baitBlocked(); refreshBlocked(); netCheck(); }, 2000);
     document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-xk-sponsor]')) { e.preventDefault(); openSponsor(); } });
   }
 
@@ -428,7 +441,7 @@
     config: CFG, page: PAGE,
     consent: consent, setConsent: setConsent, openConsent: showConsent,
     isBlocked: function () { return blocked; },
-    canCount: function () { return consent() === 'granted' && !blocked && document.visibilityState === 'visible'; },
+    canCount: function () { return !blocked && document.visibilityState === 'visible'; },
     hasSponsor: function () { return !!sponsorUrl(); },
     openSponsor: openSponsor,
     on: on, sync: sync, configured: configured,
